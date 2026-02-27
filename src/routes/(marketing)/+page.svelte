@@ -104,7 +104,8 @@
   <div class="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-2 lg:gap-8 lg:px-8">
     <div class="flex flex-col gap-6 text-left">
       <h1 class="font-display text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
-        Stop Splitting Your Finances. Get Advice That Understands the Whole Picture.
+        Stop Splitting Your Finances. Get Advice That Understands the
+        <span class="text-gradient-primary">Whole Picture</span>.
       </h1>
       <p class="max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
         Most advisors don't understand your tax, and most accountants don't grow your wealth. As a
@@ -115,7 +116,7 @@
       <div class="flex flex-col gap-3 sm:flex-row">
         <a
           href="/booking"
-          class="inline-flex items-center justify-center rounded-md bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-sm transition hover:bg-brand/90"
+          class="inline-flex items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
         >
           Book a Free Discovery Call
         </a>
@@ -145,7 +146,9 @@
 
 <section class="border-b border-border/70 bg-card/30 py-16 sm:py-20">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Client Outcomes</h2>
+    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+      Client <span class="text-gradient-primary">Outcomes</span>
+    </h2>
     <div class="mt-8 grid gap-4 md:grid-cols-3">
       {#each socialProof as item}
         <article class="rounded-xl border border-border/70 bg-background p-5">
@@ -160,7 +163,9 @@
 
 <section class="py-16 sm:py-20">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Frequently Asked Questions</h2>
+    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+      Frequently Asked <span class="text-gradient-primary">Questions</span>
+    </h2>
     <div class="mt-8 space-y-3">
       {#each faqs as item}
         <details class="rounded-xl border border-border/70 bg-card px-5 py-4">
@@ -193,7 +198,7 @@
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
     <div class="rounded-2xl border border-border/70 bg-card/70 p-7 sm:p-10">
       <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-        The Unfair Advantage in Your Corner
+        The <span class="text-gradient-primary">Unfair Advantage</span> in Your Corner
       </h2>
       <p class="mt-5 max-w-4xl text-base leading-relaxed text-muted-foreground sm:text-lg">
         You shouldn't have to act as the middleman between your broker and your accountant. With a
@@ -205,7 +210,7 @@
       <div class="mt-8">
         <a
           href="/booking"
-          class="inline-flex items-center rounded-md bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-sm transition hover:bg-brand/90"
+          class="inline-flex items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
         >
           Book a Free Discovery Call
         </a>

@@ -144,7 +144,8 @@
       Rossouw Briers Services
     </p>
     <h1 class="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-      Comprehensive Financial Services: Wealth, Tax, & Accounting.
+      Comprehensive Financial Services:
+      <span class="text-gradient-primary">Wealth, Tax, & Accounting.</span>
     </h1>
     <p class="mt-5 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
       If you are searching for a Liberty Financial Advisor, a Specialist Tax Consultant, or a
@@ -156,7 +157,7 @@
 <section class="py-16 sm:py-20">
   <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 sm:px-6 md:grid-cols-3">
     {#each serviceCards as service, index}
-      <article class="group relative aspect-square overflow-hidden rounded-2xl">
+      <article class="group relative overflow-hidden rounded-2xl h-full min-h-[420px] sm:min-h-[450px] cursor-pointer shadow-lg">
         <div class="absolute inset-0">
           <img
             src={service.imageSrc}
@@ -193,7 +194,9 @@
 
 <section class="border-y border-border/70 bg-card/30 py-16 sm:py-20">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Client Outcomes</h2>
+    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+      Client <span class="text-gradient-primary">Outcomes</span>
+    </h2>
     <div class="mt-8 grid gap-4 md:grid-cols-3">
       {#each socialProof as item}
         <article class="rounded-xl border border-border/70 bg-background p-5">
@@ -208,7 +211,9 @@
 
 <section class="py-16 sm:py-20">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">Frequently Asked Questions</h2>
+    <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
+      Frequently Asked <span class="text-gradient-primary">Questions</span>
+    </h2>
     <div class="mt-8 space-y-3">
       {#each faqs as item}
         <details class="rounded-xl border border-border/70 bg-card px-5 py-4">
@@ -225,7 +230,8 @@
 <section class="border-t border-border/70 bg-card/40 py-14 sm:py-16">
   <div class="mx-auto max-w-6xl px-4 text-center sm:px-6">
     <h2 class="font-display text-3xl font-semibold tracking-tight sm:text-4xl">
-      One Advisor. One Strategy. One Complete Financial View.
+      One Advisor. One Strategy.
+      <span class="text-gradient-primary">One Complete Financial View.</span>
     </h2>
     <p class="mx-auto mt-4 max-w-3xl text-base text-muted-foreground">
       Rossouw Briers combines wealth planning, tax efficiency, and accounting clarity so each
@@ -234,7 +240,7 @@
     <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
       <a
         href="/booking"
-        class="inline-flex items-center rounded-md bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground transition hover:bg-brand/90"
+        class="inline-flex items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
       >
         Book a Free Discovery Call
       </a>

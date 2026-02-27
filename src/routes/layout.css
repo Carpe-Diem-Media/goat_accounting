@@ -154,6 +154,10 @@
 }
 
 @layer utilities {
+  .text-gradient-primary {
+    @apply bg-gradient-to-r from-primary-400 via-primary-500 to-primary-600 bg-clip-text text-transparent;
+  }
+
   .image-reveal {
     animation: image-fade-grow 700ms ease-out both;
     will-change: transform, opacity;

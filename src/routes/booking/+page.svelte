@@ -79,7 +79,7 @@
   <div class="grid gap-8 lg:grid-cols-[1fr_1.05fr]">
     <article class="rounded-2xl border border-border/70 bg-card/60 p-6 sm:p-8">
       <h1 class="font-display mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">
-        Schedule Your Consultation
+        Schedule Your <span class="text-gradient-primary">Consultation</span>
       </h1>
       <p class="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
         Choose a time that works for you. Whether you need tax advice, wealth management, or financial statements, let's map out your next steps.
@@ -96,7 +96,9 @@
     </article>
 
     <aside class="rounded-2xl border border-border/70 bg-card p-6 shadow-sm sm:p-8">
-      <h2 class="font-display text-2xl font-semibold tracking-tight">Book Your Slot</h2>
+      <h2 class="font-display text-2xl font-semibold tracking-tight">
+        Book <span class="text-gradient-primary">Your Slot</span>
+      </h2>
       <p class="mt-2 text-sm text-muted-foreground">All slots are shown in South African Standard Time (SAST, UTC+2).</p>
       <div class="mt-6">
         <LeadBookingForm />
@@ -107,7 +109,9 @@
 
 <section class="border-y border-border/70 bg-card/20 py-12 sm:py-14">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <h2 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Trusted by Clients Who Value Clarity</h2>
+    <h2 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+      Trusted by Clients Who Value <span class="text-gradient-primary">Clarity</span>
+    </h2>
     <div class="mt-6 grid gap-4 md:grid-cols-2">
       {#each socialProof as item}
         <article class="rounded-xl border border-border/70 bg-background p-5">
@@ -121,7 +125,9 @@
 
 <section class="py-12 sm:py-14">
   <div class="mx-auto max-w-6xl px-4 sm:px-6">
-    <h2 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">Booking FAQs</h2>
+    <h2 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+      Booking <span class="text-gradient-primary">FAQs</span>
+    </h2>
     <div class="mt-6 space-y-3">
       {#each faqs as item}
         <details class="rounded-xl border border-border/70 bg-card px-5 py-4">

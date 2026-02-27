@@ -56,7 +56,7 @@
 		<div class="mb-8 h-px w-12 bg-brand"></div>
 		<p class="text-sm font-medium uppercase tracking-widest text-brand">Get in Touch</p>
 		<h1 class="font-display mt-3 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-			Contact Goat Accounting
+			Contact <span class="text-gradient-primary">Goat Accounting</span>
 		</h1>
 		<p class="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
 			Share your priorities and I will get back to you within 24 hours to map next steps.
@@ -83,7 +83,7 @@
 						<h2
 							class="font-display text-2xl font-semibold tracking-tight sm:text-3xl"
 						>
-							Thank You
+							Thank <span class="text-gradient-primary">You</span>
 						</h2>
 						<p class="mx-auto mt-3 max-w-sm text-muted-foreground leading-relaxed">
 							Your message has been received. I'll be in touch within 24 hours to
@@ -216,7 +216,7 @@
 							<Button
 								type="submit"
 								size="lg"
-								class="bg-brand text-brand-foreground hover:bg-brand/90"
+								class="bg-primary-500 font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
 								disabled={submitting}
 							>
 								{#if submitting}
@@ -238,7 +238,7 @@
 						<h2
 							class="font-display text-lg font-semibold tracking-tight"
 						>
-							Contact Details
+							Contact <span class="text-gradient-primary">Details</span>
 						</h2>
 						<div class="mt-1 h-px w-8 bg-brand"></div>
 					</div>
@@ -293,7 +293,7 @@
 						<h2
 							class="font-display text-lg font-semibold tracking-tight"
 						>
-							Service Coverage
+							Service <span class="text-gradient-primary">Coverage</span>
 						</h2>
 						<div class="mt-1 h-px w-8 bg-brand"></div>
 					</div>
