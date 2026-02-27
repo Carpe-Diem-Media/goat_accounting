@@ -2,6 +2,7 @@
 	"name": "site",
 	"private": true,
 	"version": "0.0.1",
+	"packageManager": "bun@1.2.15",
 	"type": "module",
 	"scripts": {
 		"dev": "vite dev",
