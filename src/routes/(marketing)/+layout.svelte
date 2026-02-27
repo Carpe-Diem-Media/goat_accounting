@@ -22,7 +22,7 @@
   <header class="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
     <div class="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
       <a href="/" aria-label="Goat Accounting Home" onclick={() => (mobileMenuOpen = false)}>
-        <img src="/images/ui/goat-logo-icon.webp" alt="Goat Accounting Logo" class="h-10 w-auto sm:h-12" loading="eager" decoding="async" />
+        <img src="/images/ui/goat-logo-landscape.webp" alt="Goat Accounting Logo" class="h-8 w-auto sm:h-10" loading="eager" decoding="async" />
       </a>
 
       <nav class="hidden items-center gap-8 text-sm font-medium md:flex">
@@ -94,7 +94,7 @@
   <footer class="border-t border-border/70 bg-card/35">
     <div class="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-8 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
       <div class="flex flex-col gap-2">
-        <img src="/images/ui/goat-logo-landscape.webp" alt="Goat Accounting Logo" class="h-12 w-auto sm:h-16" loading="lazy" decoding="async" />
+        <img src="/images/ui/goat-logo-icon.webp" alt="Goat Accounting Logo" class="h-8 w-auto" loading="lazy" decoding="async" />
         <p>&copy; {new Date().getFullYear()} Goat Accounting. Financial guidance with clarity.</p>
       </div>
       <div class="flex items-center gap-4">
