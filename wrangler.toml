@@ -17,7 +17,7 @@ ADVISOR_EMAIL = "advisor@goataccounting.com"
 # Production environment (live site)
 [[env.production.kv_namespaces]]
 binding = "BOOKING_STATE"
-id = "REPLACE_WITH_PRODUCTION_KV_NAMESPACE_ID"
+id = "4d81337b6bda43608aec68ff115720e9"
 
 [env.production.vars]
 CALENDAR_PROVIDER = "google"
