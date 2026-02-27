@@ -1,0 +1,22 @@
+{
+  "name": "Goat Accounting",
+  "short_name": "Goat Accounting",
+  "description": "Professional bridal, event, and matric makeup and hair styling in Pretoria and Gauteng.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#173b63",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    },
+    {
+      "src": "/apple-touch-icon.svg",
+      "type": "image/svg+xml",
+      "sizes": "any"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+name = "goat-accounting"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-02-27"
+
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+# Cloudflare KV binding used by:
+# - lock:booking:{ISO_DATETIME}
+# - avail:{YYYY-MM-DD}
+[[kv_namespaces]]
+binding = "BOOKING_STATE"
+id = "REPLACE_WITH_PRODUCTION_KV_NAMESPACE_ID"
+preview_id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+
+[vars]
+# Calendar provider: "google" or "microsoft"
+CALENDAR_PROVIDER = "google"
+GOOGLE_CALENDAR_ID = "primary"
+CALENDAR_EVENT_DURATION_MINUTES = "60"
+
+# Mail routing (non-secret)
+RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.com>"
+ADVISOR_EMAIL = "advisor@goataccounting.com"
+
+[env.preview.vars]
+CALENDAR_PROVIDER = "google"
+GOOGLE_CALENDAR_ID = "primary"
+CALENDAR_EVENT_DURATION_MINUTES = "60"
+RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.com>"
+ADVISOR_EMAIL = "advisor@goataccounting.com"
+
+[env.production.vars]
+CALENDAR_PROVIDER = "google"
+GOOGLE_CALENDAR_ID = "primary"
+CALENDAR_EVENT_DURATION_MINUTES = "60"
+RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.com>"
+ADVISOR_EMAIL = "advisor@goataccounting.com"
+
+# Set secrets with wrangler (examples):
+# wrangler secret put GOOGLE_CALENDAR_ACCESS_TOKEN
+# wrangler secret put MS_GRAPH_ACCESS_TOKEN
+# wrangler secret put MS_GRAPH_SCHEDULE_ID
+# wrangler secret put MS_GRAPH_USER_ID
+# wrangler secret put RESEND_API_KEY
