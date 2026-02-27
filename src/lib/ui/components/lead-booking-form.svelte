@@ -156,7 +156,7 @@
     <input
       id="date"
       type="date"
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       min={minDate}
       bind:value={selectedDate}
       required
@@ -167,7 +167,7 @@
     <label for="time" class="mb-1 block text-sm font-medium text-foreground">Preferred time (SAST)</label>
     <select
       id="time"
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       bind:value={selectedTime}
       disabled={isLoadingSlots || availableSlots.length === 0}
       required
@@ -195,7 +195,7 @@
       id="name"
       type="text"
       bind:value={name}
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       placeholder="Your full name"
       required
     />
@@ -207,7 +207,7 @@
       id="email"
       type="email"
       bind:value={email}
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       placeholder="name@email.com"
       required
     />
@@ -219,7 +219,7 @@
       id="phone"
       type="tel"
       bind:value={phone}
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       placeholder="+27 82 123 4567"
       required
     />
@@ -230,7 +230,7 @@
     <select
       id="focus"
       bind:value={focus}
-      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       required
     >
       {#each focusOptions as option}
@@ -241,7 +241,7 @@
 
   <button
     type="submit"
-    class="inline-flex w-full items-center justify-center rounded-md bg-brand px-5 py-3 text-sm font-semibold text-brand-foreground transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
+    class="inline-flex w-full items-center justify-center rounded-lg bg-primary-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
     disabled={isSubmitting || !selectedDate || !selectedTime}
   >
     {#if isSubmitting}
