@@ -44,8 +44,7 @@
       description:
         "Secure your family’s future and grow your portfolio with confidence. As an advisor with Liberty and the Kainos Group, I provide tailored advice on retirement annuities, life cover, income protection, and long-term investment strategies. I don't just sell policies; I build resilient financial architectures.",
       cta: "Discuss Wealth & Risk Cover",
-      imageSrc:
-        "/images/services/financial-growth-concept-increasing-stacks-coins-with-upward-trending-line-graph%20(1).webp",
+      imageSrc: "/images/services/financial-growth.webp",
       imageAlt: "Advisor reviewing portfolio performance charts for long-term wealth planning",
     },
     {
@@ -53,7 +52,7 @@
       description:
         "Don't pay a cent more than you legally owe. Leveraging my role at Goat Accounting, I provide strategic tax planning for individuals and businesses. I ensure your wealth-building strategies are highly tax-efficient, managing your SARS compliance seamlessly so you can focus on growth.",
       cta: "Optimize My Tax",
-      imageSrc: "/images/services/team-chart-accountant-business-paper-talking%20(1).webp",
+      imageSrc: "/images/services/chart-accountant.webp",
       imageAlt: "Tax planning session with financial documents and compliance reports on desk",
     },
     {
@@ -61,7 +60,7 @@
       description:
         "Solid wealth is built on solid numbers. Armed with a Finance degree from NWU and years of practical experience at an established accounting firm, I handle full-suite financial accounting. From accurate financial statements to monthly management accounts, I give business owners the clarity they need to scale.",
       cta: "Handle My Accounting",
-      imageSrc: "/images/services/workplace-results-professional-report-accounting%20(1).webp",
+      imageSrc: "/images/services/accounting.webp",
       imageAlt: "Business accounting analysis with statements, reports, and growth metrics",
     },
   ] as const;

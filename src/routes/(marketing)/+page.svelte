@@ -131,7 +131,7 @@
     <div class="lg:col-span-7 lg:col-start-6">
       <div class="overflow-hidden rounded-2xl border border-border/70 bg-card/60 shadow-2xl">
         <img
-          src="/images/hero/home-hero.webp"
+          src="/images/hero/screen-with-graph-it-that-says-word-financial-it%20(1).webp"
           alt="Financial strategy meeting with data visualizations and planning documents"
           class="image-reveal aspect-[4/3] w-full object-cover lg:aspect-video"
           width="1600"

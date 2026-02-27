@@ -120,7 +120,7 @@
           aria-hidden="true"
         ></div>
         <img
-          src="/images/portraits/rossouw-office.webp"
+          src="/images/services/financial-consulting.webp"
           alt="Portrait of financial advisor Rossouw Briers"
           class="image-reveal relative z-10 aspect-[4/5] w-full rounded-2xl object-cover shadow-lg"
           width="960"
