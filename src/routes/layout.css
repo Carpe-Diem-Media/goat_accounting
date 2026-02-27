@@ -2,6 +2,13 @@
 
 @import "tailwindcss";
 
+@theme {
+  /* Goat Accounting Vibrant Yellow-Green (OKLCH) */
+  --color-primary-400: oklch(0.92 0.16 128); /* Lighter */
+  --color-primary-500: oklch(0.88 0.18 130); /* Main Accent */
+  --color-primary-600: oklch(0.82 0.17 132); /* Hover State */
+}
+
 @import "tw-animate-css";
 
 @plugin "@tailwindcss/typography";

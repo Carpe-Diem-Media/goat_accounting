@@ -101,18 +101,18 @@
 
 <section class="relative overflow-hidden border-b border-border/70">
   <div class="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,var(--color-brand)_0%,transparent_45%)] opacity-10"></div>
-  <div class="mx-auto grid max-w-7xl grid-cols-1 items-center gap-8 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-12">
-    <div class="z-10 lg:col-span-6 lg:-mr-12 lg:pr-12">
+  <div class="relative mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 pb-24 pt-16 sm:px-6 lg:grid-cols-2 lg:gap-8 lg:px-8">
+    <div class="flex flex-col gap-6 text-left">
       <h1 class="font-display text-4xl font-semibold tracking-tight sm:text-5xl lg:text-6xl">
         Stop Splitting Your Finances. Get Advice That Understands the Whole Picture.
       </h1>
-      <p class="mt-6 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
+      <p class="max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
         Most advisors don't understand your tax, and most accountants don't grow your wealth. As a
         qualified Financial Accountant, Tax Consultant, and Liberty Financial Advisor, I build
         holistic strategies that protect your money, optimize your tax, and secure your future, all
         under one roof.
       </p>
-      <div class="mt-8 flex flex-col gap-3 sm:flex-row">
+      <div class="flex flex-col gap-3 sm:flex-row">
         <a
           href="/booking"
           class="inline-flex items-center justify-center rounded-md bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-sm transition hover:bg-brand/90"
@@ -128,19 +128,17 @@
       </div>
     </div>
 
-    <div class="lg:col-span-7 lg:col-start-6">
-      <div class="overflow-hidden rounded-2xl border border-border/70 bg-card/60 shadow-2xl">
-        <img
-          src="/images/hero/screen-with-graph-it-that-says-word-financial-it%20(1).webp"
-          alt="Financial strategy meeting with data visualizations and planning documents"
-          class="image-reveal aspect-[4/3] w-full object-cover lg:aspect-video"
-          width="1600"
-          height="1200"
-          loading="eager"
-          fetchpriority="high"
-          decoding="async"
-        />
-      </div>
+    <div class="relative w-full overflow-hidden rounded-2xl shadow-xl">
+      <img
+        src="/images/hero/screen-with-graph-it-that-says-word-financial-it%20(1).webp"
+        alt="Financial strategy meeting with data visualizations and planning documents"
+        class="aspect-square w-full object-cover lg:aspect-[4/3]"
+        width="1600"
+        height="1200"
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
     </div>
   </div>
 </section>

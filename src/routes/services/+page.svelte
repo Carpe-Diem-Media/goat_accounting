@@ -156,7 +156,7 @@
 <section class="py-16 sm:py-20">
   <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 sm:px-6 md:grid-cols-3">
     {#each serviceCards as service, index}
-      <a href="/booking" class="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl">
+      <article class="group relative aspect-square overflow-hidden rounded-2xl">
         <div class="absolute inset-0">
           <img
             src={service.imageSrc}
@@ -168,21 +168,25 @@
             decoding="async"
           />
         </div>
-        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
-        <div class="relative z-10 flex h-full flex-col justify-end p-6 text-white md:p-8">
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-900/80 to-slate-900/30"></div>
+        <div class="absolute inset-0 bg-black/20"></div>
+        <div class="relative z-10 flex h-full flex-col justify-start p-6 md:p-8 text-white">
           <h2 class="font-display text-2xl font-semibold tracking-tight">
             {service.title}
           </h2>
-          <p
-            class="mt-3 translate-y-4 text-sm leading-relaxed text-white/90 opacity-80 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
-          >
+          <p class="mb-6 mt-3 text-sm leading-relaxed text-white/90">
             {service.description}
           </p>
-          <p class="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-white/90">
-            {service.cta}
-          </p>
+          <div class="mt-auto">
+            <a
+              href="/booking"
+              class="inline-flex w-full items-center justify-center rounded-lg bg-primary-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
+            >
+              {service.cta}
+            </a>
+          </div>
         </div>
-      </a>
+      </article>
     {/each}
   </div>
 </section>
