@@ -1,4 +1,4 @@
-export const SITE_URL = 'https://goataccounting.com';
+export const SITE_URL = 'https://goataccounting.co.za';
 
 export function abs_url(path: string) {
   const basePath = path.startsWith('/') ? path : `/${path}`;

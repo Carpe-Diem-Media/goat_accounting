@@ -75,37 +75,60 @@
 </svelte:head>
 
 <section class="border-b border-border/70 py-16 sm:py-20">
-  <div class="mx-auto max-w-5xl px-4 sm:px-6">
-    <h1 class="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
-      Meet Rossouw Briers: Bridging the Gap Between Accounting and Wealth.
-    </h1>
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="grid items-start gap-10 lg:grid-cols-2 lg:gap-12">
+      <div>
+        <h1 class="font-display text-4xl font-semibold tracking-tight sm:text-5xl">
+          Meet Rossouw Briers: Bridging the Gap Between Accounting and Wealth.
+        </h1>
 
-    <div class="mt-8 space-y-6 text-base leading-relaxed text-muted-foreground sm:text-lg">
-      <p>
-        I started my career deep in the numbers. After earning my Finance degree from NWU
-        Potchefstroom, I completed my accounting articles and spent years working on the front
-        lines of an established accounting firm. I saw firsthand how much money clients left on the
-        table because their accountants and their financial advisors never spoke to each other.
-      </p>
+        <div class="mt-8 space-y-6 text-base leading-relaxed text-muted-foreground sm:text-lg">
+          <p>
+            I started my career deep in the numbers. After earning my Finance degree from NWU
+            Potchefstroom, I completed my accounting articles and spent years working on the front
+            lines of an established accounting firm. I saw firsthand how much money clients left on
+            the table because their accountants and their financial advisors never spoke to each
+            other.
+          </p>
 
-      <p class="text-foreground font-semibold">I realized I could provide more value by being the bridge.</p>
+          <p class="text-foreground font-semibold">
+            I realized I could provide more value by being the bridge.
+          </p>
 
-      <p>
-        Today, as a Financial Accountant, Tax Consultant with Goat Accounting, and a Financial
-        Advisor under the Kainos Group and Liberty, I offer a modern, dynamic approach to personal
-        and business finance. Whether it's drafting your annual financial statements, navigating
-        complex tax legislation, or structuring an investment portfolio, my goal is simple: to be
-        the only financial partner you will ever need.
-      </p>
-    </div>
+          <p>
+            Today, as a Financial Accountant, Tax Consultant with Goat Accounting, and a Financial
+            Advisor under the Kainos Group and Liberty, I offer a modern, dynamic approach to
+            personal and business finance. Whether it's drafting your annual financial statements,
+            navigating complex tax legislation, or structuring an investment portfolio, my goal is
+            simple: to be the only financial partner you will ever need.
+          </p>
+        </div>
 
-    <div class="mt-10">
-      <a
-        href="/booking"
-        class="inline-flex items-center rounded-md bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-sm transition hover:bg-brand/90"
-      >
-        Let's Build Your Strategy
-      </a>
+        <div class="mt-10">
+          <a
+            href="/booking"
+            class="inline-flex items-center rounded-md bg-brand px-6 py-3 text-sm font-semibold text-brand-foreground shadow-sm transition hover:bg-brand/90"
+          >
+            Let's Build Your Strategy
+          </a>
+        </div>
+      </div>
+
+      <div class="relative mx-auto w-full max-w-md overflow-visible pb-4 pr-4 lg:max-w-none">
+        <div
+          class="absolute inset-0 -z-10 translate-x-4 translate-y-4 rounded-2xl bg-slate-100"
+          aria-hidden="true"
+        ></div>
+        <img
+          src="/images/portraits/rossouw-office.webp"
+          alt="Portrait of financial advisor Rossouw Briers"
+          class="image-reveal relative z-10 aspect-[4/5] w-full rounded-2xl object-cover shadow-lg"
+          width="960"
+          height="1200"
+          loading="eager"
+          decoding="async"
+        />
+      </div>
     </div>
   </div>
 </section>

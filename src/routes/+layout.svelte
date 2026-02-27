@@ -12,7 +12,7 @@
     url: SITE_URL,
     logo: BRAND_WORDMARK_PRIMARY_URL,
     telephone: "+27816098157",
-    email: "hello@goataccounting.com",
+    email: "hello@goataccounting.co.za",
   });
 </script>
 

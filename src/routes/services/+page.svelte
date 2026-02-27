@@ -38,6 +38,34 @@
     },
   ] as const;
 
+  const serviceCards = [
+    {
+      title: "Financial Advisor & Wealth Management",
+      description:
+        "Secure your family’s future and grow your portfolio with confidence. As an advisor with Liberty and the Kainos Group, I provide tailored advice on retirement annuities, life cover, income protection, and long-term investment strategies. I don't just sell policies; I build resilient financial architectures.",
+      cta: "Discuss Wealth & Risk Cover",
+      imageSrc:
+        "/images/services/financial-growth-concept-increasing-stacks-coins-with-upward-trending-line-graph%20(1).webp",
+      imageAlt: "Advisor reviewing portfolio performance charts for long-term wealth planning",
+    },
+    {
+      title: "Specialist Tax Consultant",
+      description:
+        "Don't pay a cent more than you legally owe. Leveraging my role at Goat Accounting, I provide strategic tax planning for individuals and businesses. I ensure your wealth-building strategies are highly tax-efficient, managing your SARS compliance seamlessly so you can focus on growth.",
+      cta: "Optimize My Tax",
+      imageSrc: "/images/services/team-chart-accountant-business-paper-talking%20(1).webp",
+      imageAlt: "Tax planning session with financial documents and compliance reports on desk",
+    },
+    {
+      title: "Financial Accountant & Business Services",
+      description:
+        "Solid wealth is built on solid numbers. Armed with a Finance degree from NWU and years of practical experience at an established accounting firm, I handle full-suite financial accounting. From accurate financial statements to monthly management accounts, I give business owners the clarity they need to scale.",
+      cta: "Handle My Accounting",
+      imageSrc: "/images/services/workplace-results-professional-report-accounting%20(1).webp",
+      imageAlt: "Business accounting analysis with statements, reports, and growth metrics",
+    },
+  ] as const;
+
 </script>
 
 <svelte:head>
@@ -127,61 +155,36 @@
 </section>
 
 <section class="py-16 sm:py-20">
-  <div class="mx-auto grid max-w-6xl gap-6 px-4 sm:px-6 lg:grid-cols-3">
-    <article class="flex h-full flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Service Pillar 1</p>
-      <h2 class="mt-3 font-display text-2xl font-semibold tracking-tight">
-        Financial Advisor & Wealth Management
-      </h2>
-      <p class="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-        Secure your family’s future and grow your portfolio with confidence. As an advisor with
-        Liberty and the Kainos Group, I provide tailored advice on retirement annuities, life
-        cover, income protection, and long-term investment strategies. I don't just sell policies;
-        I build resilient financial architectures.
-      </p>
-      <a
-        href="/booking"
-        class="mt-6 inline-flex w-fit items-center rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand/90"
-      >
-        Discuss Wealth & Risk Cover
+  <div class="mx-auto grid max-w-6xl grid-cols-1 gap-6 px-4 sm:px-6 md:grid-cols-3">
+    {#each serviceCards as service, index}
+      <a href="/booking" class="group relative aspect-square cursor-pointer overflow-hidden rounded-2xl">
+        <div class="absolute inset-0">
+          <img
+            src={service.imageSrc}
+            alt={service.imageAlt}
+            class="image-reveal absolute inset-0 h-full w-full object-cover transition-transform duration-700 group-hover:scale-110"
+            width="1200"
+            height="1200"
+            loading={index === 0 ? "eager" : "lazy"}
+            decoding="async"
+          />
+        </div>
+        <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-slate-900/40 to-transparent"></div>
+        <div class="relative z-10 flex h-full flex-col justify-end p-6 text-white md:p-8">
+          <h2 class="font-display text-2xl font-semibold tracking-tight">
+            {service.title}
+          </h2>
+          <p
+            class="mt-3 translate-y-4 text-sm leading-relaxed text-white/90 opacity-80 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100"
+          >
+            {service.description}
+          </p>
+          <p class="mt-4 text-xs font-semibold uppercase tracking-[0.12em] text-white/90">
+            {service.cta}
+          </p>
+        </div>
       </a>
-    </article>
-
-    <article class="flex h-full flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Service Pillar 2</p>
-      <h2 class="mt-3 font-display text-2xl font-semibold tracking-tight">Specialist Tax Consultant</h2>
-      <p class="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-        Don't pay a cent more than you legally owe. Leveraging my role at Goat Accounting, I
-        provide strategic tax planning for individuals and businesses. I ensure your wealth-building
-        strategies are highly tax-efficient, managing your SARS compliance seamlessly so you can
-        focus on growth.
-      </p>
-      <a
-        href="/booking"
-        class="mt-6 inline-flex w-fit items-center rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand/90"
-      >
-        Optimize My Tax
-      </a>
-    </article>
-
-    <article class="flex h-full flex-col rounded-2xl border border-border/70 bg-card p-6 shadow-sm">
-      <p class="text-xs font-semibold uppercase tracking-[0.14em] text-brand">Service Pillar 3</p>
-      <h2 class="mt-3 font-display text-2xl font-semibold tracking-tight">
-        Financial Accountant & Business Services
-      </h2>
-      <p class="mt-4 text-sm leading-relaxed text-muted-foreground sm:text-base">
-        Solid wealth is built on solid numbers. Armed with a Finance degree from NWU and years of
-        practical experience at an established accounting firm, I handle full-suite financial
-        accounting. From accurate financial statements to monthly management accounts, I give
-        business owners the clarity they need to scale.
-      </p>
-      <a
-        href="/booking"
-        class="mt-6 inline-flex w-fit items-center rounded-md bg-brand px-5 py-2.5 text-sm font-semibold text-brand-foreground transition hover:bg-brand/90"
-      >
-        Handle My Accounting
-      </a>
-    </article>
+    {/each}
   </div>
 </section>
 

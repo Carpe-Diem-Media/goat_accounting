@@ -1,136 +1,166 @@
 <script lang="ts">
-  import { LeadSchema, type PrimaryInterest } from "$lib/domain/lead_schema";
+  import type { PrimaryInterest } from "$lib/domain/lead_schema";
 
-  type FocusSelection =
-    | "Wealth & Investments"
-    | "Tax Consulting"
-    | "Financial Statements"
-    | "General/Full Review";
+  type FormStatus = { type: "success" | "error"; message: string } | null;
 
-  type FieldErrors = {
-    client_name?: string;
-    client_email?: string;
-    client_phone?: string;
-    focus_selection?: string;
-  };
-
-  const focusOptions: FocusSelection[] = [
-    "Wealth & Investments",
-    "Tax Consulting",
-    "Financial Statements",
-    "General/Full Review",
+  const focusOptions: PrimaryInterest[] = [
+    "Retirement",
+    "Investments",
+    "Risk Cover",
+    "General",
   ];
 
-  const availability = buildMockAvailability();
-  const availableDates = Object.keys(availability);
+  const minDate = getTomorrowDateString();
+  let availabilityRequestId = 0;
 
-  let selectedDate = $state(availableDates[0] ?? "");
+  let selectedDate = $state(minDate);
   let selectedTime = $state("");
-  let focusSelection = $state<FocusSelection>("Wealth & Investments");
-  let errors = $state<FieldErrors>({});
-  let statusMessage = $state("");
-  let statusType = $state<"success" | "error" | "idle">("idle");
-
-  let form = $state(blankForm());
-  const availableTimes = $derived(selectedDate ? availability[selectedDate] ?? [] : []);
+  let name = $state("");
+  let email = $state("");
+  let phone = $state("");
+  let focus = $state<PrimaryInterest>("Investments");
+  let availableSlots = $state<string[]>([]);
+  let isLoadingSlots = $state(false);
+  let isSubmitting = $state(false);
+  let formStatus = $state<FormStatus>(null);
 
   $effect(() => {
-    if (!availableTimes.includes(selectedTime)) {
-      selectedTime = availableTimes[0] ?? "";
-    }
-  });
+    const date = selectedDate;
+    selectedTime = "";
+    availableSlots = [];
 
-  function blankForm() {
-    return {
-      client_name: "",
-      client_email: "",
-      client_phone: "",
-    };
-  }
-
-  function mapFocusToPrimaryInterest(focus: FocusSelection): PrimaryInterest {
-    if (focus === "Wealth & Investments") return "Investments";
-    return "General";
-  }
-
-  function toDateKey(date: Date): string {
-    const year = date.getFullYear();
-    const month = `${date.getMonth() + 1}`.padStart(2, "0");
-    const day = `${date.getDate()}`.padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-
-  function buildMockAvailability(): Record<string, string[]> {
-    const slots: Record<string, string[]> = {};
-    const now = new Date();
-
-    for (let i = 1; i <= 18; i += 1) {
-      const date = new Date(now);
-      date.setDate(now.getDate() + i);
-      const day = date.getDay();
-
-      if (day === 0 || day === 6) continue;
-
-      const key = toDateKey(date);
-      slots[key] = ["09:00", "10:30", "13:00", "15:30"];
-      if (Object.keys(slots).length >= 10) break;
-    }
-
-    return slots;
-  }
-
-  function buildAppointmentIso(date: string, time: string): string {
-    return `${date}T${time}:00+02:00`;
-  }
-
-  function onSubmit(event: SubmitEvent) {
-    event.preventDefault();
-    statusMessage = "";
-    statusType = "idle";
-    errors = {};
-
-    const payload = {
-      ...form,
-      primary_interest: mapFocusToPrimaryInterest(focusSelection),
-      appointment_start_iso: buildAppointmentIso(selectedDate, selectedTime),
-    };
-
-    const validated = LeadSchema.safeParse(payload);
-    if (!validated.success) {
-      const flattened = validated.error.flatten().fieldErrors;
-      errors = {
-        client_name: flattened.client_name?.[0],
-        client_email: flattened.client_email?.[0],
-        client_phone: flattened.client_phone?.[0],
-        focus_selection: flattened.primary_interest?.[0],
-      };
-      if (flattened.appointment_start_iso?.[0]) {
-        statusType = "error";
-        statusMessage = flattened.appointment_start_iso[0];
-      }
+    if (!date) {
+      isLoadingSlots = false;
       return;
     }
 
-    statusType = "success";
-    statusMessage = "Booking request captured. Next step: connect this form to your booking API endpoint.";
-    form = blankForm();
-    selectedTime = availableTimes[0] ?? "";
+    void fetchAvailability(date);
+  });
+
+  function getTomorrowDateString(): string {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const year = tomorrow.getFullYear();
+    const month = String(tomorrow.getMonth() + 1).padStart(2, "0");
+    const day = String(tomorrow.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+
+  function formatSlotLabel(slot: string): string {
+    const parsed = new Date(slot);
+    if (Number.isNaN(parsed.getTime())) return slot;
+
+    return new Intl.DateTimeFormat("en-ZA", {
+      timeZone: "Africa/Johannesburg",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    }).format(parsed);
+  }
+
+  async function fetchAvailability(date: string) {
+    const requestId = ++availabilityRequestId;
+    isLoadingSlots = true;
+
+    try {
+      const response = await fetch(`/api/availability?date=${encodeURIComponent(date)}`);
+      const data = (await response.json()) as { open_slots?: string[]; error?: unknown };
+
+      if (requestId !== availabilityRequestId) return;
+
+      if (response.ok && Array.isArray(data.open_slots)) {
+        availableSlots = data.open_slots;
+      } else {
+        availableSlots = [];
+      }
+    } catch {
+      if (requestId !== availabilityRequestId) return;
+      availableSlots = [];
+    } finally {
+      if (requestId === availabilityRequestId) {
+        isLoadingSlots = false;
+      }
+    }
+  }
+
+  async function handleSubmit(event: SubmitEvent) {
+    event.preventDefault();
+    formStatus = null;
+
+    if (!selectedTime) {
+      formStatus = { type: "error", message: "Please select an available time slot." };
+      return;
+    }
+
+    isSubmitting = true;
+
+    try {
+      const payload = {
+        client_name: name,
+        client_email: email,
+        client_phone: phone,
+        primary_interest: focus,
+        appointment_start_iso: selectedTime,
+        client_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      };
+
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (response.status === 409) {
+        formStatus = {
+          type: "error",
+          message: "This slot was just booked by someone else. Please select another time.",
+        };
+        selectedTime = "";
+        await fetchAvailability(selectedDate);
+        return;
+      }
+
+      if (response.ok) {
+        formStatus = {
+          type: "success",
+          message: "Booking confirmed! Check your email for details.",
+        };
+        name = "";
+        email = "";
+        phone = "";
+        focus = "Investments";
+        selectedTime = "";
+        return;
+      }
+
+      formStatus = {
+        type: "error",
+        message: "Unable to confirm your booking right now. Please try again.",
+      };
+    } catch {
+      formStatus = {
+        type: "error",
+        message: "Unable to submit right now. Please check your connection and try again.",
+      };
+    } finally {
+      isSubmitting = false;
+    }
   }
 </script>
 
-<form onsubmit={onSubmit} class="space-y-5">
+<form onsubmit={handleSubmit} class="space-y-5">
   <div>
     <label for="date" class="mb-1 block text-sm font-medium text-foreground">Preferred date</label>
-    <select
+    <input
       id="date"
+      type="date"
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
+      min={minDate}
       bind:value={selectedDate}
       required
-    >
-      {#each availableDates as date}
-        <option value={date}>{date}</option>
-      {/each}
-    </select>
+    />
   </div>
 
   <div>
@@ -139,13 +169,21 @@
       id="time"
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
       bind:value={selectedTime}
+      disabled={isLoadingSlots || availableSlots.length === 0}
       required
     >
-      {#if availableTimes.length === 0}
-        <option value="">No mock slots available</option>
-      {:else}
-        {#each availableTimes as slot}
-          <option value={slot}>{slot}</option>
+      <option value="" disabled>
+        {#if isLoadingSlots}
+          Loading available slots...
+        {:else if availableSlots.length === 0}
+          No available slots for this date
+        {:else}
+          Select a time
+        {/if}
+      </option>
+      {#if availableSlots.length > 0}
+        {#each availableSlots as slot}
+          <option value={slot}>{formatSlotLabel(slot)}</option>
         {/each}
       {/if}
     </select>
@@ -156,14 +194,11 @@
     <input
       id="name"
       type="text"
-      bind:value={form.client_name}
+      bind:value={name}
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
       placeholder="Your full name"
       required
     />
-    {#if errors.client_name}
-      <p class="mt-1 text-xs text-destructive">{errors.client_name}</p>
-    {/if}
   </div>
 
   <div>
@@ -171,14 +206,11 @@
     <input
       id="email"
       type="email"
-      bind:value={form.client_email}
+      bind:value={email}
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
       placeholder="name@email.com"
       required
     />
-    {#if errors.client_email}
-      <p class="mt-1 text-xs text-destructive">{errors.client_email}</p>
-    {/if}
   </div>
 
   <div>
@@ -186,21 +218,18 @@
     <input
       id="phone"
       type="tel"
-      bind:value={form.client_phone}
+      bind:value={phone}
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
       placeholder="+27 82 123 4567"
       required
     />
-    {#if errors.client_phone}
-      <p class="mt-1 text-xs text-destructive">{errors.client_phone}</p>
-    {/if}
   </div>
 
   <div>
     <label for="focus" class="mb-1 block text-sm font-medium text-foreground">What is your primary focus today?</label>
     <select
       id="focus"
-      bind:value={focusSelection}
+      bind:value={focus}
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background focus:border-ring focus:ring-2 focus:ring-ring/30"
       required
     >
@@ -208,26 +237,27 @@
         <option value={option}>{option}</option>
       {/each}
     </select>
-    {#if errors.focus_selection}
-      <p class="mt-1 text-xs text-destructive">{errors.focus_selection}</p>
-    {/if}
   </div>
 
   <button
     type="submit"
     class="inline-flex w-full items-center justify-center rounded-md bg-brand px-5 py-3 text-sm font-semibold text-brand-foreground transition hover:bg-brand/90 disabled:cursor-not-allowed disabled:opacity-60"
-    disabled={!selectedDate || !selectedTime}
+    disabled={isSubmitting || !selectedDate || !selectedTime}
   >
-    Confirm Booking
+    {#if isSubmitting}
+      Confirming...
+    {:else}
+      Confirm Booking
+    {/if}
   </button>
 
-  {#if statusType === "success"}
+  {#if formStatus?.type === "success"}
     <p class="rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-700 dark:text-emerald-300">
-      {statusMessage}
+      {formStatus.message}
     </p>
-  {:else if statusType === "error"}
+  {:else if formStatus?.type === "error"}
     <p class="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs text-destructive">
-      {statusMessage}
+      {formStatus.message}
     </p>
   {/if}
 </form>

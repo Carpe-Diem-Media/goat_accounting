@@ -20,19 +20,19 @@
 	let submitting = $state(false);
 
 	const serviceOptions = [
-		'Bridal Makeup',
-		'Bridal Party / Bridesmaids',
-		'Matric Farewell',
-		'Special Occasion / Event',
-		'Photo Shoot / Editorial',
-		'Other',
+		'Wealth & Investments',
+		'Tax Consulting',
+		'Financial Statements',
+		'Risk Cover & Protection',
+		'Retirement Planning',
+		'General / Full Review',
 	] as const;
 
 	const pageUrl = abs_url('/contact');
 	const socialImage = abs_url('/og-default.svg');
 	const pageTitle = 'Goat Accounting | Contact';
 	const pageDescription =
-		'Contact Goat Accounting for bridal, event, and matric farewell makeup in Pretoria and surrounds. Book your consultation today.';
+		'Contact Goat Accounting to discuss wealth planning, tax consulting, and accounting support.';
 </script>
 
 <svelte:head>
@@ -56,11 +56,10 @@
 		<div class="mb-8 h-px w-12 bg-brand"></div>
 		<p class="text-sm font-medium uppercase tracking-widest text-brand">Get in Touch</p>
 		<h1 class="font-display mt-3 text-3xl font-semibold tracking-tight sm:text-4xl md:text-5xl">
-			Let's Create Your Look
+			Contact Goat Accounting
 		</h1>
 		<p class="mt-4 max-w-lg text-base leading-relaxed text-muted-foreground sm:text-lg">
-			Whether you're planning a wedding, farewell, or special event — I'd love to hear about
-			your vision. Fill in the form and I'll get back to you within 24 hours.
+			Share your priorities and I will get back to you within 24 hours to map next steps.
 		</p>
 	</div>
 </section>
@@ -160,13 +159,13 @@
 						<!-- Service & Date Row -->
 						<div class="grid gap-6 sm:grid-cols-2">
 							<div class="space-y-2">
-								<Label for="service">Service Type</Label>
+								<Label for="service">Primary Focus</Label>
 								<select
 									id="service"
 									name="service"
 									class="border-input bg-transparent dark:bg-input/30 placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex h-9 w-full rounded-md border px-3 py-1 text-base shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] md:text-sm"
 								>
-									<option value="">Select a service...</option>
+									<option value="">Select your focus...</option>
 									{#each serviceOptions as option}
 										<option
 											value={option}
@@ -179,7 +178,7 @@
 							</div>
 
 							<div class="space-y-2">
-								<Label for="date">Event Date</Label>
+								<Label for="date">Preferred Meeting Date</Label>
 								<Input
 									id="date"
 									name="date"
@@ -197,7 +196,7 @@
 							<Textarea
 								id="message"
 								name="message"
-								placeholder="Tell me about your event, the look you're going for, and any details I should know..."
+								placeholder="Tell me about your goals, current setup, and what outcome you want."
 								required
 								rows={5}
 								class="min-h-32 resize-y"
@@ -250,10 +249,10 @@
 							<div>
 								<p class="text-sm font-medium">Email</p>
 								<a
-									href="mailto:hello@goataccounting.com"
+									href="mailto:hello@goataccounting.co.za"
 									class="text-sm text-muted-foreground transition-colors hover:text-foreground"
 								>
-									hello@goataccounting.com
+									hello@goataccounting.co.za
 								</a>
 							</div>
 						</div>
@@ -280,8 +279,8 @@
 						<div class="flex gap-3">
 							<Clock class="mt-0.5 size-4 shrink-0 text-brand" />
 							<div>
-								<p class="text-sm font-medium">Response Time</p>
-								<p class="text-sm text-muted-foreground">
+							<p class="text-sm font-medium">Response Time</p>
+							<p class="text-sm text-muted-foreground">
 									Within 24 hours
 								</p>
 							</div>
@@ -294,7 +293,7 @@
 						<h2
 							class="font-display text-lg font-semibold tracking-tight"
 						>
-							Service Area
+							Service Coverage
 						</h2>
 						<div class="mt-1 h-px w-8 bg-brand"></div>
 					</div>
@@ -302,17 +301,17 @@
 					<div class="flex gap-3">
 						<MapPin class="mt-0.5 size-4 shrink-0 text-brand" />
 						<div>
-							<p class="text-sm font-medium">Based in Pretoria</p>
+							<p class="text-sm font-medium">Based in South Africa</p>
 							<p class="text-sm leading-relaxed text-muted-foreground">
-								Available across Gauteng — Pretoria, Johannesburg,
-								Centurion, Midrand, and surrounding areas.
+								Serving clients nationally via online consultations, with in-person sessions by
+								appointment.
 							</p>
 						</div>
 					</div>
 
 					<p class="text-xs leading-relaxed text-muted-foreground/70">
-						Travel fees may apply for locations outside the greater Pretoria area.
-						Let me know your venue and I'll confirm availability.
+						Consultation format and documentation requirements are confirmed once your enquiry is
+						reviewed.
 					</p>
 				</div>
 			</aside>

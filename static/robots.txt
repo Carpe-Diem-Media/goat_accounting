@@ -2,4 +2,4 @@
 User-agent: *
 Disallow:
 
-Sitemap: https://goataccounting.com/sitemap.xml
+Sitemap: https://goataccounting.co.za/sitemap.xml
