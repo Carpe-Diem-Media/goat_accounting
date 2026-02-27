@@ -1,5 +1,10 @@
 <script lang="ts">
   import LeadBookingForm from "$lib/ui/components/lead-booking-form.svelte";
+  import { WHATSAPP_URL } from "$lib/config/social.js";
+
+  const CONTACT_EMAIL = "hello@goataccounting.co.za";
+  const CONTACT_PHONE_DISPLAY = "+27 81 609 8157";
+  const CONTACT_PHONE_E164 = "+27816098157";
 
   const process = [
     {
@@ -104,6 +109,40 @@
         <LeadBookingForm />
       </div>
     </aside>
+  </div>
+</section>
+
+<section class="border-y border-border/70 bg-card/30 py-12 sm:py-14">
+  <div class="mx-auto max-w-6xl px-4 sm:px-6">
+    <div class="rounded-2xl border border-border/70 bg-card p-6 sm:p-8">
+      <h2 class="font-display text-2xl font-semibold tracking-tight sm:text-3xl">
+        Need <span class="text-gradient-primary">More Information</span> First?
+      </h2>
+      <p class="mt-3 max-w-3xl text-sm leading-relaxed text-muted-foreground sm:text-base">
+        If you are not ready to book yet, reach out directly and I will help you understand the
+        best next step for your situation.
+      </p>
+      <div class="mt-6 grid gap-3 sm:grid-cols-3">
+        <a
+          href={`mailto:${CONTACT_EMAIL}`}
+          class="inline-flex items-center justify-center rounded-md border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-accent/30"
+        >
+          Email: {CONTACT_EMAIL}
+        </a>
+        <a
+          href={`tel:${CONTACT_PHONE_E164}`}
+          class="inline-flex items-center justify-center rounded-md border border-border bg-background px-5 py-3 text-sm font-semibold text-foreground transition hover:bg-accent/30"
+        >
+          Call: {CONTACT_PHONE_DISPLAY}
+        </a>
+        <a
+          href={WHATSAPP_URL}
+          class="inline-flex items-center justify-center rounded-lg bg-primary-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
+        >
+          Message on WhatsApp
+        </a>
+      </div>
+    </div>
   </div>
 </section>
 

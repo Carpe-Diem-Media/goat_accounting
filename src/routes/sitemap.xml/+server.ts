@@ -11,7 +11,6 @@ export const GET: RequestHandler = () => {
     { path: '/about', changefreq: 'monthly', priority: '0.8', lastmod: SITE_LASTMOD },
     { path: '/services', changefreq: 'monthly', priority: '0.9', lastmod: SITE_LASTMOD },
     { path: '/booking', changefreq: 'weekly', priority: '0.9', lastmod: SITE_LASTMOD },
-    { path: '/contact', changefreq: 'monthly', priority: '0.8', lastmod: SITE_LASTMOD },
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
