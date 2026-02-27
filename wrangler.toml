@@ -1,18 +1,19 @@
 name = "goat-accounting"
 pages_build_output_dir = ".svelte-kit/cloudflare"
 compatibility_date = "2026-02-27"
+compatibility_flags = ["nodejs_compat"] # CRITICAL: Added to prevent 500 runtime errors
 
 # Preview environment (local dev and branch previews)
 [[env.preview.kv_namespaces]]
 binding = "BOOKING_STATE"
-id = "REPLACE_WITH_PREVIEW_KV_NAMESPACE_ID"
+id = "4d81337b6bda43608aec68ff115720e9" # Use the same ID to prevent build crashes
 
 [env.preview.vars]
 CALENDAR_PROVIDER = "google"
 GOOGLE_CALENDAR_ID = "primary"
 CALENDAR_EVENT_DURATION_MINUTES = "60"
-RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.com>"
-ADVISOR_EMAIL = "advisor@goataccounting.com"
+RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.co.za>"
+ADVISOR_EMAIL = "rossouw@goataccounting.co.za"
 
 # Production environment (live site)
 [[env.production.kv_namespaces]]
@@ -23,5 +24,5 @@ id = "4d81337b6bda43608aec68ff115720e9"
 CALENDAR_PROVIDER = "google"
 GOOGLE_CALENDAR_ID = "primary"
 CALENDAR_EVENT_DURATION_MINUTES = "60"
-RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.com>"
-ADVISOR_EMAIL = "advisor@goataccounting.com"
+RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.co.za>"
+ADVISOR_EMAIL = "rossouw@goataccounting.co.za"
