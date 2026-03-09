@@ -2,6 +2,7 @@ import { LeadSchema, type Lead } from '$lib/domain/lead_schema';
 
 const REQUEST_TIMEOUT_MS = 5_000;
 const DEFAULT_FROM_EMAIL = 'bookings@goataccounting.co.za';
+const EVENT_DURATION_MINUTES = 60;
 
 export type PlatformEnv = Record<string, string | undefined>;
 
@@ -89,6 +90,46 @@ async function parseResponseJson(response: Response): Promise<unknown> {
 	}
 }
 
+function toIcsDateUtc(date: Date): string {
+	const y = date.getUTCFullYear();
+	const m = String(date.getUTCMonth() + 1).padStart(2, '0');
+	const d = String(date.getUTCDate()).padStart(2, '0');
+	const hh = String(date.getUTCHours()).padStart(2, '0');
+	const mm = String(date.getUTCMinutes()).padStart(2, '0');
+	const ss = String(date.getUTCSeconds()).padStart(2, '0');
+	return `${y}${m}${d}T${hh}${mm}${ss}Z`;
+}
+
+function generateIcsContent(lead: Lead): string {
+	const startMs = Date.parse(lead.appointment_start_iso);
+	const endMs = startMs + EVENT_DURATION_MINUTES * 60 * 1000;
+	const start = new Date(startMs);
+	const end = new Date(endMs);
+	const now = new Date();
+	const uid = `${now.getTime()}-${Math.random().toString(36).slice(2)}@goataccounting.co.za`;
+
+	const lines = [
+		'BEGIN:VCALENDAR',
+		'VERSION:2.0',
+		'PRODID:-//Goat Accounting//Booking//EN',
+		'CALSCALE:GREGORIAN',
+		'METHOD:REQUEST',
+		'BEGIN:VEVENT',
+		`UID:${uid}`,
+		`DTSTAMP:${toIcsDateUtc(now)}`,
+		`DTSTART:${toIcsDateUtc(start)}`,
+		`DTEND:${toIcsDateUtc(end)}`,
+		`SUMMARY:Consultation: ${lead.client_name} - ${lead.primary_interest}`,
+		`DESCRIPTION:Name: ${lead.client_name}\\nEmail: ${lead.client_email}\\nPhone: ${lead.client_phone}\\nPrimary Interest: ${lead.primary_interest}`,
+		`ATTENDEE;CN=${lead.client_name};RSVP=TRUE:mailto:${lead.client_email}`,
+		'STATUS:TENTATIVE',
+		'END:VEVENT',
+		'END:VCALENDAR'
+	];
+
+	return lines.join('\r\n');
+}
+
 export async function sendLeadNotification(
 	leadData: Lead,
 	env: any
@@ -127,6 +168,9 @@ export async function sendLeadNotification(
 			'</table>'
 		].join('');
 
+		const icsContent = generateIcsContent(lead);
+		const icsBase64 = btoa(icsContent);
+
 		const response = await fetchWithTimeout('https://api.resend.com/emails', {
 			method: 'POST',
 			headers: {
@@ -138,7 +182,13 @@ export async function sendLeadNotification(
 				to: [advisorEmail],
 				subject: `New Lead: ${lead.client_name} (${lead.primary_interest})`,
 				text: textBody,
-				html: htmlBody
+				html: htmlBody,
+				attachments: [
+					{
+						filename: 'consultation.ics',
+						content: icsBase64
+					}
+				]
 			})
 		});
 

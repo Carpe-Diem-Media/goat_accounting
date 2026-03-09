@@ -10,8 +10,9 @@
     "General",
   ];
 
+  const timeSlots = generateTimeSlots();
+
   const minDate = getTomorrowDateString();
-  let availabilityRequestId = 0;
 
   let selectedDate = $state(minDate);
   let selectedTime = $state("");
@@ -19,23 +20,8 @@
   let email = $state("");
   let phone = $state("");
   let focus = $state<PrimaryInterest>("Investments");
-  let availableSlots = $state<string[]>([]);
-  let isLoadingSlots = $state(false);
   let isSubmitting = $state(false);
   let formStatus = $state<FormStatus>(null);
-
-  $effect(() => {
-    const date = selectedDate;
-    selectedTime = "";
-    availableSlots = [];
-
-    if (!date) {
-      isLoadingSlots = false;
-      return;
-    }
-
-    void fetchAvailability(date);
-  });
 
   function getTomorrowDateString(): string {
     const tomorrow = new Date();
@@ -46,41 +32,21 @@
     return `${year}-${month}-${day}`;
   }
 
-  function formatSlotLabel(slot: string): string {
-    const parsed = new Date(slot);
-    if (Number.isNaN(parsed.getTime())) return slot;
-
-    return new Intl.DateTimeFormat("en-ZA", {
-      timeZone: "Africa/Johannesburg",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: false,
-    }).format(parsed);
-  }
-
-  async function fetchAvailability(date: string) {
-    const requestId = ++availabilityRequestId;
-    isLoadingSlots = true;
-
-    try {
-      const response = await fetch(`/api/availability?date=${encodeURIComponent(date)}`);
-      const data = (await response.json()) as { open_slots?: string[]; error?: unknown };
-
-      if (requestId !== availabilityRequestId) return;
-
-      if (response.ok && Array.isArray(data.open_slots)) {
-        availableSlots = data.open_slots;
-      } else {
-        availableSlots = [];
-      }
-    } catch {
-      if (requestId !== availabilityRequestId) return;
-      availableSlots = [];
-    } finally {
-      if (requestId === availabilityRequestId) {
-        isLoadingSlots = false;
+  function generateTimeSlots(): { value: string; label: string }[] {
+    const slots: { value: string; label: string }[] = [];
+    for (let hour = 8; hour <= 16; hour++) {
+      for (const minute of [0, 30]) {
+        if (hour === 16 && minute === 30) continue;
+        const hh = String(hour).padStart(2, "0");
+        const mm = String(minute).padStart(2, "0");
+        slots.push({ value: `${hh}:${mm}`, label: `${hh}:${mm}` });
       }
     }
+    return slots;
+  }
+
+  function buildAppointmentIso(date: string, time: string): string {
+    return `${date}T${time}:00+02:00`;
   }
 
   async function handleSubmit(event: SubmitEvent) {
@@ -88,7 +54,7 @@
     formStatus = null;
 
     if (!selectedTime) {
-      formStatus = { type: "error", message: "Please select an available time slot." };
+      formStatus = { type: "error", message: "Please select a preferred time." };
       return;
     }
 
@@ -100,8 +66,7 @@
         client_email: email,
         client_phone: phone,
         primary_interest: focus,
-        appointment_start_iso: selectedTime,
-        client_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        appointment_start_iso: buildAppointmentIso(selectedDate, selectedTime),
       };
 
       const response = await fetch("/api/checkout", {
@@ -112,20 +77,10 @@
         body: JSON.stringify(payload),
       });
 
-      if (response.status === 409) {
-        formStatus = {
-          type: "error",
-          message: "This slot was just booked by someone else. Please select another time.",
-        };
-        selectedTime = "";
-        await fetchAvailability(selectedDate);
-        return;
-      }
-
       if (response.ok) {
         formStatus = {
           type: "success",
-          message: "Booking confirmed! Check your email for details.",
+          message: "Request sent! Rossouw will confirm your booking shortly.",
         };
         name = "";
         email = "";
@@ -137,7 +92,7 @@
 
       formStatus = {
         type: "error",
-        message: "Unable to confirm your booking right now. Please try again.",
+        message: "Unable to send your request right now. Please try again.",
       };
     } catch {
       formStatus = {
@@ -169,23 +124,12 @@
       id="time"
       class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none ring-offset-background transition-colors duration-200 focus:border-primary-500 focus:ring-2 focus:ring-primary-500"
       bind:value={selectedTime}
-      disabled={isLoadingSlots || availableSlots.length === 0}
       required
     >
-      <option value="" disabled>
-        {#if isLoadingSlots}
-          Loading available slots...
-        {:else if availableSlots.length === 0}
-          No available slots for this date
-        {:else}
-          Select a time
-        {/if}
-      </option>
-      {#if availableSlots.length > 0}
-        {#each availableSlots as slot}
-          <option value={slot}>{formatSlotLabel(slot)}</option>
-        {/each}
-      {/if}
+      <option value="" disabled>Select a time</option>
+      {#each timeSlots as slot}
+        <option value={slot.value}>{slot.label}</option>
+      {/each}
     </select>
   </div>
 

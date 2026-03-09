@@ -262,10 +262,10 @@
 							<div>
 								<p class="text-sm font-medium">Phone / WhatsApp</p>
 								<a
-									href="tel:+27816098157"
+									href="tel:+27828198890"
 									class="text-sm text-muted-foreground transition-colors hover:text-foreground"
 								>
-									+27 81 609 8157
+									+27 82 819 8890
 								</a>
 								<a
 									href={WHATSAPP_URL}

@@ -11,7 +11,7 @@
     name: "Goat Accounting",
     url: SITE_URL,
     logo: BRAND_WORDMARK_PRIMARY_URL,
-    telephone: "+27816098157",
+    telephone: "+27828198890",
     email: "hello@goataccounting.co.za",
   });
 </script>

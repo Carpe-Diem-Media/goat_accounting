@@ -3,8 +3,8 @@
   import { WHATSAPP_URL } from "$lib/config/social.js";
 
   const CONTACT_EMAIL = "hello@goataccounting.co.za";
-  const CONTACT_PHONE_DISPLAY = "+27 81 609 8157";
-  const CONTACT_PHONE_E164 = "+27816098157";
+  const CONTACT_PHONE_DISPLAY = "+27 82 819 8890";
+  const CONTACT_PHONE_E164 = "+27828198890";
 
   const process = [
     {
@@ -93,7 +93,7 @@
       <ol class="mt-8 space-y-4">
         {#each process as item}
           <li class="rounded-xl border border-border/70 bg-background/85 p-4">
-            <p class="text-xs font-semibold uppercase tracking-[0.12em] text-brand">{item.step}</p>
+            <p class="text-gradient-primary text-xs font-semibold uppercase tracking-[0.12em]">{item.step}</p>
             <p class="mt-1 text-sm text-muted-foreground">{item.description}</p>
           </li>
         {/each}
