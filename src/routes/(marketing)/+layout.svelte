@@ -22,7 +22,7 @@
   <header class="sticky top-0 z-40 border-b border-border/70 bg-background/90 backdrop-blur">
     <div class="mx-auto flex h-20 max-w-6xl items-center justify-between px-4 sm:h-28 sm:px-6">
       <a href="/" aria-label="Goat Accounting Home" onclick={() => (mobileMenuOpen = false)}>
-        <img src="/images/ui/goat-logo-landscape.webp" alt="Goat Accounting Logo" class="h-10 w-auto object-contain sm:h-20" loading="eager" decoding="async" />
+        <img src="/images/ui/goat-logo-landscape.webp" alt="Goat Accounting Logo" class="h-15 w-auto object-contain sm:h-20" loading="eager" decoding="async" />
       </a>
 
       <nav class="hidden items-center gap-8 text-sm font-medium md:flex">
