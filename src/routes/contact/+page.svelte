@@ -216,7 +216,7 @@
 							<Button
 								type="submit"
 								size="lg"
-								class="bg-primary-500 font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
+								class="btn-gold-gradient font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
 								disabled={submitting}
 							>
 								{#if submitting}

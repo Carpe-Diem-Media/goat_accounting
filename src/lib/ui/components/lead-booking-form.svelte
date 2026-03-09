@@ -241,7 +241,7 @@
 
   <button
     type="submit"
-    class="inline-flex w-full items-center justify-center rounded-lg bg-primary-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+    class="btn-gold-gradient inline-flex w-full items-center justify-center rounded-lg px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
     disabled={isSubmitting || !selectedDate || !selectedTime}
   >
     {#if isSubmitting}

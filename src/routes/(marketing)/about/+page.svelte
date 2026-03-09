@@ -108,7 +108,7 @@
         <div class="mt-10">
           <a
             href="/booking"
-            class="inline-flex items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
+            class="btn-gold-gradient inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
           >
             Let's Build Your Strategy
           </a>

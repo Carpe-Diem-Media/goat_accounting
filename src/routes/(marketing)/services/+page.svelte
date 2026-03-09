@@ -181,7 +181,7 @@
           <div class="mt-auto">
             <a
               href="/booking"
-              class="inline-flex w-full items-center justify-center rounded-lg bg-primary-500 px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
+              class="btn-gold-gradient inline-flex w-full items-center justify-center rounded-lg px-5 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
             >
               {service.cta}
             </a>
@@ -240,7 +240,7 @@
     <div class="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
       <a
         href="/booking"
-        class="inline-flex items-center justify-center rounded-lg bg-primary-500 px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95"
+        class="btn-gold-gradient inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
       >
         Book a Free Discovery Call
       </a>

@@ -40,7 +40,7 @@
 
       <a
         href="/booking"
-        class="hidden items-center justify-center rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] hover:bg-primary-600 active:scale-95 md:inline-flex"
+        class="btn-gold-gradient hidden items-center justify-center rounded-lg px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95 md:inline-flex"
       >
         Book a Consultation
       </a>
@@ -78,7 +78,7 @@
         </nav>
         <a
           href="/booking"
-          class="mt-3 inline-flex w-full items-center justify-center rounded-lg bg-primary-500 px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:bg-primary-600 active:scale-95"
+          class="btn-gold-gradient mt-3 inline-flex w-full items-center justify-center rounded-lg px-5 py-2.5 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 active:scale-95"
           onclick={() => (mobileMenuOpen = false)}
         >
           Book a Consultation
