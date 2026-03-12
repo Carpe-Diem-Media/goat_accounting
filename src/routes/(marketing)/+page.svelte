@@ -1,5 +1,5 @@
 <script lang="ts">
-  const trustBar = ["Liberty", "Kainos Group", "Goat Accounting", "NWU Potchefstroom Alumni"] as const;
+  const trustBar = ["Goat Accounting", "NWU Potchefstroom Alumni"] as const;
 
   const socialProof = [
     {
@@ -46,7 +46,7 @@
   <title>Rossouw Briers | Financial Advisor, Tax Consultant & Accountant</title>
   <meta
     name="description"
-    content="Stop splitting your finances. Get holistic wealth management, tax consulting, and financial accounting in one place with Rossouw Briers (Liberty & Kainos Group)."
+    content="Stop splitting your finances. Get holistic wealth management, tax consulting, and financial accounting in one place with Rossouw Briers."
   />
   <link rel="canonical" href="https://goataccounting.co.za/" />
   <meta property="og:title" content="Rossouw Briers | Financial Advisor & Tax Consultant" />
@@ -61,7 +61,7 @@
   <meta name="twitter:title" content="Rossouw Briers | Financial Advisor, Tax Consultant & Accountant" />
   <meta
     name="twitter:description"
-    content="Stop splitting your finances. Get holistic wealth management, tax consulting, and financial accounting in one place with Rossouw Briers (Liberty & Kainos Group)."
+    content="Stop splitting your finances. Get holistic wealth management, tax consulting, and financial accounting in one place with Rossouw Briers."
   />
   <meta name="twitter:image" content="https://goataccounting.co.za/og-default.svg" />
 
@@ -77,8 +77,6 @@
           "url": "https://goataccounting.co.za",
           "areaServed": "ZA",
           "parentOrganization": [
-            { "@type": "Organization", "name": "Kainos Group" },
-            { "@type": "Organization", "name": "Liberty" },
             { "@type": "AccountingService", "name": "Goat Accounting" }
           ]
         },
@@ -109,7 +107,7 @@
       </h1>
       <p class="max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
         Most advisors don't understand your tax, and most accountants don't grow your wealth. As a
-        qualified Financial Accountant, Tax Consultant, and Liberty Financial Advisor, I build
+        qualified Financial Accountant, Tax Consultant, and Financial Advisor, I build
         holistic strategies that protect your money, optimize your tax, and secure your future, all
         under one roof.
       </p>
@@ -118,7 +116,7 @@
           href="/booking"
           class="btn-gold-gradient inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
         >
-          Book a Free Discovery Call
+          Book a Free Consultation
         </a>
         <a
           href="/services"
@@ -202,8 +200,7 @@
       </h2>
       <p class="mt-5 max-w-4xl text-base leading-relaxed text-muted-foreground sm:text-lg">
         You shouldn't have to act as the middleman between your broker and your accountant. With a
-        background in formal accounting articles and active roles across Goat Accounting and the
-        Kainos Group, I offer a true one-stop financial shop. From drafting your financial
+        background in formal accounting articles and active roles across Goat Accounting, I offer a true one-stop financial shop. From drafting your financial
         statements to structuring your retirement, every decision is made with your complete
         financial health in mind.
       </p>
@@ -212,7 +209,7 @@
           href="/booking"
           class="btn-gold-gradient inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
         >
-          Book a Free Discovery Call
+          Book a Free Consultation
         </a>
       </div>
     </div>

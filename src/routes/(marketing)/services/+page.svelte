@@ -42,7 +42,7 @@
     {
       title: "Financial Advisor & Wealth Management",
       description:
-        "Secure your family’s future and grow your portfolio with confidence. As an advisor with Liberty and the Kainos Group, I provide tailored advice on retirement annuities, life cover, income protection, and long-term investment strategies. I don't just sell policies; I build resilient financial architectures.",
+        "Secure your family’s future and grow your portfolio with confidence. As a licensed financial advisor, I provide tailored advice on retirement annuities, life cover, income protection, and long-term investment strategies. I don’t just sell policies; I build resilient financial architectures.",
       cta: "Discuss Wealth & Risk Cover",
       imageSrc: "/images/services/financial-growth.webp",
       imageAlt: "Advisor reviewing portfolio performance charts for long-term wealth planning",
@@ -98,7 +98,7 @@
           "@type": "Service",
           "serviceType": "Wealth Management & Financial Advisory",
           "provider": { "@id": "https://goataccounting.co.za/#organization" },
-          "description": "Retirement annuities, life cover, and long-term investment strategies backed by Liberty."
+          "description": "Retirement annuities, life cover, and long-term investment strategies from a licensed financial advisor."
         },
         {
           "@type": "Service",
@@ -148,7 +148,7 @@
       <span class="text-gradient-primary">Wealth, Tax, & Accounting.</span>
     </h1>
     <p class="mt-5 max-w-3xl text-base leading-relaxed text-muted-foreground sm:text-lg">
-      If you are searching for a Liberty Financial Advisor, a Specialist Tax Consultant, or a
+      If you are searching for a Financial Advisor, a Specialist Tax Consultant, or a
       Financial Accountant for your business, this is your one-stop advisory partner.
     </p>
   </div>
@@ -242,7 +242,7 @@
         href="/booking"
         class="btn-gold-gradient inline-flex items-center justify-center rounded-lg px-6 py-3 text-sm font-bold text-slate-950 shadow-lg transition-all duration-300 hover:scale-[1.02] active:scale-95"
       >
-        Book a Free Discovery Call
+        Book a Free Consultation
       </a>
       <a
         href="/about"

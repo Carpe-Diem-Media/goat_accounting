@@ -44,7 +44,7 @@
   <title>About Rossouw Briers | NWU Finance Grad & Tax Consultant</title>
   <meta
     name="description"
-    content="Learn how Rossouw Briers bridges the gap between accounting and wealth generation. Finance degree from NWU, former accounting articles, and Liberty Advisor."
+    content="Learn how Rossouw Briers bridges the gap between accounting and wealth generation. Finance degree from NWU, former accounting articles, and licensed Financial Advisor."
   />
   <link rel="canonical" href="https://goataccounting.co.za/about" />
   <meta property="og:title" content="About Rossouw Briers | NWU Finance Grad & Tax Consultant" />
@@ -97,8 +97,8 @@
           </p>
 
           <p>
-            Today, as a Financial Accountant, Tax Consultant with Goat Accounting, and a Financial
-            Advisor under the Kainos Group and Liberty, I offer a modern, dynamic approach to
+            Today, as a Financial Accountant, Tax Consultant with Goat Accounting, and a licensed Financial
+            Advisor, I offer a modern, dynamic approach to
             personal and business finance. Whether it's drafting your annual financial statements,
             navigating complex tax legislation, or structuring an investment portfolio, my goal is
             simple: to be the only financial partner you will ever need.
