@@ -22,6 +22,9 @@ declare global {
 				RESEND_API_KEY?: string;
 				RESEND_FROM_EMAIL?: string;
 				ADVISOR_EMAIL?: string;
+				SUPABASE_URL?: string;
+				SUPABASE_SERVICE_ROLE_KEY?: string;
+				SUPABASE_LEADS_TABLE?: string;
 			};
 		}
 	}

@@ -1,5 +1,6 @@
 import { LeadSchema } from '$lib/domain/lead_schema';
 import { sendLeadNotification } from '$lib/external/mailer_api';
+import { saveLeadToSupabase } from '$lib/external/supabase_leads';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
@@ -19,13 +20,10 @@ function json(data: unknown, status = 200): Response {
 	});
 }
 
-function mapExternalErrorToStatus(error: ExternalErrorLike): number {
+function mapSupabaseErrorToStatus(error: ExternalErrorLike): number {
 	switch (error.code) {
 		case 'VALIDATION_ERROR':
 			return 400;
-		case 'TIMEOUT_ERROR':
-			return 504;
-		case 'NETWORK_ERROR':
 		case 'PROVIDER_ERROR':
 			return 502;
 		case 'CONFIG_ERROR':
@@ -57,25 +55,36 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 	const lead = parsedLead.data;
 
-	const mailResult = await sendLeadNotification(lead, platform?.env);
-	if (!mailResult.ok) {
+	const saveResult = await saveLeadToSupabase(lead, platform?.env);
+	if (!saveResult.ok) {
 		return json(
 			{
 				ok: false,
 				error: {
-					code: mailResult.error.code,
-					message: mailResult.error.message
+					code: saveResult.error.code,
+					message: saveResult.error.message
 				}
 			},
-			mapExternalErrorToStatus(mailResult.error)
+			mapSupabaseErrorToStatus(saveResult.error)
 		);
 	}
+
+	const mailResult = await sendLeadNotification(lead, platform?.env);
 
 	return json(
 		{
 			ok: true,
 			appointment_start_iso: lead.appointment_start_iso,
-			notification: mailResult.data
+			database: saveResult.data,
+			notification: mailResult.ok
+				? mailResult.data
+				: {
+						ok: false,
+						error: {
+							code: mailResult.error.code,
+							message: mailResult.error.message
+						}
+					}
 		},
 		201
 	);
