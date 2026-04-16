@@ -14,6 +14,8 @@ GOOGLE_CALENDAR_ID = "primary"
 CALENDAR_EVENT_DURATION_MINUTES = "60"
 RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.co.za>"
 ADVISOR_EMAIL = "rossouw@goataccounting.co.za"
+PUBLIC_SUPABASE_URL = "https://pxguvhxfvaqtdvqwgbyd.supabase.co"
+PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_K4V12q3U9eIrF5DxlWuzEA_kgQksSq5"
 
 # Production environment (live site)
 [[env.production.kv_namespaces]]
@@ -26,3 +28,5 @@ GOOGLE_CALENDAR_ID = "primary"
 CALENDAR_EVENT_DURATION_MINUTES = "60"
 RESEND_FROM_EMAIL = "Goat Accounting <noreply@goataccounting.co.za>"
 ADVISOR_EMAIL = "rossouw@goataccounting.co.za"
+PUBLIC_SUPABASE_URL = "https://pxguvhxfvaqtdvqwgbyd.supabase.co"
+PUBLIC_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_K4V12q3U9eIrF5DxlWuzEA_kgQksSq5"
