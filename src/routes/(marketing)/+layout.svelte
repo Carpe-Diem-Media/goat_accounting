@@ -10,6 +10,7 @@
     { href: "/", label: "Home" },
     { href: "/about", label: "About" },
     { href: "/services", label: "Services" },
+    { href: "/tools/risk-appetite", label: "Risk Tool" },
   ] as const;
 
   const isActive = (href: string, pathname: string) => {

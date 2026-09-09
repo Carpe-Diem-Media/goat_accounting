@@ -10,6 +10,7 @@ export const GET: RequestHandler = () => {
     { path: '/', changefreq: 'weekly', priority: '1.0', lastmod: SITE_LASTMOD },
     { path: '/about', changefreq: 'monthly', priority: '0.8', lastmod: SITE_LASTMOD },
     { path: '/services', changefreq: 'monthly', priority: '0.9', lastmod: SITE_LASTMOD },
+    { path: '/tools/risk-appetite', changefreq: 'monthly', priority: '0.8', lastmod: SITE_LASTMOD },
     { path: '/booking', changefreq: 'weekly', priority: '0.9', lastmod: SITE_LASTMOD },
   ];
 
