@@ -76,6 +76,13 @@ const businessBooksStatusMonthBounds: Readonly<Record<string, readonly [number, 
 	not_sure: null
 };
 
+const orderedWorkloadBands: Readonly<Record<string, readonly string[]>> = {
+	'business.monthlyTransactionVolume': ['under_50', '50_to_150', '151_to_300', '301_to_750', 'over_750'],
+	'business.financialAccounts': ['one', '2_to_3', '4_to_6', '7_plus'],
+	'business.employeeCount': ['none', '1_to_5', '6_to_15', '16_to_30', '31_plus'],
+	'personal.rentalPropertyCount': ['one', '2_to_3', '4_plus']
+};
+
 const knownMultiSelectKeys = new Set([
 	'business.ongoingServices',
 	'business.complexityFactors',
@@ -162,22 +169,24 @@ function validateRuleSemantics(rule: PricingRule, index: number): void {
 			throw new PricingModelValidationError(`${path} must include every allowed value for ${rule.inputKey}.`);
 		}
 		for (const [bandIndex, band] of rule.bands.entries()) assertRange(band.range, `${path}.bands[${bandIndex}].range`);
-		if (rule.when) {
-			validateRuleInputScope(rule.scope, rule.when.inputKey, `${path}.when`);
-			validateAnswerCondition(rule.when, `${path}.when`);
-		}
-		if (rule.inputKey === 'business.monthlyTransactionVolume') {
-			const workloadOrder = ['under_50', '50_to_150', '151_to_300', '301_to_750', 'over_750'];
-			const bandsByValue = new Map(rule.bands.map((band) => [band.value, band.range]));
+		const bandsByValue = new Map(rule.bands.map((band) => [band.value, band.range]));
+		const workloadOrder = orderedWorkloadBands[rule.inputKey];
+		if (workloadOrder) {
 			let previous: { minCents: number; maxCents: number } | undefined;
 			for (const value of workloadOrder) {
 				const range = bandsByValue.get(value);
 				if (!range) throw new PricingModelValidationError(`${path} is missing workload band ${value}.`);
 				if (previous && (range.minCents < previous.minCents || range.maxCents < previous.maxCents)) {
-					throw new PricingModelValidationError(`${path} workload ranges must be monotone as transaction volume increases.`);
+					throw new PricingModelValidationError(`${path} workload ranges must be monotone as ${rule.inputKey} increases.`);
 				}
 				previous = range;
 			}
+		}
+		if (rule.when) {
+			validateRuleInputScope(rule.scope, rule.when.inputKey, `${path}.when`);
+			validateAnswerCondition(rule.when, `${path}.when`);
+		}
+		if (rule.inputKey === 'business.monthlyTransactionVolume') {
 			const lowestKnownRange = bandsByValue.get('under_50');
 			const highestKnownRange = bandsByValue.get('over_750');
 			const unknownRange = bandsByValue.get('not_sure');
@@ -337,39 +346,41 @@ function matchesRequiredApplicability(
 function hasMandatoryRuleCoverage(rules: readonly PricingRule[]): boolean {
 	const required: readonly Readonly<{
 		scope: 'business' | 'personal';
+		category: PricingRule['category'];
 		type: PricingRule['type'];
 		inputKey?: string;
 		when?: Readonly<{ inputKey: string; value: string }>;
 	}>[] = [
-		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.entityType' },
-		{ scope: 'business', type: 'PER_PERIOD_RANGE', inputKey: 'business.booksStatus' },
-		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.recordCondition' },
-		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.monthlyTransactionVolume' },
-		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.financialAccounts' },
-		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.employeeCount' },
-		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.taxPosition' },
-		{ scope: 'business', type: 'SERVICE_ADDON_RANGE', inputKey: 'business.ongoingServices' },
-		{ scope: 'business', type: 'SERVICE_ADDON_RANGE', inputKey: 'business.outstandingComplianceAreas' },
+		{ scope: 'business', category: 'catchup', type: 'BAND_RANGE', inputKey: 'business.entityType' },
+		{ scope: 'business', category: 'catchup', type: 'PER_PERIOD_RANGE', inputKey: 'business.booksStatus' },
+		{ scope: 'business', category: 'catchup', type: 'BAND_RANGE', inputKey: 'business.recordCondition' },
+		{ scope: 'business', category: 'ongoing', type: 'BAND_RANGE', inputKey: 'business.monthlyTransactionVolume' },
+		{ scope: 'business', category: 'ongoing', type: 'BAND_RANGE', inputKey: 'business.financialAccounts' },
+		{ scope: 'business', category: 'ongoing', type: 'BAND_RANGE', inputKey: 'business.employeeCount' },
+		{ scope: 'business', category: 'catchup', type: 'BAND_RANGE', inputKey: 'business.taxPosition' },
+		{ scope: 'business', category: 'ongoing', type: 'SERVICE_ADDON_RANGE', inputKey: 'business.ongoingServices' },
+		{ scope: 'business', category: 'catchup', type: 'SERVICE_ADDON_RANGE', inputKey: 'business.outstandingComplianceAreas' },
 		{
-			scope: 'business', type: 'PER_UNIT_RANGE', inputKey: 'business.entityCount',
+			scope: 'business', category: 'catchup', type: 'PER_UNIT_RANGE', inputKey: 'business.entityCount',
 			when: { inputKey: 'business.entityType', value: 'multiple_entities' }
 		},
-		{ scope: 'business', type: 'COMPLEXITY_SCORE', inputKey: 'business.complexityFactors' },
-		{ scope: 'personal', type: 'BAND_RANGE', inputKey: 'personal.currentStatus' },
-		{ scope: 'personal', type: 'SERVICE_ADDON_RANGE', inputKey: 'personal.incomeSources' },
-		{ scope: 'personal', type: 'BAND_RANGE', inputKey: 'personal.rentalPropertyCount' },
-		{ scope: 'personal', type: 'BAND_RANGE', inputKey: 'personal.sarsPosition' },
+		{ scope: 'business', category: 'score', type: 'COMPLEXITY_SCORE', inputKey: 'business.complexityFactors' },
+		{ scope: 'personal', category: 'catchup', type: 'BAND_RANGE', inputKey: 'personal.currentStatus' },
+		{ scope: 'personal', category: 'catchup', type: 'SERVICE_ADDON_RANGE', inputKey: 'personal.incomeSources' },
+		{ scope: 'personal', category: 'catchup', type: 'BAND_RANGE', inputKey: 'personal.rentalPropertyCount' },
+		{ scope: 'personal', category: 'catchup', type: 'BAND_RANGE', inputKey: 'personal.sarsPosition' },
 		{
-			scope: 'personal', type: 'PER_UNIT_RANGE', inputKey: 'personal.outstandingYears',
+			scope: 'personal', category: 'catchup', type: 'PER_UNIT_RANGE', inputKey: 'personal.outstandingYears',
 			when: { inputKey: 'personal.currentStatus', value: 'multiple_years_outstanding' }
 		},
-		{ scope: 'personal', type: 'SERVICE_ADDON_RANGE', inputKey: 'personal.ongoingRequirements' },
-		{ scope: 'personal', type: 'COMPLEXITY_SCORE', inputKey: 'personal.incomeSources' }
+		{ scope: 'personal', category: 'ongoing', type: 'SERVICE_ADDON_RANGE', inputKey: 'personal.ongoingRequirements' },
+		{ scope: 'personal', category: 'score', type: 'COMPLEXITY_SCORE', inputKey: 'personal.incomeSources' }
 	];
 	return required.every((expected) =>
 		rules.some((rule) => {
 			return (
 				rule.scope === expected.scope &&
+				rule.category === expected.category &&
 				rule.type === expected.type &&
 				('inputKey' in rule ? rule.inputKey === expected.inputKey : expected.inputKey === undefined) &&
 				matchesRequiredApplicability(rule, expected.when)

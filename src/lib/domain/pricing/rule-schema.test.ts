@@ -249,6 +249,138 @@ describe('bounded pricing rule schemas', () => {
 		expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory V1/i);
 	});
 
+	it('keeps mandatory recurring pricing drivers in the ongoing category', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+
+		for (const code of [
+			'BIZ-TRANSACTION-VOLUME',
+			'BIZ-FINANCIAL-ACCOUNTS',
+			'BIZ-EMPLOYEE-COUNT',
+			'BIZ-ONGOING-SERVICE',
+			'PERSONAL-ONGOING-SERVICE'
+		]) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			const rule = input.rules.find((candidate) => candidate.code === code);
+			if (!rule) throw new Error(`fixture must include ${code}`);
+			rule.category = 'catchup';
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory V1/i);
+		}
+	});
+
+	it('keeps mandatory historical-work pricing drivers in the catch-up category', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+
+		for (const code of [
+			'BIZ-ENTITY-TYPE',
+			'BIZ-BOOKS-PERIODS',
+			'BIZ-RECORD-CONDITION',
+			'BIZ-TAX-POSITION',
+			'BIZ-COMPLIANCE-AREA',
+			'BIZ-ENTITY-COUNT',
+			'PERSONAL-CURRENT-STATUS',
+			'PERSONAL-INCOME-SOURCE',
+			'PERSONAL-RENTAL-COUNT',
+			'PERSONAL-SARS-POSITION',
+			'PERSONAL-OUTSTANDING-YEARS'
+		]) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			const rule = input.rules.find((candidate) => candidate.code === code);
+			if (!rule) throw new Error(`fixture must include ${code}`);
+			rule.category = 'ongoing';
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory V1/i);
+		}
+	});
+
+	it('keeps optional catch-up payroll pricing valid beside mandatory ongoing employee pricing', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const employeeBand = dependencies.TEST_PRICING_MODEL.rules.find((rule) => rule.code === 'BIZ-EMPLOYEE-COUNT');
+		const payrollCatchup = dependencies.TEST_PRICING_MODEL.rules.find((rule) => rule.code === 'BIZ-PAYROLL-CATCHUP');
+		if (!employeeBand || !payrollCatchup) throw new Error('fixture must include recurring and catch-up payroll rules');
+
+		expect(employeeBand.category).toBe('ongoing');
+		expect(payrollCatchup.category).toBe('catchup');
+		expect(() => dependencies.validatePricingModel(dependencies.TEST_PRICING_MODEL)).not.toThrow();
+	});
+
+	it('rejects decreasing minimum cents across naturally ordered workload bands', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const orderedWorkloads = [
+			{ inputKey: 'business.financialAccounts', values: ['one', '2_to_3', '4_to_6', '7_plus'] },
+			{ inputKey: 'business.employeeCount', values: ['none', '1_to_5', '6_to_15', '16_to_30', '31_plus'] },
+			{ inputKey: 'personal.rentalPropertyCount', values: ['one', '2_to_3', '4_plus'] }
+		] as const;
+
+		for (const workload of orderedWorkloads) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			const rule = input.rules.find(
+				(candidate) => candidate.type === 'BAND_RANGE' && candidate.inputKey === workload.inputKey
+			);
+			if (!rule || rule.type !== 'BAND_RANGE') throw new Error(`fixture must include ${workload.inputKey}`);
+			const higherBand = rule.bands.find((band) => band.value === workload.values.at(-1));
+			const precedingBand = rule.bands.find((band) => band.value === workload.values.at(-2));
+			if (!higherBand || !precedingBand) throw new Error(`${workload.inputKey} must include its upper workload bands`);
+			higherBand.range = {
+				minCents: precedingBand.range.minCents - 1,
+				maxCents: Math.max(precedingBand.range.maxCents, higherBand.range.maxCents)
+			};
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/workload ranges must be monotone/i);
+		}
+	});
+
+	it('rejects decreasing maximum cents even when minimum cents remain ordered', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const orderedWorkloads = [
+			{ inputKey: 'business.financialAccounts', values: ['one', '2_to_3', '4_to_6', '7_plus'] },
+			{ inputKey: 'business.employeeCount', values: ['none', '1_to_5', '6_to_15', '16_to_30', '31_plus'] },
+			{ inputKey: 'personal.rentalPropertyCount', values: ['one', '2_to_3', '4_plus'] }
+		] as const;
+
+		for (const workload of orderedWorkloads) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			const rule = input.rules.find(
+				(candidate) => candidate.type === 'BAND_RANGE' && candidate.inputKey === workload.inputKey
+			);
+			if (!rule || rule.type !== 'BAND_RANGE') throw new Error(`fixture must include ${workload.inputKey}`);
+			const higherBand = rule.bands.find((band) => band.value === workload.values.at(-1));
+			const precedingBand = rule.bands.find((band) => band.value === workload.values.at(-2));
+			if (!higherBand || !precedingBand) throw new Error(`${workload.inputKey} must include its upper workload bands`);
+			higherBand.range = {
+				minCents: precedingBand.range.minCents,
+				maxCents: precedingBand.range.maxCents - 1
+			};
+			expect(higherBand.range.minCents).toBeGreaterThanOrEqual(precedingBand.range.minCents);
+			expect(higherBand.range.maxCents).toBeGreaterThanOrEqual(higherBand.range.minCents);
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/workload ranges must be monotone/i);
+		}
+	});
+
+	it('excludes not-sure bands from ordered workload comparisons', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const orderedWorkloads = [
+			{ inputKey: 'business.financialAccounts', highestKnown: '7_plus' },
+			{ inputKey: 'business.employeeCount', highestKnown: '31_plus' },
+			{ inputKey: 'personal.rentalPropertyCount', highestKnown: '4_plus' }
+		] as const;
+
+		for (const workload of orderedWorkloads) {
+			const rule = dependencies.TEST_PRICING_MODEL.rules.find(
+				(candidate) => candidate.type === 'BAND_RANGE' && candidate.inputKey === workload.inputKey
+			);
+			if (!rule || rule.type !== 'BAND_RANGE') throw new Error(`fixture must include ${workload.inputKey}`);
+			const unknownBand = rule.bands.find((band) => band.value === 'not_sure');
+			const highestKnownBand = rule.bands.find((band) => band.value === workload.highestKnown);
+			if (!unknownBand || !highestKnownBand) throw new Error(`${workload.inputKey} must include unknown and known upper bands`);
+			expect(unknownBand.range.minCents).toBeLessThan(highestKnownBand.range.minCents);
+		}
+		expect(() => dependencies.validatePricingModel(dependencies.TEST_PRICING_MODEL)).not.toThrow();
+	});
+
 	it('keeps required pricing drivers applicable while allowing conditional optional workload rules', async () => {
 		const dependencies = await getDependencies();
 		if (!dependencies) return;
