@@ -177,6 +177,24 @@ describe('bounded pricing rule schemas', () => {
 		expect(() => dependencies.validatePricingModel(neutralizedThresholds)).toThrow(/confidence threshold/i);
 	});
 
+	it('requires a mandatory review trigger for business SARS issues', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const sarsIssueTrigger = dependencies.TEST_PRICING_MODEL.rules.find(
+			(rule) =>
+				rule.type === 'REVIEW_TRIGGER' &&
+				rule.condition.type === 'ANSWER_EQUALS' &&
+				rule.condition.inputKey === 'business.taxPosition' &&
+				rule.condition.value === 'sars_issue'
+		);
+		expect(sarsIssueTrigger).toBeDefined();
+		if (!sarsIssueTrigger) throw new Error('fixture must include business SARS-issue review');
+
+		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+		input.rules = input.rules.filter((rule) => rule.code !== sarsIssueTrigger.code);
+		expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory.*professional-review/i);
+	});
+
 	it('requires PER_UNIT_RANGE rules to price missing entity and outstanding-year counts safely', async () => {
 		const dependencies = await getDependencies();
 		if (!dependencies) return;
@@ -229,6 +247,42 @@ describe('bounded pricing rule schemas', () => {
 		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
 		input.rules = input.rules.filter((rule) => rule.code !== 'BIZ-TRANSACTION-VOLUME');
 		expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory V1/i);
+	});
+
+	it('keeps required pricing drivers applicable while allowing conditional optional workload rules', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+
+		const payrollRule = dependencies.TEST_PRICING_MODEL.rules.find((rule) => rule.code === 'BIZ-PAYROLL-CATCHUP');
+		if (!payrollRule || payrollRule.type !== 'BAND_RANGE') throw new Error('fixture must include conditional payroll workload pricing');
+		expect(payrollRule.when).toBeDefined();
+		expect(() => dependencies.validatePricingModel(dependencies.TEST_PRICING_MODEL)).not.toThrow();
+
+		const guardedTransactionVolume = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const transactionVolumeRule = guardedTransactionVolume.rules.find(
+			(rule) => rule.type === 'BAND_RANGE' && rule.inputKey === 'business.monthlyTransactionVolume'
+		);
+		if (!transactionVolumeRule || transactionVolumeRule.type !== 'BAND_RANGE') {
+			throw new Error('fixture must include transaction-volume pricing');
+		}
+		transactionVolumeRule.when = {
+			type: 'ANSWER_EQUALS', inputKey: 'business.taxPosition', value: 'all_current'
+		};
+		expect(() => dependencies.validatePricingModel(guardedTransactionVolume)).toThrow(/mandatory V1/i);
+
+		const guardedEntityCount = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const entityCountRule = guardedEntityCount.rules.find((rule) => rule.code === 'BIZ-ENTITY-COUNT');
+		if (!entityCountRule || entityCountRule.type !== 'PER_UNIT_RANGE') throw new Error('fixture must include entity-count pricing');
+		entityCountRule.when = { inputKey: 'business.entityType', value: 'sole_proprietor' };
+		expect(() => dependencies.validatePricingModel(guardedEntityCount)).toThrow(/mandatory V1/i);
+
+		const guardedOutstandingYears = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const outstandingYearsRule = guardedOutstandingYears.rules.find((rule) => rule.code === 'PERSONAL-OUTSTANDING-YEARS');
+		if (!outstandingYearsRule || outstandingYearsRule.type !== 'PER_UNIT_RANGE') {
+			throw new Error('fixture must include outstanding-year pricing');
+		}
+		outstandingYearsRule.when = { inputKey: 'personal.currentStatus', value: 'current' };
+		expect(() => dependencies.validatePricingModel(guardedOutstandingYears)).toThrow(/mandatory V1/i);
 	});
 
 	it('does not allow urgency to drive a monetary rule', async () => {

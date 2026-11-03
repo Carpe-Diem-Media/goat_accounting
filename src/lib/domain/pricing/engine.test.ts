@@ -205,6 +205,25 @@ describe('pure pricing engine', () => {
 		);
 	});
 
+	it('requires professional review for a business SARS issue without known compliance areas', async () => {
+		const domain = await getEngineDependencies();
+		if (!domain) return;
+		const baseline = domain.CANONICAL_PRICING_TEST_CORPUS.find(
+			(scenario) => scenario.id === 'simple-current-sole-proprietor'
+		);
+		if (!baseline || baseline.answers.calculatorType !== 'business') throw new Error('business baseline is required');
+
+		const sarsIssueAnswers = domain.CanonicalEstimatorAnswersSchema.parse({
+			...baseline.answers,
+			business: { ...baseline.answers.business, taxPosition: 'sars_issue' }
+		});
+		const result = domain.calculateEstimate(sarsIssueAnswers, domain.TEST_PRICING_MODEL);
+
+		expect(result.manualReviewRequired).toBe(true);
+		expect(result.confidence).toBe('preliminary');
+		expect(result.reviewFlags.map((flag) => flag.code)).toContain('business_sars_issue_needs_review');
+	});
+
 	it('does not permit high confidence for high-risk inputs when their review trigger is removed', async () => {
 		const domain = await getEngineDependencies();
 		if (!domain) return;

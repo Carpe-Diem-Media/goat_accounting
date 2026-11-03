@@ -325,11 +325,21 @@ function hasBranchBaseRules(rules: readonly PricingRule[], scope: 'business' | '
 const isPricedRule = (rule: PricingRule): rule is Extract<PricingRule, { category: 'catchup' | 'ongoing' }> =>
 	rule.category === 'catchup' || rule.category === 'ongoing';
 
+function matchesRequiredApplicability(
+	rule: PricingRule,
+	expectedWhen?: Readonly<{ inputKey: string; value: string }>
+): boolean {
+	if (expectedWhen === undefined) return !('when' in rule) || rule.when === undefined;
+	if (rule.type !== 'PER_UNIT_RANGE') return false;
+	return rule.when?.inputKey === expectedWhen.inputKey && rule.when.value === expectedWhen.value;
+}
+
 function hasMandatoryRuleCoverage(rules: readonly PricingRule[]): boolean {
 	const required: readonly Readonly<{
 		scope: 'business' | 'personal';
 		type: PricingRule['type'];
 		inputKey?: string;
+		when?: Readonly<{ inputKey: string; value: string }>;
 	}>[] = [
 		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.entityType' },
 		{ scope: 'business', type: 'PER_PERIOD_RANGE', inputKey: 'business.booksStatus' },
@@ -340,22 +350,31 @@ function hasMandatoryRuleCoverage(rules: readonly PricingRule[]): boolean {
 		{ scope: 'business', type: 'BAND_RANGE', inputKey: 'business.taxPosition' },
 		{ scope: 'business', type: 'SERVICE_ADDON_RANGE', inputKey: 'business.ongoingServices' },
 		{ scope: 'business', type: 'SERVICE_ADDON_RANGE', inputKey: 'business.outstandingComplianceAreas' },
-		{ scope: 'business', type: 'PER_UNIT_RANGE', inputKey: 'business.entityCount' },
+		{
+			scope: 'business', type: 'PER_UNIT_RANGE', inputKey: 'business.entityCount',
+			when: { inputKey: 'business.entityType', value: 'multiple_entities' }
+		},
 		{ scope: 'business', type: 'COMPLEXITY_SCORE', inputKey: 'business.complexityFactors' },
 		{ scope: 'personal', type: 'BAND_RANGE', inputKey: 'personal.currentStatus' },
 		{ scope: 'personal', type: 'SERVICE_ADDON_RANGE', inputKey: 'personal.incomeSources' },
 		{ scope: 'personal', type: 'BAND_RANGE', inputKey: 'personal.rentalPropertyCount' },
 		{ scope: 'personal', type: 'BAND_RANGE', inputKey: 'personal.sarsPosition' },
-		{ scope: 'personal', type: 'PER_UNIT_RANGE', inputKey: 'personal.outstandingYears' },
+		{
+			scope: 'personal', type: 'PER_UNIT_RANGE', inputKey: 'personal.outstandingYears',
+			when: { inputKey: 'personal.currentStatus', value: 'multiple_years_outstanding' }
+		},
 		{ scope: 'personal', type: 'SERVICE_ADDON_RANGE', inputKey: 'personal.ongoingRequirements' },
 		{ scope: 'personal', type: 'COMPLEXITY_SCORE', inputKey: 'personal.incomeSources' }
 	];
 	return required.every((expected) =>
-		rules.some((rule) =>
-			rule.scope === expected.scope &&
-			rule.type === expected.type &&
-			('inputKey' in rule ? rule.inputKey === expected.inputKey : expected.inputKey === undefined)
-		)
+		rules.some((rule) => {
+			return (
+				rule.scope === expected.scope &&
+				rule.type === expected.type &&
+				('inputKey' in rule ? rule.inputKey === expected.inputKey : expected.inputKey === undefined) &&
+				matchesRequiredApplicability(rule, expected.when)
+			);
+		})
 	);
 }
 
@@ -368,6 +387,7 @@ const mandatoryReviewSafeguards: readonly Readonly<{
 	{ scope: 'business', condition: { type: 'UNRESOLVED_MULTI_YEAR_BACKLOG' } },
 	{ scope: 'business', condition: { type: 'MULTI_YEAR_INCOMPLETE_RECORDS' } },
 	{ scope: 'business', condition: { type: 'INCOMPLETE_RECORDS_WITHOUT_FULL_STATEMENTS' } },
+	{ scope: 'business', condition: { type: 'ANSWER_EQUALS', inputKey: 'business.taxPosition', value: 'sars_issue' } },
 	{ scope: 'business', condition: { type: 'HIGH_VOLUME_SELECTED' } },
 	{ scope: 'business', condition: { type: 'UNKNOWN_VOLUME_WITH_MAJOR_BACKLOG' } },
 	{ scope: 'business', condition: { type: 'UNPRICEABLE_COMPLEXITY_SELECTED' } },

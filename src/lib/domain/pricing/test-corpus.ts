@@ -290,6 +290,10 @@ const rules: PricingRuleInput[] = [
 		scope: 'business', category: 'review', condition: { type: 'INCOMPLETE_RECORDS_WITHOUT_FULL_STATEMENTS' }
 	},
 	{
+		type: 'REVIEW_TRIGGER', code: 'business_sars_issue_needs_review', label: 'Business SARS issue needs review', explanation: 'A SARS issue in a business tax account requires professional review.',
+		scope: 'business', category: 'review', condition: { type: 'ANSWER_EQUALS', inputKey: 'business.taxPosition', value: 'sars_issue' }
+	},
+	{
 		type: 'REVIEW_TRIGGER', code: 'high_transaction_volume', label: 'High transaction volume needs review', explanation: 'Transaction volume exceeds the supported upper band.',
 		scope: 'business', category: 'review', condition: { type: 'HIGH_VOLUME_SELECTED' }
 	},

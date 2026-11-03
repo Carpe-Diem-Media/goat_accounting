@@ -232,6 +232,18 @@ describe('CanonicalEstimatorAnswersSchema', () => {
 		).toBe(true);
 	});
 
+	it('accepts a SARS issue without requiring unknown compliance areas', async () => {
+		const schema = await getSchema();
+		if (!schema) return;
+
+		expect(
+			schema.safeParse({
+				...businessAnswers,
+				business: { ...businessAnswers.business, taxPosition: 'sars_issue' }
+			}).success
+		).toBe(true);
+	});
+
 	it('accepts unknown compliance status without invented areas and rejects contradictory selections', async () => {
 		const schema = await getSchema();
 		if (!schema) return;

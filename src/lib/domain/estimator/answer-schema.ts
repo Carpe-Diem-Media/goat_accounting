@@ -80,18 +80,19 @@ export const BusinessAnswersSchema = z
 			});
 		}
 
-		const complianceAreasAreKnown =
+		const complianceAreasRequired =
 			business.taxPosition === 'some_submissions_outstanding' ||
-			business.taxPosition === 'multiple_periods_outstanding' ||
-			business.taxPosition === 'sars_issue';
-		if (complianceAreasAreKnown && business.outstandingComplianceAreas === undefined) {
+			business.taxPosition === 'multiple_periods_outstanding';
+		const complianceAreasAreAllowed =
+			complianceAreasRequired || business.taxPosition === 'sars_issue';
+		if (complianceAreasRequired && business.outstandingComplianceAreas === undefined) {
 			context.addIssue({
 				code: 'custom',
 				path: ['outstandingComplianceAreas'],
 				message: 'Select the outstanding compliance areas.'
 			});
 		}
-		if (!complianceAreasAreKnown && business.outstandingComplianceAreas !== undefined) {
+		if (!complianceAreasAreAllowed && business.outstandingComplianceAreas !== undefined) {
 			context.addIssue({
 				code: 'custom',
 				path: ['outstandingComplianceAreas'],
