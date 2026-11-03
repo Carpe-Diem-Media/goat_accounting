@@ -1,15 +1,15 @@
-# AGENTS.md instructions for /home/jcs/projects/current/goat_accounting
+# Goat Accounting — Agent Instructions
 
 <INSTRUCTIONS>
 ## Approved estimator architecture
 
 The approved target architecture is SvelteKit 3 on Cloudflare Workers with static assets, using `@sveltejs/adapter-cloudflare`. `wrangler.toml` is the deployment-configuration authority. This is the target for the estimator migration, not evidence that the production site has already migrated.
 
-At PR 0's base commit (`8c4e3e7923d516e2c6897dca837ea8020b4e9fac`), this repository still declared SvelteKit 2 and `wrangler.toml` still contained `pages_build_output_dir`. That repository state does not establish the deployed site's runtime. Do not claim a production migration without deployment evidence for the relevant release.
+At PR 0's base commit (`8c4e3e7923d516e2c6897dca837ea8020b4e9fac`), this repository still declared SvelteKit 2 and `wrangler.toml` contained `pages_build_output_dir`. The Tech Spec v0.1.0 baseline inventory incorrectly reports that no `wrangler.toml` existed. The PR 0 base contains the existing Cloudflare Pages configuration. This factual correction does not alter the approved Cloudflare Workers target. Repository state does not establish the deployed site's runtime. Do not claim a production migration without deployment evidence for the relevant release.
 
 Use Supabase PostgreSQL for persistent application data and Supabase Auth for staff/admin identity. Keep schema changes in version-controlled Supabase migrations. Do not create database schemas outside the approved Supabase design or assume an unidentified Supabase project is the Goat environment.
 
-Estimator pricing must be pure, deterministic, typed and data-driven. Keep pricing models immutable and versioned. Save each estimate with the pricing-model and engine versions used to calculate it so later changes cannot alter historical results. Supabase is authoritative for estimator data. Do not use Cloudflare KV as estimator persistence or as an authority for prices or estimates. Use KV only for a specifically justified cache or ephemeral purpose allowed by the technical specification.
+Estimator pricing must be pure, deterministic, typed and data-driven. `DRAFT` models are editable by authorised administrators; `ACTIVE` models are immutable; `RETIRED` models are immutable and terminal. Completed estimates are immutable snapshots. Pricing activation must preserve historical results. Save each estimate with the pricing-model and engine versions used to calculate it. Supabase is authoritative for estimator data. Do not use Cloudflare KV as estimator persistence or as an authority for prices or estimates. Use KV only for a specifically justified cache or ephemeral purpose allowed by the technical specification.
 
 Follow the approved specifications and roadmap:
 - `docs/product/GOAT_ACCOUNTING_ESTIMATOR_PRODUCT_SPEC_v0.1.0.md`
