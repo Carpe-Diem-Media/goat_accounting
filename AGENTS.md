@@ -5,7 +5,7 @@
 
 The approved target architecture is SvelteKit 3 on Cloudflare Workers with static assets, using `@sveltejs/adapter-cloudflare`. `wrangler.toml` is the deployment-configuration authority. This is the target for the estimator migration, not evidence that the production site has already migrated.
 
-At the repository baseline reviewed for the estimator specs, the project still declared SvelteKit 2 and `wrangler.toml` still contained `pages_build_output_dir`. State only what the checked-out repository and deployment evidence prove. Do not claim a production migration without deployment evidence for the relevant release.
+At PR 0's base commit (`8c4e3e7923d516e2c6897dca837ea8020b4e9fac`), this repository still declared SvelteKit 2 and `wrangler.toml` still contained `pages_build_output_dir`. That repository state does not establish the deployed site's runtime. Do not claim a production migration without deployment evidence for the relevant release.
 
 Use Supabase PostgreSQL for persistent application data and Supabase Auth for staff/admin identity. Keep schema changes in version-controlled Supabase migrations. Do not create database schemas outside the approved Supabase design or assume an unidentified Supabase project is the Goat environment.
 
