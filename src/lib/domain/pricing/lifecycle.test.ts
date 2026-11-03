@@ -1,0 +1,92 @@
+import { describe, expect, it } from 'bun:test';
+
+async function getLifecycle() {
+	const module = await import('./lifecycle').catch(() => null);
+	expect(module).not.toBeNull();
+	return module ?? null;
+}
+
+const passedActivation = {
+	authorized: true,
+	schemaValid: true,
+	mandatoryRulesPresent: true,
+	testCorpusPassed: true
+} as const;
+
+describe('pricing model lifecycle guards', () => {
+	it('activates a valid draft and retires the previous active model as one transition', async () => {
+		const lifecycle = await getLifecycle();
+		if (!lifecycle) return;
+		const models = [
+			{ id: 'model-old', state: 'ACTIVE' as const },
+			{ id: 'model-new', state: 'DRAFT' as const }
+		];
+		const result = lifecycle.activatePricingModel(
+			models,
+			'model-new',
+			passedActivation
+		);
+
+		expect(result).toEqual([
+			{ id: 'model-old', state: 'RETIRED' },
+			{ id: 'model-new', state: 'ACTIVE' }
+		]);
+		expect(models).toEqual([
+			{ id: 'model-old', state: 'ACTIVE' },
+			{ id: 'model-new', state: 'DRAFT' }
+		]);
+		expect(
+			lifecycle.activatePricingModel([{ id: 'first-model', state: 'DRAFT' }], 'first-model', passedActivation)
+		).toEqual([{ id: 'first-model', state: 'ACTIVE' }]);
+	});
+
+	it('rejects draft activation when any activation guard fails', async () => {
+		const lifecycle = await getLifecycle();
+		if (!lifecycle) return;
+		expect(() =>
+			lifecycle.transitionPricingModelState('DRAFT', 'ACTIVE', {
+				...passedActivation,
+				testCorpusPassed: false
+			})
+		).toThrow(lifecycle.PricingModelLifecycleError);
+	});
+
+	it('rejects retirement outside a successful replacement activation', async () => {
+		const lifecycle = await getLifecycle();
+		if (!lifecycle) return;
+		expect(() =>
+			lifecycle.transitionPricingModelState('ACTIVE', 'RETIRED', {
+				replacementActivationSucceeded: false
+			})
+		).toThrow(lifecycle.PricingModelLifecycleError);
+	});
+
+	it('rejects multiple active models and keeps retired models terminal', async () => {
+		const lifecycle = await getLifecycle();
+		if (!lifecycle) return;
+		expect(() =>
+			lifecycle.activatePricingModel(
+				[
+					{ id: 'model-a', state: 'ACTIVE' },
+					{ id: 'model-b', state: 'ACTIVE' },
+					{ id: 'model-c', state: 'DRAFT' }
+				],
+				'model-c',
+				passedActivation
+			)
+		).toThrow(lifecycle.PricingModelLifecycleError);
+		expect(() =>
+			lifecycle.activatePricingModel(
+				[
+					{ id: 'same-id', state: 'ACTIVE' },
+					{ id: 'same-id', state: 'DRAFT' }
+				],
+				'same-id',
+				passedActivation
+			)
+		).toThrow(lifecycle.PricingModelLifecycleError);
+		expect(() =>
+			lifecycle.transitionPricingModelState('RETIRED', 'ACTIVE', passedActivation)
+		).toThrow(lifecycle.PricingModelLifecycleError);
+	});
+});
