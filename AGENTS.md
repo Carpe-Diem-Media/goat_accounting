@@ -1,7 +1,23 @@
-# AGENTS.md instructions for /home/jcs/projects/goat
+# Goat Accounting — Agent Instructions
 
 <INSTRUCTIONS>
-Project Rule: We are building a serverless SvelteKit application deployed on Cloudflare Pages. We are using @sveltejs/adapter-cloudflare. We do not have a Postgres database. We are using Cloudflare KV as our caching and state layer. All styling must use Tailwind CSS utility classes. Do not generate backend database schemas.
+## Approved estimator architecture
+
+The approved target architecture is SvelteKit 3 on Cloudflare Workers with static assets, using `@sveltejs/adapter-cloudflare`. `wrangler.toml` is the deployment-configuration authority. This is the target for the estimator migration, not evidence that the production site has already migrated.
+
+At PR 0's base commit (`8c4e3e7923d516e2c6897dca837ea8020b4e9fac`), this repository still declared SvelteKit 2 and `wrangler.toml` contained `pages_build_output_dir`. The Tech Spec v0.1.0 baseline inventory incorrectly reports that no `wrangler.toml` existed. The PR 0 base contains the existing Cloudflare Pages configuration. This factual correction does not alter the approved Cloudflare Workers target. Repository state does not establish the deployed site's runtime. Do not claim a production migration without deployment evidence for the relevant release.
+
+Use Supabase PostgreSQL for persistent application data and Supabase Auth for staff/admin identity. Keep schema changes in version-controlled Supabase migrations. Do not create database schemas outside the approved Supabase design or assume an unidentified Supabase project is the Goat environment.
+
+Estimator pricing must be pure, deterministic, typed and data-driven. `DRAFT` models are editable by authorised administrators; `ACTIVE` models are immutable; `RETIRED` models are immutable and terminal. Completed estimates are immutable snapshots. Pricing activation must preserve historical results. Save each estimate with the pricing-model and engine versions used to calculate it. Supabase is authoritative for estimator data. Do not use Cloudflare KV as estimator persistence or as an authority for prices or estimates. Use KV only for a specifically justified cache or ephemeral purpose allowed by the technical specification.
+
+Follow the approved specifications and roadmap:
+- `docs/product/GOAT_ACCOUNTING_ESTIMATOR_PRODUCT_SPEC_v0.1.0.md`
+- `docs/architecture/GOAT_ACCOUNTING_ESTIMATOR_TECH_SPEC_v0.1.0.md`
+- `docs/superpowers/plans/2026-11-03-goat-accounting-estimator.md`
+- `docs/superpowers/plans/2026-11-03-goat-accounting-estimator-parallel-roadmap.md`
+
+All styling must use Tailwind CSS utility classes. Do not generate backend database schemas outside the approved Supabase migration workflow.
 
 ## Skills
 A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.
