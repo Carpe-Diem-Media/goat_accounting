@@ -1,7 +1,13 @@
 import { z } from 'zod';
 
 import { ANSWER_OPTION_VALUES, getAllowedValuesForInputKey } from '../estimator/questions';
-import { MoneyRangeSchema, PricingRuleSchema, type AnswerCondition, type PricingRule } from './rule-schema';
+import {
+	MoneyRangeSchema,
+	PricingRuleSchema,
+	type AnswerCondition,
+	type PricingRule,
+	type ReviewCondition
+} from './rule-schema';
 
 export { PricingRuleSchema };
 
@@ -26,6 +32,13 @@ export const PricingModelSchema = z
 				code: 'custom',
 				path: ['confidenceThresholds'],
 				message: 'highMaxPoints must be less than or equal to goodMaxPoints.'
+			});
+		}
+		if (model.confidenceThresholds.highMaxPoints !== 0 || model.confidenceThresholds.goodMaxPoints > 1) {
+			context.addIssue({
+				code: 'custom',
+				path: ['confidenceThresholds'],
+				message: 'V1 confidence thresholds must keep highMaxPoints at 0 and goodMaxPoints at 1 or less.'
 			});
 		}
 	});
@@ -183,7 +196,8 @@ function validateRuleSemantics(rule: PricingRule, index: number): void {
 		validateRuleInputScope(rule.scope, rule.inputKey, `${path}.inputKey`);
 		if (!knownNumericKeys.has(rule.inputKey)) throw new PricingModelValidationError(`${path}.inputKey must be an optional nonnegative integer count.`);
 		assertRange(rule.unitRange, `${path}.unitRange`);
-		if (rule.unknownRange) assertRange(rule.unknownRange, `${path}.unknownRange`);
+		if (!rule.unknownRange) throw new PricingModelValidationError(`${path} needs a safe unknown range for its optional count.`);
+		assertRange(rule.unknownRange, `${path}.unknownRange`);
 		if (rule.when) {
 			validateRuleInputScope(rule.scope, rule.when.inputKey, `${path}.when`);
 			if (knownMultiSelectKeys.has(rule.when.inputKey) || knownNumericKeys.has(rule.when.inputKey)) {
@@ -345,6 +359,132 @@ function hasMandatoryRuleCoverage(rules: readonly PricingRule[]): boolean {
 	);
 }
 
+const mandatoryReviewSafeguards: readonly Readonly<{
+	scope: 'business' | 'personal' | 'shared';
+	condition: ReviewCondition;
+}>[] = [
+	{ scope: 'business', condition: { type: 'ANSWER_EQUALS', inputKey: 'business.entityType', value: 'other_not_sure' } },
+	{ scope: 'business', condition: { type: 'MULTIPLE_ENTITIES_WITHOUT_COUNT' } },
+	{ scope: 'business', condition: { type: 'UNRESOLVED_MULTI_YEAR_BACKLOG' } },
+	{ scope: 'business', condition: { type: 'MULTI_YEAR_INCOMPLETE_RECORDS' } },
+	{ scope: 'business', condition: { type: 'INCOMPLETE_RECORDS_WITHOUT_FULL_STATEMENTS' } },
+	{ scope: 'business', condition: { type: 'HIGH_VOLUME_SELECTED' } },
+	{ scope: 'business', condition: { type: 'UNKNOWN_VOLUME_WITH_MAJOR_BACKLOG' } },
+	{ scope: 'business', condition: { type: 'UNPRICEABLE_COMPLEXITY_SELECTED' } },
+	{ scope: 'business', condition: { type: 'ANSWER_EQUALS', inputKey: 'business.employeeCount', value: '31_plus' } },
+	{ scope: 'business', condition: { type: 'ARRAY_CONTAINS', inputKey: 'business.complexityFactors', value: 'trust_structures' } },
+	{ scope: 'business', condition: { type: 'NUMERIC_AT_LEAST', inputKey: 'business.entityCount', value: 5 } },
+	{ scope: 'personal', condition: { type: 'PERSONAL_HIGH_RISK_SELECTED' } },
+	{ scope: 'personal', condition: { type: 'ARRAY_CONTAINS', inputKey: 'personal.incomeSources', value: 'other' } },
+	{ scope: 'shared', condition: { type: 'ANSWER_IN', inputKey: 'urgency', values: ['within_14_days', 'deadline_missed'] } }
+];
+
+function sameReviewCondition(actual: ReviewCondition, expected: ReviewCondition): boolean {
+	if (actual.type !== expected.type) return false;
+	switch (actual.type) {
+		case 'ANSWER_EQUALS':
+			return expected.type === actual.type && actual.inputKey === expected.inputKey && actual.value === expected.value;
+		case 'ANSWER_IN':
+			return (
+				expected.type === actual.type &&
+				actual.inputKey === expected.inputKey &&
+				actual.values.length === expected.values.length &&
+				actual.values.every((value) => expected.values.includes(value))
+			);
+		case 'ARRAY_CONTAINS':
+			return expected.type === actual.type && actual.inputKey === expected.inputKey && actual.value === expected.value;
+		case 'NUMERIC_AT_LEAST':
+			return expected.type === actual.type && actual.inputKey === expected.inputKey && actual.value === expected.value;
+		default:
+			return true;
+	}
+}
+
+function hasMandatoryReviewCoverage(rules: readonly PricingRule[]): boolean {
+	return mandatoryReviewSafeguards.every((required) =>
+		rules.some(
+			(rule) =>
+				rule.type === 'REVIEW_TRIGGER' &&
+				rule.scope === required.scope &&
+				sameReviewCondition(rule.condition, required.condition)
+		)
+	);
+}
+
+type ConfidenceSafeguard = Readonly<{
+	scope: 'business' | 'personal';
+	inputKey: string;
+	value: string;
+}>;
+
+type MissingCountSafeguard = Readonly<{
+	scope: 'business' | 'personal';
+	inputKey: string;
+	when: Readonly<{ inputKey: string; value: string }>;
+}>;
+
+const mandatoryUnknownAnswerWeights: readonly ConfidenceSafeguard[] = [
+	{ scope: 'business', inputKey: 'business.booksStatus', value: 'not_sure' },
+	{ scope: 'business', inputKey: 'business.recordCondition', value: 'not_sure' },
+	{ scope: 'business', inputKey: 'business.monthlyTransactionVolume', value: 'not_sure' },
+	{ scope: 'business', inputKey: 'business.financialAccounts', value: 'not_sure' },
+	{ scope: 'business', inputKey: 'business.employeeCount', value: 'not_sure' },
+	{ scope: 'business', inputKey: 'business.taxPosition', value: 'not_sure' },
+	{ scope: 'personal', inputKey: 'personal.currentStatus', value: 'not_sure' },
+	{ scope: 'personal', inputKey: 'personal.sarsPosition', value: 'not_sure' },
+	{ scope: 'personal', inputKey: 'personal.rentalPropertyCount', value: 'not_sure' },
+	{ scope: 'personal', inputKey: 'personal.foreignIncomePresent', value: 'not_sure' },
+	{ scope: 'personal', inputKey: 'personal.capitalGainsOccurred', value: 'not_sure' }
+];
+
+const mandatoryMissingCountWeights: readonly MissingCountSafeguard[] = [
+	{
+		scope: 'business',
+		inputKey: 'business.entityCount',
+		when: { inputKey: 'business.entityType', value: 'multiple_entities' }
+	},
+	{
+		scope: 'business',
+		inputKey: 'business.outstandingMonths',
+		when: { inputKey: 'business.booksStatus', value: '1_to_2_years' }
+	},
+	{
+		scope: 'business',
+		inputKey: 'business.outstandingMonths',
+		when: { inputKey: 'business.booksStatus', value: 'over_2_years' }
+	},
+	{
+		scope: 'personal',
+		inputKey: 'personal.outstandingYears',
+		when: { inputKey: 'personal.currentStatus', value: 'multiple_years_outstanding' }
+	}
+];
+
+function hasMandatoryConfidenceCoverage(rules: readonly PricingRule[], highMaxPoints: number): boolean {
+	const answerWeightsPresent = mandatoryUnknownAnswerWeights.every((required) =>
+		rules.some(
+			(rule) =>
+				rule.type === 'CONFIDENCE_WEIGHT' &&
+				rule.scope === required.scope &&
+				rule.inputKey === required.inputKey &&
+				rule.when === undefined &&
+				rule.pointsByValue.some((entry) => entry.value === required.value && entry.points > highMaxPoints)
+		)
+	);
+	const missingCountWeightsPresent = mandatoryMissingCountWeights.every((required) =>
+		rules.some(
+			(rule) =>
+				rule.type === 'CONFIDENCE_WEIGHT' &&
+				rule.scope === required.scope &&
+				rule.inputKey === required.inputKey &&
+				rule.when?.inputKey === required.when.inputKey &&
+				rule.when.value === required.when.value &&
+				rule.missingPoints > highMaxPoints
+		)
+	);
+	return answerWeightsPresent && missingCountWeightsPresent;
+}
+
 export function validatePricingModel(input: unknown): ValidatedPricingModel {
 	const parsed = PricingModelSchema.safeParse(input);
 	if (!parsed.success) throw new PricingModelValidationError(parsed.error.issues.map((issue) => issue.message).join(' '));
@@ -360,6 +500,12 @@ export function validatePricingModel(input: unknown): ValidatedPricingModel {
 	}
 	if (!hasMandatoryRuleCoverage(model.rules)) {
 		throw new PricingModelValidationError('Pricing model is missing mandatory V1 business or personal driver coverage.');
+	}
+	if (!hasMandatoryReviewCoverage(model.rules)) {
+		throw new PricingModelValidationError('Pricing model is missing mandatory professional-review safeguards.');
+	}
+	if (!hasMandatoryConfidenceCoverage(model.rules, model.confidenceThresholds.highMaxPoints)) {
+		throw new PricingModelValidationError('Pricing model is missing mandatory confidence safeguards.');
 	}
 	return model as ValidatedPricingModel;
 }

@@ -168,8 +168,56 @@ describe('pure pricing engine', () => {
 		expect(withoutCount.reviewFlags).toEqual([]);
 		expect(withoutCount.confidencePoints.personal).toBe(1);
 		expect(withoutCount.confidence).toBe('good');
+		expect(withoutCount.catchup.lineItems).toContainEqual(
+			expect.objectContaining({ code: 'PERSONAL-OUTSTANDING-YEARS', minCents: 20, maxCents: 100, unit: 'tax year' })
+		);
 		expect(withCount.confidencePoints.personal).toBe(0);
 		expect(withCount.confidence).toBe('high');
+	});
+
+	it('prices missing entity counts with the declared unknown range and requires review', async () => {
+		const domain = await getEngineDependencies();
+		if (!domain) return;
+		const scenario = domain.CANONICAL_PRICING_TEST_CORPUS.find((item) => item.id === 'multiple-entities-unknown-count');
+		if (!scenario) throw new Error('corpus must include multiple entities with an unknown count');
+
+		const result = domain.calculateEstimate(scenario.answers, domain.TEST_PRICING_MODEL);
+		const entityCountItem = result.catchup.lineItems.find((item) => item.code === 'BIZ-ENTITY-COUNT');
+
+		expect(entityCountItem).toMatchObject({ minCents: 20, maxCents: 100, unit: 'entity' });
+		expect(result.manualReviewRequired).toBe(true);
+		expect(result.confidence).toBe('preliminary');
+	});
+
+	it('keeps an unknown business backlog duration uncertain', async () => {
+		const domain = await getEngineDependencies();
+		if (!domain) return;
+		const scenario = domain.CANONICAL_PRICING_TEST_CORPUS.find((item) => item.id === 'unknown-business-backlog-duration');
+		if (!scenario) throw new Error('corpus must include unknown business backlog duration');
+
+		const result = domain.calculateEstimate(scenario.answers, domain.TEST_PRICING_MODEL);
+
+		expect(result.confidence).toBe('good');
+		expect(result.confidence).not.toBe('high');
+		expect(result.manualReviewRequired).toBe(false);
+		expect(result.catchup.lineItems).toContainEqual(
+			expect.objectContaining({ code: 'BIZ-BOOKS-PERIODS', minCents: 20, maxCents: 100 })
+		);
+	});
+
+	it('does not permit high confidence for high-risk inputs when their review trigger is removed', async () => {
+		const domain = await getEngineDependencies();
+		if (!domain) return;
+		const scenario = domain.CANONICAL_PRICING_TEST_CORPUS.find((item) => item.id === 'high-volume-boundary');
+		if (!scenario) throw new Error('corpus must include high transaction volume');
+		const guarded = domain.calculateEstimate(scenario.answers, domain.TEST_PRICING_MODEL);
+		expect(guarded.manualReviewRequired).toBe(true);
+		expect(guarded.confidence).toBe('preliminary');
+
+		const withoutReview = structuredClone(domain.TEST_PRICING_MODEL);
+		withoutReview.rules = withoutReview.rules.filter((rule) => rule.code !== 'high_transaction_volume');
+
+		expect(() => domain.calculateEstimate(scenario.answers, withoutReview as typeof domain.TEST_PRICING_MODEL)).toThrow(/mandatory.*review/i);
 	});
 
 	it('returns identical snapshots for identical canonical inputs', async () => {

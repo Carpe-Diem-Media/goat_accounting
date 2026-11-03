@@ -17,14 +17,24 @@ export type EstimatorQuestionId =
 
 export type EstimatorOption = Readonly<{ value: string; label: string }>;
 
-export type EstimatorQuestion = Readonly<{
-	id: EstimatorQuestionId;
+type OptionQuestion = Readonly<{
+	id: Exclude<EstimatorQuestionId, 'P3'>;
 	question: string;
 	type: 'single' | 'multi';
 	options: readonly EstimatorOption[];
 	helperText?: string;
 	followUps?: readonly string[];
 }>;
+
+type FollowUpGroupQuestion = Readonly<{
+	id: 'P3';
+	question: string;
+	type: 'follow-up-group';
+	followUps: readonly string[];
+	helperText?: string;
+}>;
+
+export type EstimatorQuestion = OptionQuestion | FollowUpGroupQuestion;
 
 const options = <const T extends readonly (readonly [string, string])[]>(
 	items: T
@@ -217,8 +227,7 @@ export const PERSONAL_QUESTIONS = [
 	{
 		id: 'P3',
 		question: 'A few details about the selected income or outstanding years',
-		type: 'multi',
-		options: [],
+		type: 'follow-up-group',
 		followUps: [
 			'rentalPropertyCount',
 			'foreignIncomePresent',

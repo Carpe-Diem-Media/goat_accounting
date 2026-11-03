@@ -144,6 +144,52 @@ describe('bounded pricing rule schemas', () => {
 		expect(() => dependencies.validatePricingModel(input)).toThrow(/positive missing-count confidence weight/i);
 	});
 
+	it('rejects models that remove mandatory professional-review or confidence safeguards', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+
+		for (const safeguard of dependencies.TEST_PRICING_MODEL.rules.filter((rule) => rule.type === 'REVIEW_TRIGGER')) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			input.rules = input.rules.filter((rule) => rule.code !== safeguard.code);
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory.*professional-review/i);
+		}
+
+		for (const safeguard of dependencies.TEST_PRICING_MODEL.rules.filter((rule) => rule.type === 'CONFIDENCE_WEIGHT')) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			input.rules = input.rules.filter((rule) => rule.code !== safeguard.code);
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory.*confidence/i);
+		}
+
+		const neutralizedReview = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const volumeReview = neutralizedReview.rules.find((rule) => rule.code === 'high_transaction_volume');
+		if (!volumeReview || volumeReview.type !== 'REVIEW_TRIGGER') throw new Error('fixture must include high-volume review');
+		volumeReview.condition = { type: 'ANSWER_EQUALS', inputKey: 'business.employeeCount', value: 'none' };
+		expect(() => dependencies.validatePricingModel(neutralizedReview)).toThrow(/mandatory.*professional-review/i);
+
+		const neutralizedConfidence = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const volumeWeight = neutralizedConfidence.rules.find((rule) => rule.code === 'BIZ-VOLUME-UNCERTAINTY');
+		if (!volumeWeight || volumeWeight.type !== 'CONFIDENCE_WEIGHT') throw new Error('fixture must include unknown-volume confidence weight');
+		volumeWeight.pointsByValue[0]!.points = 0;
+		expect(() => dependencies.validatePricingModel(neutralizedConfidence)).toThrow(/mandatory.*confidence/i);
+
+		const neutralizedThresholds = structuredClone(dependencies.TEST_PRICING_MODEL);
+		neutralizedThresholds.confidenceThresholds = { highMaxPoints: 10_000, goodMaxPoints: 10_000 };
+		expect(() => dependencies.validatePricingModel(neutralizedThresholds)).toThrow(/confidence threshold/i);
+	});
+
+	it('requires PER_UNIT_RANGE rules to price missing entity and outstanding-year counts safely', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+
+		for (const code of ['BIZ-ENTITY-COUNT', 'PERSONAL-OUTSTANDING-YEARS']) {
+			const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+			const countRule = input.rules.find((rule) => rule.code === code);
+			if (!countRule || countRule.type !== 'PER_UNIT_RANGE') throw new Error(`fixture must include ${code}`);
+			delete countRule.unknownRange;
+			expect(() => dependencies.validatePricingModel(input)).toThrow(/unknown.*range/i);
+		}
+	});
+
 	it('requires books-status period bands to cover accepted outstanding-month counts', async () => {
 		const dependencies = await getDependencies();
 		if (!dependencies) return;
@@ -157,7 +203,7 @@ describe('bounded pricing rule schemas', () => {
 		expect(() => dependencies.validatePricingModel(input)).toThrow(/cover accepted outstanding-month counts/i);
 	});
 
-	it('rejects numeric review thresholds above the accepted answer range', async () => {
+	it('rejects out-of-range or weakened numeric review thresholds', async () => {
 		const dependencies = await getDependencies();
 		if (!dependencies) return;
 		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
@@ -171,6 +217,9 @@ describe('bounded pricing rule schemas', () => {
 		expect(() => dependencies.validatePricingModel(input)).toThrow(/exceeds the accepted maximum/i);
 
 		reviewRule.condition.value = 1000;
+		expect(() => dependencies.validatePricingModel(input)).toThrow(/mandatory professional-review safeguards/i);
+
+		reviewRule.condition.value = 5;
 		expect(() => dependencies.validatePricingModel(input)).not.toThrow();
 	});
 

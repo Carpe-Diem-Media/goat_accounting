@@ -232,6 +232,30 @@ describe('CanonicalEstimatorAnswersSchema', () => {
 		).toBe(true);
 	});
 
+	it('accepts unknown compliance status without invented areas and rejects contradictory selections', async () => {
+		const schema = await getSchema();
+		if (!schema) return;
+
+		const unknownStatus = {
+			...businessAnswers,
+			business: { ...businessAnswers.business, taxPosition: 'not_sure' }
+		};
+		expect(schema.safeParse(unknownStatus).success).toBe(true);
+		expect(
+			schema.safeParse({
+				...unknownStatus,
+				business: { ...unknownStatus.business, outstandingComplianceAreas: ['vat'] }
+			}).success
+		).toBe(false);
+
+		expect(
+			schema.safeParse({
+				...businessAnswers,
+				business: { ...businessAnswers.business, outstandingComplianceAreas: ['vat'] }
+			}).success
+		).toBe(false);
+	});
+
 	it('rejects unknown answer codes and free text from the engine DTO', async () => {
 		const schema = await getSchema();
 		if (!schema) return;

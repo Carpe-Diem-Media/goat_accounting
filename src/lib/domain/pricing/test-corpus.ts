@@ -239,6 +239,10 @@ const rules: PricingRuleInput[] = [
 		scope: 'business', category: 'score', inputKey: 'business.recordCondition', pointsByValue: [{ value: 'not_sure', points: 1 }]
 	},
 	{
+		type: 'CONFIDENCE_WEIGHT', code: 'BIZ-BOOKS-UNCERTAINTY', label: 'Backlog confidence weight', explanation: 'Unknown bookkeeping status leaves the historical workload uncertain.',
+		scope: 'business', category: 'score', inputKey: 'business.booksStatus', pointsByValue: [{ value: 'not_sure', points: 1 }]
+	},
+	{
 		type: 'CONFIDENCE_WEIGHT', code: 'BIZ-ACCOUNT-UNCERTAINTY', label: 'Account confidence weight', explanation: 'Unknown account count leaves reconciliation workload less certain.',
 		scope: 'business', category: 'score', inputKey: 'business.financialAccounts', pointsByValue: [{ value: 'not_sure', points: 1 }]
 	},
@@ -458,6 +462,22 @@ export const CANONICAL_PRICING_TEST_CORPUS = [
 			catchup: { minCents: 65, maxCents: 160, lineItemCodes: ['BIZ-BASE-CATCHUP', 'BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CONDITION', 'BIZ-PAYROLL-CATCHUP', 'BIZ-TAX-POSITION'] },
 			ongoing: { minCents: 40, maxCents: 80, lineItemCodes: ['BIZ-TRANSACTION-VOLUME', 'BIZ-FINANCIAL-ACCOUNTS', 'BIZ-EMPLOYEE-COUNT', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'] },
 			confidence: 'high', manualReviewRequired: false, reviewFlagCodes: []
+		}
+	},
+	{
+		id: 'unknown-business-backlog-duration',
+		answers: CanonicalEstimatorAnswersSchema.parse({
+			calculatorType: 'business', urgency: 'no_urgent_deadline',
+			business: {
+				entityType: 'sole_proprietor', booksStatus: 'not_sure', recordCondition: 'clean_software',
+				monthlyTransactionVolume: 'under_50', financialAccounts: 'one', employeeCount: 'none', taxPosition: 'all_current',
+				ongoingServices: ['monthly_bookkeeping'], complexityFactors: ['none']
+			}
+		}),
+		expected: {
+			catchup: { minCents: 70, maxCents: 200, lineItemCodes: ['BIZ-BASE-CATCHUP', 'BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CONDITION', 'BIZ-PAYROLL-CATCHUP', 'BIZ-TAX-POSITION'] },
+			ongoing: { minCents: 40, maxCents: 80, lineItemCodes: ['BIZ-TRANSACTION-VOLUME', 'BIZ-FINANCIAL-ACCOUNTS', 'BIZ-EMPLOYEE-COUNT', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'] },
+			confidence: 'good', manualReviewRequired: false, reviewFlagCodes: []
 		}
 	},
 	{

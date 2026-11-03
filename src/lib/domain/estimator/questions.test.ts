@@ -175,4 +175,16 @@ describe('V1 estimator question contract', () => {
 		]);
 		expect(questions.ESTIMATOR_QUESTION_CATALOG.some((question) => question.id === 'FREE_TEXT')).toBe(false);
 	});
+
+	it('represents P3 as a follow-up group without empty multi-select options', async () => {
+		const questions = await loadQuestions();
+		expect(questions).not.toBeNull();
+		if (!questions) return;
+		const p3 = questions.PERSONAL_QUESTIONS.find((question) => question.id === 'P3');
+		expect(p3).toMatchObject({
+			type: 'follow-up-group',
+			followUps: ['rentalPropertyCount', 'foreignIncomePresent', 'capitalGainsOccurred', 'outstandingYears']
+		});
+		expect(p3 && 'options' in p3).toBe(false);
+	});
 });
