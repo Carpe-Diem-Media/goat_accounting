@@ -79,6 +79,21 @@ describe('bounded pricing rule schemas', () => {
 		expect(() => dependencies.validatePricingModel(incomplete)).toThrow();
 	});
 
+	it('requires unknown transaction volume to cover the known workload range', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const volumeRule = input.rules.find(
+			(rule) => rule.type === 'BAND_RANGE' && rule.inputKey === 'business.monthlyTransactionVolume'
+		);
+		if (!volumeRule || volumeRule.type !== 'BAND_RANGE') throw new Error('fixture must include volume bands');
+		const unknown = volumeRule.bands.find((band) => band.value === 'not_sure');
+		if (!unknown) throw new Error('volume fixture must contain an unknown band');
+		unknown.range = { minCents: 20, maxCents: 159 };
+
+		expect(() => dependencies.validatePricingModel(input)).toThrow(/unknown workload range/i);
+	});
+
 	it('rejects answer values that are not in the question contract', async () => {
 		const dependencies = await getDependencies();
 		if (!dependencies) return;
@@ -87,6 +102,47 @@ describe('bounded pricing rule schemas', () => {
 		if (!volumeRule || volumeRule.type !== 'BAND_RANGE') throw new Error('fixture must include volume bands');
 		volumeRule.bands[0].value = 'millions';
 		expect(() => dependencies.validatePricingModel(input)).toThrow();
+	});
+
+	it('requires numeric confidence rules to penalize a missing count', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const countRule = input.rules.find((rule) => rule.code === 'BIZ-ENTITY-COUNT-UNCERTAINTY');
+		if (!countRule || countRule.type !== 'CONFIDENCE_WEIGHT') throw new Error('fixture must include a count confidence rule');
+		countRule.missingPoints = 0;
+
+		expect(() => dependencies.validatePricingModel(input)).toThrow(/positive missing-count confidence weight/i);
+	});
+
+	it('requires books-status period bands to cover accepted outstanding-month counts', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const periodRule = input.rules.find((rule) => rule.code === 'BIZ-BOOKS-PERIODS');
+		if (!periodRule || periodRule.type !== 'PER_PERIOD_RANGE') throw new Error('fixture must include books-period pricing');
+		const yearBand = periodRule.periodsByValue.find((period) => period.value === '1_to_2_years');
+		if (!yearBand) throw new Error('fixture must include a one-to-two-year band');
+		yearBand.maxPeriods = 18;
+
+		expect(() => dependencies.validatePricingModel(input)).toThrow(/cover accepted outstanding-month counts/i);
+	});
+
+	it('rejects numeric review thresholds above the accepted answer range', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const input = structuredClone(dependencies.TEST_PRICING_MODEL);
+		const reviewRule = input.rules.find(
+			(rule) => rule.type === 'REVIEW_TRIGGER' && rule.condition.type === 'NUMERIC_AT_LEAST' && rule.condition.inputKey === 'business.entityCount'
+		);
+		if (!reviewRule || reviewRule.type !== 'REVIEW_TRIGGER' || reviewRule.condition.type !== 'NUMERIC_AT_LEAST') {
+			throw new Error('fixture must include an entity-count review trigger');
+		}
+		reviewRule.condition.value = 1001;
+		expect(() => dependencies.validatePricingModel(input)).toThrow(/exceeds the accepted maximum/i);
+
+		reviewRule.condition.value = 1000;
+		expect(() => dependencies.validatePricingModel(input)).not.toThrow();
 	});
 
 	it('requires V1 workload, service, complexity and branch coverage', async () => {

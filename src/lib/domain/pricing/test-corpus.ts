@@ -33,7 +33,7 @@ const transactionVolumeBands = [
 	{ value: '151_to_300', range: range(30, 60) },
 	{ value: '301_to_750', range: range(40, 80) },
 	{ value: 'over_750', range: range(80, 160) },
-	{ value: 'not_sure', range: range(20, 100) }
+	{ value: 'not_sure', range: range(10, 160) }
 ];
 
 const accountBands = [
@@ -599,7 +599,7 @@ export const CANONICAL_PRICING_TEST_CORPUS = [
 		}),
 		expected: {
 			catchup: { minCents: 50, maxCents: 100, lineItemCodes: ['BIZ-BASE-CATCHUP', 'BIZ-ENTITY-TYPE', 'BIZ-RECORD-CONDITION', 'BIZ-TAX-POSITION'] },
-			ongoing: { minCents: 50, maxCents: 160, lineItemCodes: ['BIZ-TRANSACTION-VOLUME', 'BIZ-FINANCIAL-ACCOUNTS', 'BIZ-EMPLOYEE-COUNT', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'] },
+			ongoing: { minCents: 40, maxCents: 220, lineItemCodes: ['BIZ-TRANSACTION-VOLUME', 'BIZ-FINANCIAL-ACCOUNTS', 'BIZ-EMPLOYEE-COUNT', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'] },
 			confidence: 'preliminary', manualReviewRequired: false, reviewFlagCodes: []
 		}
 	},
@@ -615,7 +615,7 @@ export const CANONICAL_PRICING_TEST_CORPUS = [
 		}),
 		expected: {
 			catchup: { minCents: 85, maxCents: 220, lineItemCodes: ['BIZ-BASE-CATCHUP', 'BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CONDITION', 'BIZ-PAYROLL-CATCHUP', 'BIZ-TAX-POSITION'] },
-			ongoing: { minCents: 50, maxCents: 160, lineItemCodes: ['BIZ-TRANSACTION-VOLUME', 'BIZ-FINANCIAL-ACCOUNTS', 'BIZ-EMPLOYEE-COUNT', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'] },
+			ongoing: { minCents: 40, maxCents: 220, lineItemCodes: ['BIZ-TRANSACTION-VOLUME', 'BIZ-FINANCIAL-ACCOUNTS', 'BIZ-EMPLOYEE-COUNT', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'] },
 			confidence: 'preliminary', manualReviewRequired: true, reviewFlagCodes: ['unknown_volume_with_major_backlog']
 		}
 	},

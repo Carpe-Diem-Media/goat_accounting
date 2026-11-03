@@ -45,6 +45,22 @@ const knownNumericKeys = new Set([
 	'personal.outstandingYears'
 ]);
 
+const knownNumericMaximums: Readonly<Record<string, number>> = {
+	'business.entityCount': 1000,
+	'business.outstandingMonths': 100,
+	'personal.outstandingYears': 100
+};
+
+const businessBooksStatusMonthBounds: Readonly<Record<string, readonly [number, number] | null>> = {
+	current_and_reconciled: [0, 0],
+	less_than_3_months: [1, 2],
+	'3_to_6_months': [3, 6],
+	'6_to_12_months': [7, 12],
+	'1_to_2_years': [13, 24],
+	over_2_years: [25, 100],
+	not_sure: null
+};
+
 const knownMultiSelectKeys = new Set([
 	'business.ongoingServices',
 	'business.complexityFactors',
@@ -112,6 +128,9 @@ function validateAnswerCondition(condition: AnswerCondition, path: string): void
 	if (!knownNumericKeys.has(condition.inputKey)) {
 		throw new PricingModelValidationError(`${path} uses a numeric condition with a nonnumeric answer.`);
 	}
+	if (condition.value > knownNumericMaximums[condition.inputKey]) {
+		throw new PricingModelValidationError(`${path} threshold exceeds the accepted maximum for ${condition.inputKey}.`);
+	}
 }
 
 function validateRuleSemantics(rule: PricingRule, index: number): void {
@@ -143,6 +162,18 @@ function validateRuleSemantics(rule: PricingRule, index: number): void {
 					throw new PricingModelValidationError(`${path} workload ranges must be monotone as transaction volume increases.`);
 				}
 				previous = range;
+			}
+			const lowestKnownRange = bandsByValue.get('under_50');
+			const highestKnownRange = bandsByValue.get('over_750');
+			const unknownRange = bandsByValue.get('not_sure');
+			if (
+				!lowestKnownRange ||
+				!highestKnownRange ||
+				!unknownRange ||
+				unknownRange.minCents > lowestKnownRange.minCents ||
+				unknownRange.maxCents < highestKnownRange.maxCents
+			) {
+				throw new PricingModelValidationError(`${path} unknown workload range must cover the known workload range.`);
 			}
 		}
 	}
@@ -176,6 +207,23 @@ function validateRuleSemantics(rule: PricingRule, index: number): void {
 		if (rule.periodsByValue.some((period) => period.minPeriods === null) && !rule.unknownRange) {
 			throw new PricingModelValidationError(`${path} needs unknownRange for values without a known period count.`);
 		}
+		if (rule.inputKey === 'business.booksStatus') {
+			if (rule.periodCountInputKey !== 'business.outstandingMonths') {
+				throw new PricingModelValidationError(`${path} must use business.outstandingMonths as its exact period count.`);
+			}
+			for (const period of rule.periodsByValue) {
+				const acceptedBounds = businessBooksStatusMonthBounds[period.value];
+				if (
+					acceptedBounds &&
+					(period.minPeriods === null ||
+						period.maxPeriods === null ||
+						period.minPeriods > acceptedBounds[0] ||
+						period.maxPeriods < acceptedBounds[1])
+				) {
+					throw new PricingModelValidationError(`${path} must cover accepted outstanding-month counts for ${period.value}.`);
+				}
+			}
+		}
 	}
 	if (rule.type === 'SERVICE_ADDON_RANGE') {
 		validateRuleInputScope(rule.scope, rule.inputKey, `${path}.inputKey`);
@@ -208,6 +256,9 @@ function validateRuleSemantics(rule: PricingRule, index: number): void {
 		}
 		if (numericInput && rule.pointsByValue.length > 0) {
 			throw new PricingModelValidationError(`${path} cannot assign categorical weights to a numeric count.`);
+		}
+		if (numericInput && rule.missingPoints === 0) {
+			throw new PricingModelValidationError(`${path} must assign a positive missing-count confidence weight.`);
 		}
 		const values = rule.pointsByValue.map((entry) => entry.value);
 		if (new Set(values).size !== values.length) throw new PricingModelValidationError(`${path} contains duplicate confidence values.`);

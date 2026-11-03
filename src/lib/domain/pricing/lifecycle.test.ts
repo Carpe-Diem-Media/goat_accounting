@@ -14,6 +14,12 @@ const passedActivation = {
 } as const;
 
 describe('pricing model lifecycle guards', () => {
+	it('exposes model-state changes only through guarded collection activation', async () => {
+		const lifecycle = await getLifecycle();
+		if (!lifecycle) return;
+		expect(Object.keys(lifecycle)).not.toContain('transitionPricingModelState');
+	});
+
 	it('activates a valid draft and retires the previous active model as one transition', async () => {
 		const lifecycle = await getLifecycle();
 		if (!lifecycle) return;
@@ -44,20 +50,14 @@ describe('pricing model lifecycle guards', () => {
 		const lifecycle = await getLifecycle();
 		if (!lifecycle) return;
 		expect(() =>
-			lifecycle.transitionPricingModelState('DRAFT', 'ACTIVE', {
-				...passedActivation,
-				testCorpusPassed: false
-			})
-		).toThrow(lifecycle.PricingModelLifecycleError);
-	});
-
-	it('rejects retirement outside a successful replacement activation', async () => {
-		const lifecycle = await getLifecycle();
-		if (!lifecycle) return;
-		expect(() =>
-			lifecycle.transitionPricingModelState('ACTIVE', 'RETIRED', {
-				replacementActivationSucceeded: false
-			})
+			lifecycle.activatePricingModel(
+				[
+					{ id: 'model-old', state: 'ACTIVE' },
+					{ id: 'model-new', state: 'DRAFT' }
+				],
+				'model-new',
+				{ ...passedActivation, testCorpusPassed: false }
+			)
 		).toThrow(lifecycle.PricingModelLifecycleError);
 	});
 
@@ -86,7 +86,7 @@ describe('pricing model lifecycle guards', () => {
 			)
 		).toThrow(lifecycle.PricingModelLifecycleError);
 		expect(() =>
-			lifecycle.transitionPricingModelState('RETIRED', 'ACTIVE', passedActivation)
+			lifecycle.activatePricingModel([{ id: 'retired-model', state: 'RETIRED' }], 'retired-model', passedActivation)
 		).toThrow(lifecycle.PricingModelLifecycleError);
 	});
 });

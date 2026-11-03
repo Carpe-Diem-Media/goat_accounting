@@ -17,7 +17,7 @@ export class PricingModelLifecycleError extends Error {
 	}
 }
 
-export function transitionPricingModelState(
+function transitionPricingModelState(
 	from: PricingModelState,
 	to: PricingModelState,
 	guards: PricingLifecycleGuards = {}

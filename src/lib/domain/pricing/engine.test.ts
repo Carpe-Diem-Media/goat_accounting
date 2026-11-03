@@ -144,6 +144,34 @@ describe('pure pricing engine', () => {
 		}
 	});
 
+	it('reduces confidence when an optional numeric backlog count is missing', async () => {
+		const domain = await getEngineDependencies();
+		if (!domain) return;
+		const answersWithoutYearCount = domain.CanonicalEstimatorAnswersSchema.parse({
+			calculatorType: 'personal',
+			urgency: 'no_urgent_deadline',
+			personal: {
+				currentStatus: 'multiple_years_outstanding',
+				incomeSources: ['salary'],
+				sarsPosition: 'normal_filing',
+				ongoingRequirements: ['annual_tax_return']
+			}
+		});
+		const answersWithYearCount = domain.CanonicalEstimatorAnswersSchema.parse({
+			...answersWithoutYearCount,
+			personal: { ...answersWithoutYearCount.personal, outstandingYears: 3 }
+		});
+
+		const withoutCount = domain.calculateEstimate(answersWithoutYearCount, domain.TEST_PRICING_MODEL);
+		const withCount = domain.calculateEstimate(answersWithYearCount, domain.TEST_PRICING_MODEL);
+
+		expect(withoutCount.reviewFlags).toEqual([]);
+		expect(withoutCount.confidencePoints.personal).toBe(1);
+		expect(withoutCount.confidence).toBe('good');
+		expect(withCount.confidencePoints.personal).toBe(0);
+		expect(withCount.confidence).toBe('high');
+	});
+
 	it('returns identical snapshots for identical canonical inputs', async () => {
 		const domain = await getEngineDependencies();
 		if (!domain) return;
