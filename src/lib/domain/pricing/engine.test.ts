@@ -205,4 +205,16 @@ describe('pure pricing engine', () => {
 		if (!multiEntity) throw new Error('corpus must include multiple entities');
 		expect(() => domain.calculateEstimate(multiEntity.answers, overflowModel as typeof domain.TEST_PRICING_MODEL)).toThrow();
 	});
+
+	it('rejects a pricing model for an unsupported engine version', async () => {
+		const domain = await getEngineDependencies();
+		if (!domain) return;
+		const unsupportedModel = { ...domain.TEST_PRICING_MODEL, engineVersion: '9.9.9' };
+		expect(() =>
+			domain.calculateEstimate(
+				domain.CANONICAL_PRICING_TEST_CORPUS[0].answers,
+				unsupportedModel as typeof domain.TEST_PRICING_MODEL
+			)
+		).toThrow(/unsupported pricing engine version/i);
+	});
 });

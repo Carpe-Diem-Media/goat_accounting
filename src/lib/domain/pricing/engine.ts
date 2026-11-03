@@ -247,6 +247,11 @@ export function evaluatePricingRules(
 	answers: CanonicalEstimatorAnswers,
 	model: ValidatedPricingModel
 ): PricingRuleEvaluation {
+	if (model.engineVersion !== PRICING_ENGINE_VERSION) {
+		throw new PricingEngineError(
+			`Pricing model requires unsupported pricing engine version ${model.engineVersion}; this engine supports ${PRICING_ENGINE_VERSION}.`
+		);
+	}
 	if (model.state !== 'ACTIVE') throw new PricingEngineError('Only an active pricing model can evaluate pricing rules.');
 	const items = [
 		...(hasBusiness(answers) ? lineItemsForBranch(answers, model, 'business') : []),
