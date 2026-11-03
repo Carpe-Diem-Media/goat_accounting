@@ -4,6 +4,8 @@ import { ANSWER_OPTION_VALUES } from './questions';
 
 const answerEnum = <K extends keyof typeof ANSWER_OPTION_VALUES>(key: K) =>
 	z.enum(ANSWER_OPTION_VALUES[key]);
+const answerSelection = <K extends keyof typeof ANSWER_OPTION_VALUES>(key: K) =>
+	z.array(answerEnum(key)).min(1).max(ANSWER_OPTION_VALUES[key].length);
 
 const outstandingMonthsSchema = z.number().int().safe().min(1).max(100);
 const outstandingYearsSchema = z.number().int().safe().min(2).max(100);
@@ -24,12 +26,9 @@ export const BusinessAnswersSchema = z
 		financialAccounts: answerEnum('business.financialAccounts'),
 		employeeCount: answerEnum('business.employeeCount'),
 		taxPosition: answerEnum('business.taxPosition'),
-		outstandingComplianceAreas: z
-			.array(answerEnum('business.outstandingComplianceAreas'))
-			.min(1)
-			.optional(),
-		ongoingServices: z.array(answerEnum('business.ongoingServices')).min(1),
-		complexityFactors: z.array(answerEnum('business.complexityFactors')).min(1)
+		outstandingComplianceAreas: answerSelection('business.outstandingComplianceAreas').optional(),
+		ongoingServices: answerSelection('business.ongoingServices'),
+		complexityFactors: answerSelection('business.complexityFactors')
 	})
 	.strict()
 	.superRefine((business, context) => {
@@ -124,9 +123,9 @@ export const PersonalAnswersSchema = z
 	.object({
 		currentStatus: answerEnum('personal.currentStatus'),
 		outstandingYears: outstandingYearsSchema.optional(),
-		incomeSources: z.array(answerEnum('personal.incomeSources')).min(1),
+		incomeSources: answerSelection('personal.incomeSources'),
 		sarsPosition: answerEnum('personal.sarsPosition'),
-		ongoingRequirements: z.array(answerEnum('personal.ongoingRequirements')).min(1),
+		ongoingRequirements: answerSelection('personal.ongoingRequirements'),
 		rentalPropertyCount: answerEnum('personal.rentalPropertyCount').optional(),
 		foreignIncomePresent: answerEnum('personal.foreignIncomePresent').optional(),
 		capitalGainsOccurred: answerEnum('personal.capitalGainsOccurred').optional()

@@ -80,6 +80,74 @@ describe('CanonicalEstimatorAnswersSchema', () => {
 		).toBe(false);
 	});
 
+	it('caps each multi-select at its canonical answer-option count', async () => {
+		const schema = await getSchema();
+		const questions = await import('./questions').catch(() => null);
+		if (!schema || !questions) return;
+		const overLimit = (values: readonly string[]) => Array.from({ length: values.length + 1 }, () => values[0]!);
+		const cases = [
+			{
+				path: 'business.ongoingServices',
+				answers: {
+					...businessAnswers,
+					business: {
+						...businessAnswers.business,
+						ongoingServices: overLimit(questions.ANSWER_OPTION_VALUES['business.ongoingServices'])
+					}
+				}
+			},
+			{
+				path: 'business.complexityFactors',
+				answers: {
+					...businessAnswers,
+					business: {
+						...businessAnswers.business,
+						complexityFactors: overLimit(questions.ANSWER_OPTION_VALUES['business.complexityFactors'])
+					}
+				}
+			},
+			{
+				path: 'business.outstandingComplianceAreas',
+				answers: {
+					...businessAnswers,
+					business: {
+						...businessAnswers.business,
+						taxPosition: 'some_submissions_outstanding',
+						outstandingComplianceAreas: overLimit(
+							questions.ANSWER_OPTION_VALUES['business.outstandingComplianceAreas']
+						)
+					}
+				}
+			},
+			{
+				path: 'personal.incomeSources',
+				answers: {
+					...personalAnswers,
+					personal: {
+						...personalAnswers.personal,
+						incomeSources: overLimit(questions.ANSWER_OPTION_VALUES['personal.incomeSources'])
+					}
+				}
+			},
+			{
+				path: 'personal.ongoingRequirements',
+				answers: {
+					...personalAnswers,
+					personal: {
+						...personalAnswers.personal,
+						ongoingRequirements: overLimit(questions.ANSWER_OPTION_VALUES['personal.ongoingRequirements'])
+					}
+				}
+			}
+		];
+
+		for (const { path, answers } of cases) {
+			const result = schema.safeParse(answers);
+			if (result.success) throw new Error(`${path} should reject an oversized answer array`);
+			expect(result.error.issues.some((issue) => issue.code === 'too_big' && issue.path.join('.') === path)).toBe(true);
+		}
+	});
+
 	it('requires an entity count only for multiple entities and allows it to remain unknown', async () => {
 		const schema = await getSchema();
 		if (!schema) return;
