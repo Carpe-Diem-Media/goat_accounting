@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'bun:test';
 
 async function getDependencies() {
-	const [model, corpus] = await Promise.all([
+	const [model, corpus, ruleSchema, questions] = await Promise.all([
 		import('./model').catch(() => null),
-		import('./test-corpus').catch(() => null)
+		import('./test-corpus').catch(() => null),
+		import('./rule-schema').catch(() => null),
+		import('../estimator/questions').catch(() => null)
 	]);
 	expect(model).not.toBeNull();
 	expect(corpus).not.toBeNull();
-	return model && corpus ? { ...model, ...corpus } : null;
+	expect(ruleSchema).not.toBeNull();
+	expect(questions).not.toBeNull();
+	return model && corpus && ruleSchema && questions ? { ...model, ...corpus, ...ruleSchema, ...questions } : null;
 }
 
 describe('bounded pricing rule schemas', () => {
@@ -39,6 +43,31 @@ describe('bounded pricing rule schemas', () => {
 		expect(
 			dependencies.PricingRuleSchema.safeParse({ ...fixedRule, expression: 'answers.amount * 1.4' }).success
 		).toBe(false);
+	});
+
+	it('bounds model rule counts and nested answer-option collections', async () => {
+		const dependencies = await getDependencies();
+		if (!dependencies) return;
+		const oversizedModel = structuredClone(dependencies.TEST_PRICING_MODEL);
+		oversizedModel.rules = Array.from(
+			{ length: 129 },
+			() => structuredClone(dependencies.TEST_PRICING_MODEL.rules[0])
+		);
+		expect(dependencies.PricingModelSchema.safeParse(oversizedModel).success).toBe(false);
+
+		const volumeRule = dependencies.TEST_PRICING_MODEL.rules.find(
+			(rule) => rule.type === 'BAND_RANGE' && rule.inputKey === 'business.monthlyTransactionVolume'
+		);
+		if (!volumeRule || volumeRule.type !== 'BAND_RANGE') throw new Error('fixture must include volume bands');
+		const oversizedRule = structuredClone(volumeRule);
+		const firstBand = oversizedRule.bands[0];
+		if (!firstBand) throw new Error('volume fixture must include a band');
+		const maxOptionCount = Math.max(...Object.values(dependencies.ANSWER_OPTION_VALUES).map((values) => values.length));
+		oversizedRule.bands = Array.from(
+			{ length: maxOptionCount + 1 },
+			() => structuredClone(firstBand)
+		);
+		expect(dependencies.PricingRuleSchema.safeParse(oversizedRule).success).toBe(false);
 	});
 
 	it('rejects fractional, negative, unsafe and inverted money ranges', async () => {

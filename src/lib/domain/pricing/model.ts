@@ -5,6 +5,8 @@ import { MoneyRangeSchema, PricingRuleSchema, type AnswerCondition, type Pricing
 
 export { PricingRuleSchema };
 
+export const MAX_PRICING_MODEL_RULE_COUNT = 128;
+
 export const PricingModelSchema = z
 	.object({
 		id: z.string().min(1).max(100),
@@ -15,7 +17,7 @@ export const PricingModelSchema = z
 		confidenceThresholds: z
 			.object({ highMaxPoints: z.number().int().safe().min(0), goodMaxPoints: z.number().int().safe().min(0) })
 			.strict(),
-		rules: z.array(PricingRuleSchema).min(1)
+		rules: z.array(PricingRuleSchema).min(1).max(MAX_PRICING_MODEL_RULE_COUNT)
 	})
 	.strict()
 	.superRefine((model, context) => {

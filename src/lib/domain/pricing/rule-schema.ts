@@ -1,8 +1,9 @@
 import { z } from 'zod';
 
-import { PRICING_INPUT_KEYS, type PricingInputKey } from '../estimator/questions';
+import { ANSWER_OPTION_VALUES, PRICING_INPUT_KEYS, type PricingInputKey } from '../estimator/questions';
 
 export const SAFE_CENTS_SCHEMA = z.number().int().safe().min(0);
+export const MAX_PRICING_RULE_OPTION_COUNT = Math.max(...Object.values(ANSWER_OPTION_VALUES).map((values) => values.length));
 
 export const MoneyRangeSchema = z
 	.object({ minCents: SAFE_CENTS_SCHEMA, maxCents: SAFE_CENTS_SCHEMA })
@@ -21,7 +22,13 @@ const commonRule = {
 
 export const AnswerConditionSchema = z.discriminatedUnion('type', [
 	z.object({ type: z.literal('ANSWER_EQUALS'), inputKey: inputKeySchema, value: z.string().min(1) }).strict(),
-	z.object({ type: z.literal('ANSWER_IN'), inputKey: inputKeySchema, values: z.array(z.string().min(1)).min(1) }).strict(),
+	z
+		.object({
+			type: z.literal('ANSWER_IN'),
+			inputKey: inputKeySchema,
+			values: z.array(z.string().min(1)).min(1).max(MAX_PRICING_RULE_OPTION_COUNT)
+		})
+		.strict(),
 	z.object({ type: z.literal('ARRAY_CONTAINS'), inputKey: inputKeySchema, value: z.string().min(1) }).strict(),
 	z.object({ type: z.literal('NUMERIC_AT_LEAST'), inputKey: inputKeySchema, value: z.number().int().safe().min(0) }).strict()
 ]);
@@ -55,7 +62,10 @@ const bandRangeRuleSchema = z
 		category: resultCategorySchema,
 		...commonRule,
 		inputKey: inputKeySchema,
-		bands: z.array(z.object({ value: z.string().min(1), range: MoneyRangeSchema }).strict()).min(1),
+		bands: z
+			.array(z.object({ value: z.string().min(1), range: MoneyRangeSchema }).strict())
+			.min(1)
+			.max(MAX_PRICING_RULE_OPTION_COUNT),
 		when: AnswerConditionSchema.optional()
 	})
 	.strict();
@@ -102,7 +112,8 @@ const perPeriodRangeRuleSchema = z
 						'minPeriods and maxPeriods must both be null or form an ordered range.'
 					)
 			)
-			.min(1),
+			.min(1)
+			.max(MAX_PRICING_RULE_OPTION_COUNT),
 		unitRange: MoneyRangeSchema,
 		unknownRange: MoneyRangeSchema.optional()
 	})
@@ -115,7 +126,10 @@ const serviceAddonRangeRuleSchema = z
 		category: resultCategorySchema,
 		...commonRule,
 		inputKey: inputKeySchema,
-		addOns: z.array(z.object({ value: z.string().min(1), label: z.string().min(1), range: MoneyRangeSchema }).strict()).min(1)
+		addOns: z
+			.array(z.object({ value: z.string().min(1), label: z.string().min(1), range: MoneyRangeSchema }).strict())
+			.min(1)
+			.max(MAX_PRICING_RULE_OPTION_COUNT)
 	})
 	.strict();
 
@@ -126,7 +140,10 @@ const complexityScoreRuleSchema = z
 		category: z.literal('score'),
 		...commonRule,
 		inputKey: inputKeySchema,
-		pointsByValue: z.array(z.object({ value: z.string().min(1), points: scoreSchema }).strict()).min(1)
+		pointsByValue: z
+			.array(z.object({ value: z.string().min(1), points: scoreSchema }).strict())
+			.min(1)
+			.max(MAX_PRICING_RULE_OPTION_COUNT)
 	})
 	.strict();
 
@@ -137,7 +154,10 @@ const confidenceWeightRuleSchema = z
 		category: z.literal('score'),
 		...commonRule,
 		inputKey: inputKeySchema,
-		pointsByValue: z.array(z.object({ value: z.string().min(1), points: scoreSchema }).strict()).default([]),
+		pointsByValue: z
+			.array(z.object({ value: z.string().min(1), points: scoreSchema }).strict())
+			.max(MAX_PRICING_RULE_OPTION_COUNT)
+			.default([]),
 		missingPoints: scoreSchema.default(0),
 		when: z.object({ inputKey: inputKeySchema, value: z.string().min(1) }).strict().optional()
 	})
