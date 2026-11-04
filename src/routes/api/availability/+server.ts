@@ -1,5 +1,10 @@
-import { enforceNoticePeriod, generateBaseSlots, removeBusySlots } from '$lib/domain/booking_rules';
+import {
+	enforceNoticePeriod,
+	generateBaseSlots,
+	removeBusySlots
+} from '#lib/domain/booking_rules.js';
 import { fetchBusySlots } from '$lib/external/calendar_api';
+import { env } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
@@ -50,8 +55,8 @@ function mapExternalErrorToStatus(error: ExternalErrorLike): number {
 	}
 }
 
-export const GET: RequestHandler = async ({ request, platform }) => {
-	const kv = platform?.env.BOOKING_STATE;
+export const GET: RequestHandler = async ({ request }) => {
+	const kv = env.BOOKING_STATE;
 	if (!kv) {
 		return json({ ok: false, error: 'BOOKING_STATE binding is not configured' }, 500);
 	}
@@ -74,7 +79,7 @@ export const GET: RequestHandler = async ({ request, platform }) => {
 
 	const dayStart = new Date(`${date}T00:00:00+02:00`);
 	const dayEnd = new Date(`${date}T23:59:59+02:00`);
-	const busyResult = await fetchBusySlots(dayStart, dayEnd, platform?.env);
+	const busyResult = await fetchBusySlots(dayStart, dayEnd, env);
 	if (!busyResult.ok) {
 		return json(
 			{
