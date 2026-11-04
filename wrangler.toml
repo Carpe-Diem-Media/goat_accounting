@@ -1,12 +1,30 @@
-name = "goat-accounting"
-pages_build_output_dir = ".svelte-kit/cloudflare"
-compatibility_date = "2026-02-27"
-compatibility_flags = ["nodejs_compat"] # CRITICAL: Added to prevent 500 runtime errors
+# The default environment is deliberately not a deployment target.
+name = "goat-accounting-unconfigured"
+main = ".svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-11-03"
+compatibility_flags = ["nodejs_compat"]
+upload_source_maps = true
+workers_dev = false
 
-# Preview environment (local dev and branch previews)
+[assets]
+directory = ".svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[observability]
+enabled = true
+
+[observability.issues]
+enabled = true
+
+# Preview environment. These bindings still point at production resources;
+# keep this Worker unpublished until isolated test resources are configured.
+[env.preview]
+name = "goat-accounting-preview"
+workers_dev = false
+
 [[env.preview.kv_namespaces]]
 binding = "BOOKING_STATE"
-id = "4d81337b6bda43608aec68ff115720e9" # Use the same ID to prevent build crashes
+id = "4d81337b6bda43608aec68ff115720e9"
 
 [env.preview.vars]
 CALENDAR_PROVIDER = "google"
@@ -17,7 +35,12 @@ ADVISOR_EMAIL = "rossouw@goataccounting.co.za"
 SUPABASE_URL = "https://pxguvhxfvaqtdvqwgbyd.supabase.co"
 SUPABASE_LEADS_TABLE = "leads"
 
-# Production environment (live site)
+# Production Worker environment. It has no route or custom domain here; the
+# existing Pages site remains the live production deployment.
+[env.production]
+name = "goat-accounting-production"
+workers_dev = false
+
 [[env.production.kv_namespaces]]
 binding = "BOOKING_STATE"
 id = "4d81337b6bda43608aec68ff115720e9"

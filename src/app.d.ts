@@ -1,33 +1,18 @@
-type BookingStateKV = {
-	get(key: string): Promise<string | null>;
-	put(key: string, value: string, options?: { expirationTtl?: number }): Promise<void>;
-	delete(key: string): Promise<void>;
-};
-
-declare global {
-	namespace App {
-		interface Platform {
-			env: {
-				BOOKING_STATE: BookingStateKV;
-				CALENDAR_PROVIDER?: 'google' | 'microsoft' | string;
-				CALENDAR_ID?: string;
-				CALENDAR_ACCESS_TOKEN?: string;
-				CALENDAR_API_KEY?: string;
-				GOOGLE_CALENDAR_ACCESS_TOKEN?: string;
-				GOOGLE_CALENDAR_ID?: string;
-				MS_GRAPH_ACCESS_TOKEN?: string;
-				MS_GRAPH_SCHEDULE_ID?: string;
-				MS_GRAPH_USER_ID?: string;
-				CALENDAR_EVENT_DURATION_MINUTES?: string;
-				RESEND_API_KEY?: string;
-				RESEND_FROM_EMAIL?: string;
-				ADVISOR_EMAIL?: string;
-				SUPABASE_URL?: string;
-				SUPABASE_SERVICE_ROLE_KEY?: string;
-				SUPABASE_LEADS_TABLE?: string;
-			};
-		}
+// Secret names for existing integrations. Values remain outside source control.
+declare namespace Cloudflare {
+	interface Env {
+		CALENDAR_ACCESS_TOKEN?: string;
+		CALENDAR_API_KEY?: string;
+		GOOGLE_CALENDAR_ACCESS_TOKEN?: string;
+		RESEND_API_KEY?: string;
+		SUPABASE_SERVICE_ROLE_KEY?: string;
 	}
 }
 
-export {};
+// SvelteKit 3 retains this deprecated runtime module for existing application imports.
+declare module '$app/environment' {
+	export const browser: boolean;
+	export const dev: boolean;
+	export const building: boolean;
+	export const version: string;
+}

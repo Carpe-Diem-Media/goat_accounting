@@ -1,3 +1,6 @@
+# Local Wrangler secrets for the existing booking integration only.
 SUPABASE_URL=https://your-project-ref.supabase.co
 SUPABASE_LEADS_TABLE=leads
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
+RESEND_API_KEY=your-resend-api-key
+GOOGLE_CALENDAR_ACCESS_TOKEN=your-google-calendar-access-token
