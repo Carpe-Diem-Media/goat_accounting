@@ -35,9 +35,9 @@ PR 2’s strict discriminated rule union maps as follows:
 - `sort_order` is unique per model and ranges from 0 through 127. Reads sort by it to reconstruct deterministic `rules[]` order.
 - SQL-only row IDs, `pricing_model_id`, `enabled`, `created_at`, and `updated_at` do not appear in the public DTO. Reads include enabled rules only. Disabled draft rows are retained for authoring but do not enter the executable projection or checksum.
 
-The server mapper merges only the two JSON wrapper objects into the common scalar fields and rejects duplicate keys. The resulting object is passed to PR 2’s `validatePricingModel()` callback, which enforces the strict Zod union and semantic V1 coverage. SQL constraints enforce JSON top-level shape, safe numeric ranges, known scalar input keys, unique codes/order, and persisted code format. Persisted production rule codes use lowercase snake case; nonconforming PR 2 fixture codes remain test-only.
+The server mapper merges only the two JSON wrapper objects into the common scalar fields and rejects duplicate keys. The SQL input-key set is checked against all 22 values in PR 2’s `PRICING_INPUT_KEYS`; the earlier omission of `business.ongoingServices` is fixed, and the pgTAP test rejects any missing or extra key. A `SERVICE_ADDON_RANGE` fixture persists and reconstructs this input key through the activation projection.
 
-`CONFIDENCE_WEIGHT` optional/default fields retain PR 2’s parsed behavior. The validated Zod result is the object passed to persistence activation, so defaults are materialized before the database comparison.
+`CONFIDENCE_WEIGHT` optional/default fields retain PR 2’s parsed behavior. The current PR 3 branch does not contain PR 2’s domain modules, so it cannot yet call `validatePricingModel()` or rely on its parsed defaults.
 
 ## Estimate result mapping
 
@@ -47,9 +47,11 @@ Relational columns are projections for lifecycle and staff queries: calculator t
 
 ## Activation and checksum path
 
-The repository activation method requires a `validatePricingModel` callback. It loads the current DRAFT and its enabled rules, maps the persisted columns/JSONB back to the public DTO, and invokes the callback before the RPC. If validation throws, the repository does not call the RPC. Production callers must pass PR 2’s `validatePricingModel()`; this PR adds no duplicate public domain interface or activation route.
+The repository activation method currently fails closed with `PRICING_ACTIVATION_INTEGRATION_BLOCKER` before reading the draft or invoking the RPC. It accepts no validator callback. PR 2’s domain modules are absent from PR 3’s base, so there is no safe way in this branch to make the production path call the actual `validatePricingModel()`; a pass-through or caller-selected validator would not satisfy the contract. The repository test supplies a draft with no rules and proves the activation RPC remains unreachable while the gate is unavailable. It does not claim that PR 2 domain validation ran.
 
-The server sends the validator’s normalized DTO as `p_validated_model`. In one database transaction, the security-definer activation routine:
+Activation acceptance is blocked pending PR 2 integration and a candidate-model corpus gate. PR 2 currently exports `validatePricingModel()`, `calculateEstimate()`, and `CANONICAL_PRICING_TEST_CORPUS`, but no reusable candidate-model corpus runner. The corpus's exact amounts and rule codes are goldens for the non-production `TEST_PRICING_MODEL`; those fixed values and fixture codes cannot be assumed for an independently edited candidate without rejecting legitimate prices or requiring production values that have not been approved. Agent B must confirm the smallest candidate gate contract before integration. Once available, the single server activation path must run the actual validator and execute the approved corpus against the candidate model, then refuse the RPC on any failed scenario. No PR 2 files are changed here.
+
+After that server gate is integrated, the repository will send the validator’s normalized DTO as `p_validated_model`. In one database transaction, the security-definer activation routine:
 
 1. serializes activation attempts with a transaction advisory lock;
 2. checks the actor is an active administrator;
@@ -60,7 +62,7 @@ The server sends the validator’s normalized DTO as `p_validated_model`. In one
 
 The partial unique index on ACTIVE state independently prevents more than one ACTIVE row. A service-role direct state update is rejected by the model trigger; only the guarded function may transition DRAFT to ACTIVE or ACTIVE to RETIRED. If the replacement update fails after retirement, the transaction rolls both state changes back. The pgTAP failure injection verifies that the prior model stays ACTIVE and the target stays DRAFT.
 
-Postgres cannot execute the TypeScript domain validator. Its enforceable boundary is that only the server secret role can call the RPC, the repository requires and invokes the validator, and the locked SQL projection must exactly match the validator output. A caller holding the server secret could bypass the TypeScript check by invoking the RPC directly with a matching projection; that secret is restricted to controlled server code. Any future server activation route must use this repository method; direct browser access is denied. The secret key is not browser-prefixed or imported outside `.server.ts` code.
+Postgres cannot execute the TypeScript domain validator or corpus. The SQL routine verifies the submitted DTO against the locked projection but cannot prove that the validator or corpus ran. Only `service_role` can execute the RPC; a server component holding that secret could bypass the TypeScript gate by calling the RPC directly with a matching projection. The server secret is therefore the explicit trust boundary and must remain in controlled server code, with every activation route using the repository path. Direct browser access is denied, and the secret key is not browser-prefixed or imported outside `.server.ts` code. At this checkpoint, the repository path itself rejects activation until the real gates are integrated.
 
 ## Data API exposure and role grants
 
@@ -76,6 +78,6 @@ All estimator tables have RLS enabled and forced. No policy grants browser write
 
 ## Verification and remaining boundary
 
-Local verification and the 16 individual information-level index findings are recorded in [`advisor_results.md`](./advisor_results.md). Local tests cover deny paths for anonymous, non-staff, invited, suspended, deactivated, and below-AAL2 users; direct model-state bypass; snapshot and line immutability; append-only lead events; activation rollback; and the activation race.
+Local verification and the 16 individual information-level index findings are recorded in [`advisor_results.md`](./advisor_results.md). Local database tests cover deny paths for anonymous, non-staff, invited, suspended, deactivated, and below-AAL2 users; direct model-state bypass; snapshot and line immutability; append-only lead events; activation rollback; and the activation race. Repository activation tests prove the PR 2 integration blocker prevents an RPC call; actual validator and candidate corpus execution remain unverified and activation acceptance remains blocked.
 
 The dedicated Goat development/staging Supabase project has not been positively identified. No remote project link, DDL, advisor run, or remote key was used. Do not apply this migration to the unrelated `SvelteSite` project. After target verification and a separate explicit migration authorization, run remote advisors and review the exact migration against that target before applying it.

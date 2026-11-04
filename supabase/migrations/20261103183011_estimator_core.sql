@@ -177,6 +177,7 @@ CREATE TABLE estimator.pricing_rules (
         'business.financialAccounts',
         'business.employeeCount',
         'business.taxPosition',
+        'business.ongoingServices',
         'business.complexityFactors',
         'business.bankStatementsAvailableForFullPeriod',
         'business.outstandingComplianceAreas',

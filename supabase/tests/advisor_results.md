@@ -7,11 +7,13 @@ DevCore project `goat_accounting` was activated and `devcore-project doctor` pas
 | Command | Observed result |
 | --- | --- |
 | `devcore-project run test -- supabase db advisors --local --type all --level warn --fail-on warn` | Exit 0; `No issues found`; no warning-level security or performance findings. |
-| `devcore-project run test -- supabase db advisors --local --type all --level info --fail-on none` | Exit 0; 16 informational `unused_index` findings, all reviewed below. |
+| `devcore-project run test -- supabase db advisors --local --type all --level info --fail-on none` | Exit 0; `No issues found` after the clean reset and test suite. An earlier local statistics snapshot reported 16 informational `unused_index` findings; their workload review is retained below. |
 
 The local database has no representative production volume or query history. An unused-index result here does not establish that an index is unnecessary. The indexes remain in place for the query, uniqueness, and foreign-key workloads listed below.
 
-## Individual `unused_index` review
+## Earlier `unused_index` findings review
+
+The 16 findings below came from an earlier local statistics snapshot. The current clean-reset run reports none after the migration and tests exercised indexed paths. The local database is not representative of production query volume, so indexes remain based on their planned workload and integrity paths.
 
 | Index | Planned query or integrity path |
 | --- | --- |
@@ -41,6 +43,9 @@ The duplicate non-unique `estimate_line_items_estimate_sort_idx` was removed aft
 Commands run after a clean local migration reset:
 
 ```text
+devcore-project doctor
+  Exit 0; DEV and TEST database endpoints and authentication passed.
+
 mise exec bun@1.3.10 -- bun install --frozen-lockfile
   Exit 0; Checked 136 installs across 234 packages (no changes).
 
@@ -48,13 +53,13 @@ devcore-project run test -- supabase db reset --local
   Exit 0; applied 20261103183011_estimator_core.sql.
 
 devcore-project run test -- supabase test db --local
-  Exit 0; Files=3, Tests=78; Result: PASS.
+  Exit 0; Files=3, Tests=80; Result: PASS. Includes exact comparison of SQL input keys with PR2's 22 keys and SERVICE_ADDON_RANGE persistence/reconstruction for business.ongoingServices.
 
 devcore-project run test -- node supabase/tests/activation_race.mjs
   Exit 0; Activation race passed: both concurrent activations committed with exactly one active model.
 
 devcore-project run test -- mise exec bun@1.3.10 -- bun test supabase/tests/repository_activation.test.ts
-  Exit 0; 3 pass, 0 fail, 9 expect() calls.
+  Exit 0; 2 pass, 0 fail, 7 expect() calls. Activation fails closed before any draft read or RPC while PR2 validation/corpus integration is unavailable.
 
 devcore-project run test -- mise exec bun@1.3.10 -- bun x tsc --noEmit --target ES2022 --module ESNext --moduleResolution Bundler --strict --skipLibCheck src/lib/server/supabase/client.server.ts src/lib/server/supabase/repository.server.ts src/lib/server/supabase/database.types.ts
   Exit 0; no diagnostics.
@@ -66,10 +71,10 @@ devcore-project run test -- supabase db advisors --local --type all --level warn
   Exit 0; No issues found.
 
 devcore-project run test -- supabase db advisors --local --type all --level info --fail-on none
-  Exit 0; 16 informational unused_index findings, listed above.
+  Exit 0; No issues found after the tests; the earlier 16 informational unused_index findings are listed above.
 ```
 
-The migration is enclosed in a transaction. A failed migration leaves no partial DDL. After application, schema rollback must use a reviewed forward migration so saved estimate and lead history is not dropped. No remote migration has been applied.
+The migration is enclosed in a transaction. A failed migration leaves no partial DDL. After application, schema rollback must use a reviewed forward migration so saved estimate and lead history is not dropped. Repository activation currently rejects every attempt until PR2's validator and candidate corpus gate are integrated; the SQL race test only verifies transactional concurrency. No remote migration has been applied.
 
 Remote security/performance advisors remain unrun because the dedicated Goat development/staging project has not been positively identified. The `SvelteSite` project was not used.
 

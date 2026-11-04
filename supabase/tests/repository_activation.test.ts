@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 
 import {
 	createEstimatorRepository,
+	PRICING_ACTIVATION_INTEGRATION_BLOCKER,
 	type EstimatorServiceClient
 } from '../../src/lib/server/supabase/repository.server';
 
@@ -97,46 +98,21 @@ function createClientHarness(events: string[], model = draft) {
 }
 
 describe('pricing model activation repository', () => {
-	it('loads and validates the persisted DTO before calling the activation RPC', async () => {
+	it('keeps the activation RPC unreachable for a draft missing mandatory-rule coverage', async () => {
 		const events: string[] = [];
-		const harness = createClientHarness(events);
-		let validatedInput: unknown;
-		const validatePricingModel = (input: unknown) => {
-			events.push('domain:validated');
-			validatedInput = input;
-			return input;
-		};
+		const invalidMandatoryRuleDraft = { ...draft, pricing_rules: [] };
+		expect(invalidMandatoryRuleDraft.pricing_rules).toHaveLength(0);
+		const harness = createClientHarness(events, invalidMandatoryRuleDraft);
 		const repository = createEstimatorRepository(harness.client);
-		const activate = repository.activatePricingModel as unknown as (
-			modelId: string,
-			actorUserId: string,
-			validator: (input: unknown) => unknown
-		) => Promise<unknown>;
 
-		await activate(modelId, actorId, validatePricingModel);
+		await expect(repository.activatePricingModel(modelId, actorId)).rejects.toThrow(
+			PRICING_ACTIVATION_INTEGRATION_BLOCKER
+		);
 
-		expect(events).toEqual(['from:pricing_models', 'draft:loaded', 'domain:validated', 'rpc']);
-		expect(validatedInput).toEqual({
-			id: modelId,
-			version: '1.0.0',
-			engineVersion: '1.0.0',
-			currency: 'ZAR',
-			state: 'DRAFT',
-			confidenceThresholds: { highMaxPoints: 0, goodMaxPoints: 1 },
-			rules: [
-				{
-					type: 'FIXED_RANGE',
-					code: 'core_test',
-					label: 'Core rule',
-					explanation: 'Core explanation',
-					scope: 'business',
-					category: 'catchup',
-					range: { minCents: 100, maxCents: 200 }
-				}
-			]
-		});
-		expect(harness.rpcCall?.name).toBe('activate_pricing_model');
-		expect(harness.rpcCall?.args.p_validated_model).toEqual(validatedInput);
+		// PR2's validator and candidate-model corpus runner are not present on this branch.
+		// Activation fails closed before reading a candidate or reaching the RPC.
+		expect(events).toEqual([]);
+		expect(harness.rpcCount).toBe(0);
 	});
 
 	it('rebuilds an active domain DTO and excludes disabled database rules', async () => {
@@ -166,21 +142,4 @@ describe('pricing model activation repository', () => {
 		expect(validatedInput).not.toHaveProperty('name');
 	});
 
-	it('does not call activation when domain validation rejects the persisted model', async () => {
-		const events: string[] = [];
-		const harness = createClientHarness(events);
-		const repository = createEstimatorRepository(harness.client);
-		const activate = repository.activatePricingModel as unknown as (
-			modelId: string,
-			actorUserId: string,
-			validator: (input: unknown) => unknown
-		) => Promise<unknown>;
-
-		await expect(
-			activate(modelId, actorId, () => {
-				throw new Error('invalid pricing model');
-			})
-		).rejects.toThrow('invalid pricing model');
-		expect(harness.rpcCount).toBe(0);
-	});
 });

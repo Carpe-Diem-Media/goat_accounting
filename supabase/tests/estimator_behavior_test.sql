@@ -41,7 +41,46 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-SELECT plan(53);
+SELECT plan(55);
+
+SELECT is(
+  (
+    SELECT array_agg(key_match.captured[1] ORDER BY key_match.captured[1])
+    FROM pg_catalog.pg_constraint AS constraint_row
+    CROSS JOIN LATERAL pg_catalog.regexp_matches(
+      pg_catalog.pg_get_constraintdef(constraint_row.oid),
+      $$'((business\.[A-Za-z]+)|(personal\.[A-Za-z]+)|urgency)'$$,
+      'g'
+    ) AS key_match(captured)
+    WHERE constraint_row.conrelid = 'estimator.pricing_rules'::regclass
+      AND constraint_row.conname = 'pricing_rules_input_key_format'
+  ),
+  ARRAY[
+    'business.bankStatementsAvailableForFullPeriod',
+    'business.booksStatus',
+    'business.complexityFactors',
+    'business.employeeCount',
+    'business.entityCount',
+    'business.entityType',
+    'business.financialAccounts',
+    'business.monthlyTransactionVolume',
+    'business.ongoingServices',
+    'business.outstandingComplianceAreas',
+    'business.outstandingMonths',
+    'business.recordCondition',
+    'business.taxPosition',
+    'personal.capitalGainsOccurred',
+    'personal.currentStatus',
+    'personal.foreignIncomePresent',
+    'personal.incomeSources',
+    'personal.ongoingRequirements',
+    'personal.outstandingYears',
+    'personal.rentalPropertyCount',
+    'personal.sarsPosition',
+    'urgency'
+  ]::text[],
+  'database pricing input keys exactly match PR2 PRICING_INPUT_KEYS'
+);
 
 CREATE FUNCTION pg_temp.reject_second_model_activation()
 RETURNS trigger
@@ -89,7 +128,8 @@ BEGIN
       confidence_high_max_points, confidence_good_max_points, created_by
     ) VALUES
       ('20000000-0000-4000-8000-000000000001', '1.0.0', 'Test model one', 'DRAFT', '1.0.0', 0, 1, '10000000-0000-4000-8000-000000000001'),
-      ('20000000-0000-4000-8000-000000000002', '1.1.0', 'Test model two', 'DRAFT', '1.0.0', 0, 1, '10000000-0000-4000-8000-000000000001')
+      ('20000000-0000-4000-8000-000000000002', '1.1.0', 'Test model two', 'DRAFT', '1.0.0', 0, 1, '10000000-0000-4000-8000-000000000001'),
+      ('20000000-0000-4000-8000-000000000004', '1.3.0', 'Input key round-trip test model', 'DRAFT', '1.0.0', 0, 1, '10000000-0000-4000-8000-000000000001')
     ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO estimator.pricing_rules (
@@ -113,6 +153,25 @@ BEGIN
        'disabled_rule', 'Disabled rule', 'business', 'catchup', 'FIXED_RANGE',
        NULL, 'Disabled explanation', '{}', '{"range":{"minCents":0,"maxCents":0}}', false, 3)
     ON CONFLICT (id) DO NOTHING;
+
+    INSERT INTO estimator.pricing_rules (
+      id, pricing_model_id, code, label, scope, category, rule_type,
+      input_key, explanation, conditions, parameters, enabled, sort_order
+    ) VALUES (
+      '30000000-0000-4000-8000-000000000007',
+      '20000000-0000-4000-8000-000000000004',
+      'ongoing_services_round_trip',
+      'Test ongoing services',
+      'business',
+      'ongoing',
+      'SERVICE_ADDON_RANGE',
+      'business.ongoingServices',
+      'Synthetic database round-trip fixture.',
+      '{}',
+      '{"addOns":[{"value":"monthly_bookkeeping","label":"Test service","range":{"minCents":0,"maxCents":0}}]}',
+      true,
+      0
+    );
 
     INSERT INTO estimator.pricing_models (
       id, version, name, state, engine_contract_version,
@@ -203,6 +262,17 @@ SELECT is(
   ),
   '{"id":"20000000-0000-4000-8000-000000000001","version":"1.0.0","engineVersion":"1.0.0","currency":"ZAR","state":"ACTIVE","confidenceThresholds":{"highMaxPoints":0,"goodMaxPoints":1},"rules":[{"type":"FIXED_RANGE","scope":"business","category":"catchup","code":"core_test","label":"Test rule one","explanation":"Test explanation","range":{"minCents":100,"maxCents":200}},{"type":"PER_UNIT_RANGE","scope":"business","category":"ongoing","code":"conditional_unit","label":"Conditional unit rule","explanation":"Conditional explanation","inputKey":"business.entityCount","when":{"inputKey":"business.entityType","value":"multiple_entities"},"unitLabel":"entity","unitRange":{"minCents":10,"maxCents":20}}]}'::jsonb,
   'database columns and JSONB rebuild the strict typed-rule DTO in sort order'
+);
+SELECT is(
+  (
+    SELECT reconstructed_rule
+    FROM pg_catalog.jsonb_array_elements(
+      estimator.pricing_model_activation_projection('20000000-0000-4000-8000-000000000004'::uuid)->'rules'
+    ) AS projected(reconstructed_rule)
+    WHERE reconstructed_rule->>'code' = 'ongoing_services_round_trip'
+  ),
+  '{"type":"SERVICE_ADDON_RANGE","scope":"business","category":"ongoing","code":"ongoing_services_round_trip","label":"Test ongoing services","explanation":"Synthetic database round-trip fixture.","inputKey":"business.ongoingServices","addOns":[{"value":"monthly_bookkeeping","label":"Test service","range":{"minCents":0,"maxCents":0}}]}'::jsonb,
+  'business.ongoingServices SERVICE_ADDON_RANGE persists and reconstructs through the DTO projection'
 );
 
 SELECT ok(

@@ -4,6 +4,9 @@ import type { Database, Json } from './database.types';
 export type EstimatorServiceClient = SupabaseClient<Database, 'estimator'>;
 type PricingModelValidator = (input: unknown) => unknown;
 
+export const PRICING_ACTIVATION_INTEGRATION_BLOCKER =
+	'Pricing activation is disabled until the PR 2 validator and candidate pricing corpus gate are integrated.';
+
 type PricingRuleActivationRecord = Pick<
 	Database['estimator']['Tables']['pricing_rules']['Row'],
 	| 'code'
@@ -83,12 +86,6 @@ function toDomainPricingModel(row: PricingModelActivationRecord): Record<string,
 	};
 }
 
-function asJson(value: unknown): Json {
-	const serialized = JSON.stringify(value);
-	if (serialized === undefined) throw new Error('Validated pricing model is not JSON serializable.');
-	return JSON.parse(serialized) as Json;
-}
-
 export function createEstimatorRepository(client: EstimatorServiceClient) {
 	return {
 		async getActivePricingModel(validatePricingModel: PricingModelValidator) {
@@ -125,33 +122,12 @@ export function createEstimatorRepository(client: EstimatorServiceClient) {
 				.maybeSingle();
 		},
 
-		/** Call only after the server has verified the actor's authenticated session, AAL2, and active admin role. */
-		async activatePricingModel(
-			modelId: string,
-			actorUserId: string,
-			validatePricingModel: PricingModelValidator
-		) {
-			const { data, error } = await client
-				.from('pricing_models')
-				.select(pricingModelSelection)
-				.eq('id', modelId)
-				.eq('state', 'DRAFT')
-				.eq('pricing_rules.enabled', true)
-				.order('sort_order', { referencedTable: 'pricing_rules' })
-				.single();
-
-			if (error) throw error;
-			if (!data) throw new Error('Draft pricing model was not found.');
-
-			const validatedModel = validatePricingModel(
-				toDomainPricingModel(data as unknown as PricingModelActivationRecord)
-			);
-
-			return client.rpc('activate_pricing_model', {
-				p_model_id: modelId,
-				p_actor_user_id: actorUserId,
-				p_validated_model: asJson(validatedModel)
-			});
+		/**
+		 * Activation remains closed until PR 2's validator and candidate corpus runner are
+		 * available in this branch. Do not accept a caller-supplied validator here.
+		 */
+		async activatePricingModel(_modelId: string, _actorUserId: string): Promise<never> {
+			throw new Error(PRICING_ACTIVATION_INTEGRATION_BLOCKER);
 		},
 
 		/** Call only after the server has verified the actor's authenticated session, AAL2, and staff role. */
