@@ -4,11 +4,12 @@ This note compares the database schema with PR 2 without changing PR 2 files.
 
 ## Compared revisions
 
-- PR 3 base and `origin/main`: `0cbd662f8996c42e3d75f948d3f9af2e4b16ad64`.
+- PR 3 original base before domain integration: `0cbd662f8996c42e3d75f948d3f9af2e4b16ad64`.
+- PR 3 integrated `origin/main`: `400b534153bea7037ddcf2b792a4c376ea8a58ce`.
 - PR 2 revision named in the review request: `bfb4f92fd27e1021df457fbdc81ec171d22bcfb8`.
-- PR 2 head fetched for this review: `10983fb2d58aec48cabe892a096bd5eee0a63a88`.
+- PR 2 merged head: `f76d3af41adb9687805e3e95deb17a6fdfd3f837`.
 
-The pinned PR 2 revision had only the broad nonnegative and `highMaxPoints <= goodMaxPoints` checks. The fetched head adds the V1 domain rule `highMaxPoints === 0` and `goodMaxPoints <= 1`; it preserves the public `confidenceThresholds` fields. The SQL storage constraint remains broad for DRAFT authoring, while activation rejects values outside the current V1 domain rule. PR 3 therefore follows the current PR 2 head and records the earlier-head difference here.
+The earlier PR 2 review revision had only the broad nonnegative and `highMaxPoints <= goodMaxPoints` checks. The merged head adds the V1 domain rule `highMaxPoints === 0` and `goodMaxPoints <= 1`; it preserves the public `confidenceThresholds` fields. The SQL storage constraint remains broad for DRAFT authoring, while activation rejects values outside the current V1 domain rule.
 
 ## Pricing model DTO mapping
 
@@ -37,7 +38,7 @@ PR 2’s strict discriminated rule union maps as follows:
 
 The server mapper merges only the two JSON wrapper objects into the common scalar fields and rejects duplicate keys. The SQL input-key set is checked against all 22 values in PR 2’s `PRICING_INPUT_KEYS`; the earlier omission of `business.ongoingServices` is fixed, and the pgTAP test rejects any missing or extra key. A `SERVICE_ADDON_RANGE` fixture persists and reconstructs this input key through the activation projection.
 
-`CONFIDENCE_WEIGHT` optional/default fields retain PR 2’s parsed behavior. The current PR 3 branch does not contain PR 2’s domain modules, so it cannot yet call `validatePricingModel()` or rely on its parsed defaults.
+`CONFIDENCE_WEIGHT` optional/default fields retain PR 2’s parsed behavior. With PR 2 integrated, `getActivePricingModel()` reconstructs the DTO and calls the real `validatePricingModel()` before returning it. The repository regression round-trips every typed rule kind through the persisted scalar and JSONB fields, and rejects an invalid reconstructed model. Its pricing values are a test-only fixture.
 
 ## Estimate result mapping
 
@@ -47,11 +48,11 @@ Relational columns are projections for lifecycle and staff queries: calculator t
 
 ## Activation and checksum path
 
-The repository activation method currently fails closed with `PRICING_ACTIVATION_INTEGRATION_BLOCKER` before reading the draft or invoking the RPC. It accepts no validator callback. PR 2’s domain modules are absent from PR 3’s base, so there is no safe way in this branch to make the production path call the actual `validatePricingModel()`; a pass-through or caller-selected validator would not satisfy the contract. The repository test supplies a draft with no rules and proves the activation RPC remains unreachable while the gate is unavailable. It does not claim that PR 2 domain validation ran.
+The repository activation method still fails closed with `PRICING_ACTIVATION_INTEGRATION_BLOCKER` before reading the draft or invoking the RPC. It accepts no validator callback. The approved candidate runner and pricing manifest are not integrated, so activation cannot yet complete the required acceptance checks. The repository test supplies a draft with no rules and proves the activation RPC remains unreachable while that gate is unavailable.
 
-Activation acceptance is blocked pending PR 2 integration and an independently approved candidate manifest. Agent B confirmed that PR 2 exports `validatePricingModel()`, `calculateEstimate()`, and `CANONICAL_PRICING_TEST_CORPUS`, but no reusable candidate-model runner. The corpus's exact amounts and rule codes are goldens for the non-production `TEST_PRICING_MODEL`; those fixed values and fixture codes cannot be assumed for an independently edited candidate.
+Activation acceptance remains blocked pending the candidate-specific runner and an independently approved candidate manifest. PR 2 exports `validatePricingModel()`, `calculateEstimate()`, and `CANONICAL_PRICING_TEST_CORPUS`, but no reusable candidate-model runner. The corpus's exact amounts and rule codes are goldens for the non-production `TEST_PRICING_MODEL`; those fixed values and fixture codes cannot be assumed for an independently edited candidate.
 
-The accepted PR 2 contract is a separate pure candidate-acceptance runner. It must call `validatePricingModel()`, evaluate DRAFT candidates through a dedicated internal calculation path while preserving the public ACTIVE-only calculation guard, and reject missing, empty, or invalid manifests. The manifest must carry independently approved expected money ranges, rule codes, confidence, and review results; expectations must never be generated from the candidate being tested. The runner must return candidate identity, a model-definition fingerprint, manifest revision, and scenario-level failures. The synthetic canonical corpus remains test-only and is not an acceptance manifest. No approved candidate manifest or runner is integrated here, so activation remains closed. After PR 2 is merged and a manifest is approved, the server repository must load it, invoke the actual validator and runner internally, and refuse the RPC on any acceptance failure; it must not accept a caller-supplied `testCorpusPassed` flag. No PR 2 files are changed here.
+The accepted PR 2 contract is a separate pure candidate-acceptance runner. It must call `validatePricingModel()`, evaluate DRAFT candidates through a dedicated internal calculation path while preserving the public ACTIVE-only calculation guard, and reject missing, empty, or invalid manifests. The manifest must carry independently approved expected money ranges, rule codes, confidence, and review results; expectations must never be generated from the candidate being tested. The runner must return candidate identity, a model-definition fingerprint, manifest revision, and scenario-level failures. The synthetic canonical corpus remains test-only and is not an acceptance manifest. No approved candidate manifest or runner is integrated here, so activation remains closed. After the runner and manifest are integrated, the server repository must load the approved manifest, invoke the actual validator and runner internally, and refuse the RPC on any acceptance failure; it must not accept a caller-supplied `testCorpusPassed` flag. No PR 2 files are changed here.
 
 After that server gate is integrated, the repository will send the validator’s normalized DTO as `p_validated_model`. In one database transaction, the security-definer activation routine:
 
@@ -80,6 +81,6 @@ All estimator tables have RLS enabled and forced. No policy grants browser write
 
 ## Verification and remaining boundary
 
-Local verification and the 16 individual information-level index findings are recorded in [`advisor_results.md`](./advisor_results.md). Local database tests cover deny paths for anonymous, non-staff, invited, suspended, deactivated, and below-AAL2 users; direct model-state bypass; snapshot and line immutability; append-only lead events; activation rollback; and the activation race. Repository activation tests prove the PR 2 integration blocker prevents an RPC call; actual validator and candidate corpus execution remain unverified and activation acceptance remains blocked.
+Local verification and the 16 individual information-level index findings are recorded in [`advisor_results.md`](./advisor_results.md). Local database tests cover deny paths for anonymous, non-staff, invited, suspended, deactivated, and below-AAL2 users; direct model-state bypass; snapshot and line immutability; append-only lead events; activation rollback; and the activation race. Repository tests prove that the actual PR 2 validator accepts a valid reconstructed test DTO, rejects an invalid one, and that activation remains blocked before any RPC call. Candidate-manifest acceptance remains unverified and activation remains disabled.
 
 The dedicated Goat development/staging Supabase project has not been positively identified. No remote project link, DDL, advisor run, or remote key was used. Do not apply this migration to the unrelated `SvelteSite` project. After target verification and a separate explicit migration authorization, run remote advisors and review the exact migration against that target before applying it.

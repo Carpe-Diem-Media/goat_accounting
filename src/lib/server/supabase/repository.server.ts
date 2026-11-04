@@ -1,11 +1,11 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { validatePricingModel } from '../../domain/pricing/model';
 import type { Database, Json } from './database.types';
 
 export type EstimatorServiceClient = SupabaseClient<Database, 'estimator'>;
-type PricingModelValidator = (input: unknown) => unknown;
 
 export const PRICING_ACTIVATION_INTEGRATION_BLOCKER =
-	'Pricing activation is disabled until the PR 2 validator and approved candidate acceptance runner are integrated.';
+	'Pricing activation is disabled until the approved candidate acceptance runner and pricing manifest are integrated.';
 
 type PricingRuleActivationRecord = Pick<
 	Database['estimator']['Tables']['pricing_rules']['Row'],
@@ -88,7 +88,7 @@ function toDomainPricingModel(row: PricingModelActivationRecord): Record<string,
 
 export function createEstimatorRepository(client: EstimatorServiceClient) {
 	return {
-		async getActivePricingModel(validatePricingModel: PricingModelValidator) {
+		async getActivePricingModel() {
 			const { data, error } = await client
 				.from('pricing_models')
 				.select(pricingModelSelection)
@@ -123,8 +123,8 @@ export function createEstimatorRepository(client: EstimatorServiceClient) {
 		},
 
 		/**
-		 * Activation remains closed until PR 2's validator and candidate acceptance runner are
-		 * available in this branch. Do not accept a caller-supplied validator here.
+		 * Activation remains closed until the approved candidate manifest and acceptance runner
+		 * are integrated. Do not accept caller-supplied acceptance results here.
 		 */
 		async activatePricingModel(_modelId: string, _actorUserId: string): Promise<never> {
 			throw new Error(PRICING_ACTIVATION_INTEGRATION_BLOCKER);

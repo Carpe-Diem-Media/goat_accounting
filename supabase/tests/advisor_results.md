@@ -7,13 +7,13 @@ DevCore project `goat_accounting` was activated and `devcore-project doctor` pas
 | Command | Observed result |
 | --- | --- |
 | `devcore-project run test -- supabase db advisors --local --type all --level warn --fail-on warn` | Exit 0; `No issues found`; no warning-level security or performance findings. |
-| `devcore-project run test -- supabase db advisors --local --type all --level info --fail-on none` | Exit 0; `No issues found` after the clean reset and test suite. An earlier local statistics snapshot reported 16 informational `unused_index` findings; their workload review is retained below. |
+| `devcore-project run test -- supabase db advisors --local --type all --level info --fail-on none` | Exit 0; 16 informational `unused_index` findings after the fresh reset and test suite. Their workload review is retained below. |
 
 The local database has no representative production volume or query history. An unused-index result here does not establish that an index is unnecessary. The indexes remain in place for the query, uniqueness, and foreign-key workloads listed below.
 
-## Earlier `unused_index` findings review
+## `unused_index` findings review
 
-The 16 findings below came from an earlier local statistics snapshot. The current clean-reset run reports none after the migration and tests exercised indexed paths. The local database is not representative of production query volume, so indexes remain based on their planned workload and integrity paths.
+The 16 findings below came from the current local statistics after a clean reset and test run. The local database is not representative of production query volume, so indexes remain based on their planned workload and integrity paths.
 
 | Index | Planned query or integrity path |
 | --- | --- |
@@ -39,6 +39,8 @@ These workload choices follow the relational filters in the repository skeleton 
 The duplicate non-unique `estimate_line_items_estimate_sort_idx` was removed after adding `UNIQUE (estimate_id, sort_order)`. That unique index supports ordered line-item reads and the left-prefix `estimate_id` foreign-key path, so keeping a second index would add write and storage cost without a separate access path.
 
 ## Validation evidence
+
+The following command record is from PR 3's initial implementation, before PR 2 was merged. Current post-merge verification is summarized below it.
 
 Commands run after a clean local migration reset:
 
@@ -74,7 +76,23 @@ devcore-project run test -- supabase db advisors --local --type all --level info
   Exit 0; No issues found after the tests; the earlier 16 informational unused_index findings are listed above.
 ```
 
-The migration is enclosed in a transaction. A failed migration leaves no partial DDL. After application, schema rollback must use a reviewed forward migration so saved estimate and lead history is not dropped. Repository activation currently rejects every attempt until PR2's validator and candidate corpus gate are integrated; the SQL race test only verifies transactional concurrency. No remote migration has been applied.
+## Post-merge integration verification
+
+After integrating `origin/main` at `400b534153bea7037ddcf2b792a4c376ea8a58ce`:
+
+- `devcore-project doctor` passed for the configured DEV and TEST databases.
+- `devcore-project run test -- supabase db reset --local` applied the estimator migration successfully.
+- `devcore-project run test -- supabase test db --local` passed all 81 pgTAP tests.
+- `devcore-project run test -- node supabase/tests/activation_race.mjs` passed; both concurrent activations committed with exactly one ACTIVE model.
+- `mise exec bun@1.3.10 -- bun run test` passed all 71 Bun tests, including the active DTO validator round-trip and invalid-model rejection.
+- `mise exec bun@1.3.10 -- bun run check` found zero errors and zero warnings.
+- The targeted strict TypeScript check passed with TypeScript 6's `--ignoreConfig` and `--types bun` options.
+- `mise exec bun@1.3.10 -- bun run build` passed, including Worker type verification.
+- The warning-level database advisor reported no issues. The information-level advisor reported 16 unused-index findings; this local workload does not justify removing planned indexes.
+
+No remote project was linked, queried, or changed.
+
+The migration is enclosed in a transaction. A failed migration leaves no partial DDL. After application, schema rollback must use a reviewed forward migration so saved estimate and lead history is not dropped. Repository activation currently rejects every attempt until the approved candidate manifest and acceptance runner are integrated; the SQL race test only verifies transactional concurrency. No remote migration has been applied.
 
 Remote security/performance advisors remain unrun because the dedicated Goat development/staging project has not been positively identified. The `SvelteSite` project was not used.
 
