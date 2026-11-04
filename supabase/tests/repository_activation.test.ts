@@ -98,7 +98,7 @@ function createClientHarness(events: string[], model = draft) {
 }
 
 describe('pricing model activation repository', () => {
-	it('keeps the activation RPC unreachable for a draft missing mandatory-rule coverage', async () => {
+	it('fails closed before reading a draft or invoking the activation RPC', async () => {
 		const events: string[] = [];
 		const invalidMandatoryRuleDraft = { ...draft, pricing_rules: [] };
 		expect(invalidMandatoryRuleDraft.pricing_rules).toHaveLength(0);
@@ -109,7 +109,7 @@ describe('pricing model activation repository', () => {
 			PRICING_ACTIVATION_INTEGRATION_BLOCKER
 		);
 
-		// PR2's validator and candidate-model corpus runner are not present on this branch.
+		// PR2's validator and candidate-acceptance runner are not present on this branch.
 		// Activation fails closed before reading a candidate or reaching the RPC.
 		expect(events).toEqual([]);
 		expect(harness.rpcCount).toBe(0);

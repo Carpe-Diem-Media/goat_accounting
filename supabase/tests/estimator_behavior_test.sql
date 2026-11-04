@@ -680,7 +680,6 @@ SELECT ok(
   'advisor cannot activate a pricing model'
 );
 
-SET LOCAL ROLE service_role;
 DO $$
 DECLARE
   active_count integer;
@@ -702,7 +701,6 @@ BEGIN
   PERFORM set_config('estimator.test_active_model_count', active_count::text, true);
 END;
 $$;
-RESET ROLE;
 
 SELECT is(
   current_setting('estimator.test_active_model_count', true),

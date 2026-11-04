@@ -1380,6 +1380,5 @@ GRANT UPDATE (role, state) ON estimator.staff_users TO service_role;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA estimator FROM PUBLIC, anon, authenticated, service_role;
 GRANT EXECUTE ON FUNCTION estimator.is_current_staff(estimator.staff_role[], boolean) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION estimator.transition_lead(uuid, estimator.lead_state, uuid, text, text) TO service_role;
-GRANT EXECUTE ON FUNCTION estimator.activate_pricing_model(uuid, uuid, jsonb) TO service_role;
 
 COMMIT;

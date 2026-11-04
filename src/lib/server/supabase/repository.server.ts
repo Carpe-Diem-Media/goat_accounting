@@ -5,7 +5,7 @@ export type EstimatorServiceClient = SupabaseClient<Database, 'estimator'>;
 type PricingModelValidator = (input: unknown) => unknown;
 
 export const PRICING_ACTIVATION_INTEGRATION_BLOCKER =
-	'Pricing activation is disabled until the PR 2 validator and candidate pricing corpus gate are integrated.';
+	'Pricing activation is disabled until the PR 2 validator and approved candidate acceptance runner are integrated.';
 
 type PricingRuleActivationRecord = Pick<
 	Database['estimator']['Tables']['pricing_rules']['Row'],
@@ -123,7 +123,7 @@ export function createEstimatorRepository(client: EstimatorServiceClient) {
 		},
 
 		/**
-		 * Activation remains closed until PR 2's validator and candidate corpus runner are
+		 * Activation remains closed until PR 2's validator and candidate acceptance runner are
 		 * available in this branch. Do not accept a caller-supplied validator here.
 		 */
 		async activatePricingModel(_modelId: string, _actorUserId: string): Promise<never> {

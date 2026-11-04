@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(16);
+SELECT plan(17);
 
 SELECT ok(
   has_schema_privilege('authenticated', 'estimator', 'USAGE')
@@ -131,14 +131,37 @@ SELECT ok(
 
 SELECT ok(
   (
-    SELECT has_function_privilege('service_role', proc.oid, 'EXECUTE')
+    SELECT NOT has_function_privilege('service_role', proc.oid, 'EXECUTE')
       AND NOT has_function_privilege('anon', proc.oid, 'EXECUTE')
       AND NOT has_function_privilege('authenticated', proc.oid, 'EXECUTE')
     FROM pg_catalog.pg_proc AS proc
     JOIN pg_catalog.pg_namespace AS ns ON ns.oid = proc.pronamespace
     WHERE ns.nspname = 'estimator' AND proc.proname = 'activate_pricing_model'
   ) IS TRUE,
-  'only the server secret role can invoke pricing activation'
+  'no Data API role can invoke pricing activation before candidate acceptance is integrated'
+);
+
+SET LOCAL ROLE service_role;
+DO $$
+BEGIN
+  BEGIN
+    PERFORM estimator.activate_pricing_model(
+      '20000000-0000-4000-8000-000000000002',
+      '10000000-0000-4000-8000-000000000001',
+      '{}'::jsonb
+    );
+    PERFORM set_config('estimator.test_direct_activation', 'allowed', true);
+  EXCEPTION WHEN insufficient_privilege THEN
+    PERFORM set_config('estimator.test_direct_activation', SQLERRM, true);
+  END;
+END;
+$$;
+RESET ROLE;
+
+SELECT is(
+  current_setting('estimator.test_direct_activation', true),
+  'permission denied for function activate_pricing_model',
+  'service_role cannot directly invoke activation while the trusted acceptance gate is unavailable'
 );
 
 SELECT ok(
@@ -177,7 +200,7 @@ SELECT ok(
         has_function_privilege('anon', proc.oid, 'EXECUTE')
         OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE') AND proc.proname <> 'is_current_staff')
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
-          AND proc.proname NOT IN ('is_current_staff', 'activate_pricing_model', 'transition_lead'))
+          AND proc.proname NOT IN ('is_current_staff', 'transition_lead'))
       )
   ),
   'no other estimator function is executable by Data API roles'
