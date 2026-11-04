@@ -41,7 +41,126 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-SELECT plan(55);
+CREATE FUNCTION pg_temp.make_estimate_line_item(
+  item_category text,
+  item_rule_code text,
+  item_min_cents jsonb,
+  item_max_cents jsonb
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'code', item_rule_code,
+    'ruleCode', item_rule_code,
+    'label', 'Integrity test line',
+    'category', item_category,
+    'branch', 'business',
+    'minCents', item_min_cents,
+    'maxCents', item_max_cents,
+    'quantity', 1,
+    'unit', 'return',
+    'sourceAnswers', '{}'::jsonb,
+    'explanation', 'Integrity test fixture'
+  );
+$$;
+
+CREATE FUNCTION pg_temp.make_estimate_total(
+  total_min_cents jsonb,
+  total_max_cents jsonb,
+  total_line_items jsonb
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'minCents', total_min_cents,
+    'maxCents', total_max_cents,
+    'lineItems', total_line_items
+  );
+$$;
+
+CREATE FUNCTION pg_temp.make_calculation_snapshot(
+  model_id uuid,
+  model_version text,
+  catchup_total jsonb,
+  ongoing_total jsonb
+)
+RETURNS jsonb
+LANGUAGE sql
+IMMUTABLE
+SET search_path = pg_catalog
+AS $$
+  SELECT pg_catalog.jsonb_build_object(
+    'engineVersion', '1.0.0',
+    'pricingModelId', model_id::text,
+    'pricingModelVersion', model_version,
+    'catchup', catchup_total,
+    'ongoing', ongoing_total,
+    'confidence', 'good',
+    'confidenceReasons', '[]'::jsonb,
+    'confidencePoints', '{"business":0}'::jsonb,
+    'complexityScores', '{"business":0}'::jsonb,
+    'manualReviewRequired', false,
+    'reviewFlags', '[]'::jsonb,
+    'reviewReasons', '[]'::jsonb
+  );
+$$;
+
+CREATE FUNCTION pg_temp.attempt_estimate_insert(
+  p_estimate_id uuid,
+  p_model_id uuid,
+  p_model_version text,
+  p_catchup_min_cents bigint,
+  p_catchup_max_cents bigint,
+  p_ongoing_min_cents bigint,
+  p_ongoing_max_cents bigint,
+  p_calculation jsonb
+)
+RETURNS text
+LANGUAGE plpgsql
+SET search_path = pg_catalog, estimator
+AS $$
+DECLARE
+  error_state text;
+  error_message text;
+BEGIN
+  INSERT INTO estimator.estimates (
+    id, public_ref, calculator_type, pricing_model_id, pricing_model_version,
+    engine_version, answers_snapshot, calculation_snapshot,
+    catchup_min_cents, catchup_max_cents, ongoing_min_cents, ongoing_max_cents,
+    confidence, manual_review_required, review_reasons
+  ) VALUES (
+    p_estimate_id,
+    pg_catalog.replace(p_estimate_id::text, '-', ''),
+    'business',
+    p_model_id,
+    p_model_version,
+    p_calculation ->> 'engineVersion',
+    '{"calculatorType":"business","answers":{}}'::jsonb,
+    p_calculation,
+    p_catchup_min_cents,
+    p_catchup_max_cents,
+    p_ongoing_min_cents,
+    p_ongoing_max_cents,
+    (p_calculation ->> 'confidence')::estimator.confidence_level,
+    (p_calculation ->> 'manualReviewRequired')::boolean,
+    p_calculation -> 'reviewReasons'
+  );
+  RETURN 'inserted';
+EXCEPTION WHEN OTHERS THEN
+  GET STACKED DIAGNOSTICS
+    error_state = RETURNED_SQLSTATE,
+    error_message = MESSAGE_TEXT;
+  RETURN error_state || ':' || error_message;
+END;
+$$;
+
+SELECT plan(63);
 
 SELECT is(
   (
@@ -235,8 +354,8 @@ BEGIN
       '1.0.0',
       '1.0.0',
       '{"calculatorType":"business","answers":{}}',
-      '{"engineVersion":"1.0.0","pricingModelId":"20000000-0000-4000-8000-000000000001","pricingModelVersion":"1.0.0","catchup":{"minCents":100,"maxCents":200,"lineItems":[]},"ongoing":{"minCents":50,"maxCents":100,"lineItems":[]},"confidence":"good","confidenceReasons":[],"confidencePoints":{"business":0},"complexityScores":{"business":0},"manualReviewRequired":false,"reviewFlags":[],"reviewReasons":[]}',
-      100, 200, 50, 100, 'good', false, '[]',
+      '{"engineVersion":"1.0.0","pricingModelId":"20000000-0000-4000-8000-000000000001","pricingModelVersion":"1.0.0","catchup":{"minCents":0,"maxCents":0,"lineItems":[]},"ongoing":{"minCents":0,"maxCents":0,"lineItems":[]},"confidence":"good","confidenceReasons":[],"confidencePoints":{"business":0},"complexityScores":{"business":0},"manualReviewRequired":false,"reviewFlags":[],"reviewReasons":[]}',
+      0, 0, 0, 0, 'good', false, '[]',
       '40000000-0000-4000-8000-000000000001'
     ) ON CONFLICT (id) DO NOTHING;
 
@@ -375,6 +494,161 @@ SELECT ok(
     )
   END,
   'estimate minimum cannot exceed its maximum'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000011',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    101, 200, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(101), pg_catalog.to_jsonb(200),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'catchup', 'core_test', pg_catalog.to_jsonb(100), pg_catalog.to_jsonb(200)
+        ))
+      ),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimate totals must equal the sum of their line items',
+  'catch-up totals must equal their line-item minimum and maximum sums'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000012',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    0, 0, 50, 100,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb),
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(50), pg_catalog.to_jsonb(100),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'ongoing', 'conditional_unit', pg_catalog.to_jsonb(50), pg_catalog.to_jsonb(99)
+        ))
+      )
+    )
+  ),
+  '23514:estimate totals must equal the sum of their line items',
+  'ongoing totals must equal their line-item minimum and maximum sums'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000013',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    0, 0, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'ongoing', 'core_test', pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0)
+        ))
+      ),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimate line item category must match its containing total',
+  'line-item categories must match the containing total'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000014',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    0, 0, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'catchup', 'core_test', '"0"'::jsonb, pg_catalog.to_jsonb(0)
+        ))
+      ),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimate line items must provide numeric minCents and maxCents values',
+  'malformed line-item amounts are rejected'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000015',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    0, 0, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'catchup', 'core_test', pg_catalog.to_jsonb(-1), pg_catalog.to_jsonb(0)
+        ))
+      ),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimate line item amounts must be nonnegative safe integer cents with min <= max',
+  'negative line-item amounts are rejected'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000016',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    0, 0, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'catchup', 'core_test', pg_catalog.to_jsonb(0.5::numeric), pg_catalog.to_jsonb(1.5::numeric)
+        ))
+      ),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimate line item amounts must be nonnegative safe integer cents with min <= max',
+  'fractional line-item amounts are rejected'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000017',
+    '20000000-0000-4000-8000-000000000001', '1.0.0',
+    0, 0, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000001', '1.0.0',
+      pg_temp.make_estimate_total(
+        pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0),
+        pg_catalog.jsonb_build_array(pg_temp.make_estimate_line_item(
+          'catchup', 'core_test', pg_catalog.to_jsonb(2), pg_catalog.to_jsonb(1)
+        ))
+      ),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimate line item amounts must be nonnegative safe integer cents with min <= max',
+  'line-item minimum cannot exceed its maximum'
+);
+
+SELECT is(
+  pg_temp.attempt_estimate_insert(
+    '40000000-0000-4000-8000-000000000018',
+    '20000000-0000-4000-8000-000000000002', '1.1.0',
+    0, 0, 0, 0,
+    pg_temp.make_calculation_snapshot(
+      '20000000-0000-4000-8000-000000000002', '1.1.0',
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb),
+      pg_temp.make_estimate_total(pg_catalog.to_jsonb(0), pg_catalog.to_jsonb(0), '[]'::jsonb)
+    )
+  ),
+  '23514:estimates must reference an ACTIVE pricing model',
+  'estimates cannot reference a DRAFT pricing model'
 );
 
 SELECT ok(

@@ -400,6 +400,14 @@ DECLARE
   min_amount numeric;
   max_amount numeric;
   model_engine_version text;
+  model_state estimator.pricing_model_state;
+  estimate_category text;
+  estimate_total jsonb;
+  snapshot_line_item jsonb;
+  line_item_min_amount numeric;
+  line_item_max_amount numeric;
+  line_items_min_amount numeric;
+  line_items_max_amount numeric;
 BEGIN
   IF NEW.state <> 'VALID' THEN
     RAISE EXCEPTION 'estimates must be created as VALID snapshots' USING ERRCODE = '23514';
@@ -415,10 +423,15 @@ BEGIN
     RAISE EXCEPTION 'calculation snapshot versions must match the estimate row' USING ERRCODE = '23514';
   END IF;
 
-  SELECT model.engine_contract_version INTO model_engine_version
+  SELECT model.engine_contract_version, model.state
+  INTO model_engine_version, model_state
   FROM estimator.pricing_models AS model
   WHERE model.id = NEW.pricing_model_id
-    AND model.version = NEW.pricing_model_version;
+    AND model.version = NEW.pricing_model_version
+  FOR SHARE OF model;
+  IF NOT FOUND OR model_state IS DISTINCT FROM 'ACTIVE' THEN
+    RAISE EXCEPTION 'estimates must reference an ACTIVE pricing model' USING ERRCODE = '23514';
+  END IF;
   IF model_engine_version IS DISTINCT FROM NEW.engine_version THEN
     RAISE EXCEPTION 'estimate engine version must match its pricing model contract' USING ERRCODE = '23514';
   END IF;
@@ -469,6 +482,51 @@ BEGIN
     OR max_amount::bigint IS DISTINCT FROM NEW.ongoing_max_cents THEN
     RAISE EXCEPTION 'ongoing snapshot totals must match the nonnegative estimate range' USING ERRCODE = '23514';
   END IF;
+
+  FOREACH estimate_category IN ARRAY ARRAY['catchup', 'ongoing']::text[] LOOP
+    estimate_total := NEW.calculation_snapshot -> estimate_category;
+    line_items_min_amount := 0;
+    line_items_max_amount := 0;
+
+    FOR snapshot_line_item IN
+      SELECT line_items.value
+      FROM pg_catalog.jsonb_array_elements(estimate_total -> 'lineItems') AS line_items(value)
+    LOOP
+      IF pg_catalog.jsonb_typeof(snapshot_line_item) IS DISTINCT FROM 'object'
+        OR pg_catalog.jsonb_typeof(snapshot_line_item -> 'category') IS DISTINCT FROM 'string'
+        OR snapshot_line_item ->> 'category' IS DISTINCT FROM estimate_category THEN
+        RAISE EXCEPTION 'estimate line item category must match its containing total' USING ERRCODE = '23514';
+      END IF;
+
+      IF pg_catalog.jsonb_typeof(snapshot_line_item -> 'minCents') IS DISTINCT FROM 'number'
+        OR pg_catalog.jsonb_typeof(snapshot_line_item -> 'maxCents') IS DISTINCT FROM 'number' THEN
+        RAISE EXCEPTION 'estimate line items must provide numeric minCents and maxCents values'
+          USING ERRCODE = '23514';
+      END IF;
+
+      line_item_min_amount := (snapshot_line_item ->> 'minCents')::numeric;
+      line_item_max_amount := (snapshot_line_item ->> 'maxCents')::numeric;
+      IF line_item_min_amount <> pg_catalog.trunc(line_item_min_amount)
+        OR line_item_max_amount <> pg_catalog.trunc(line_item_max_amount)
+        OR line_item_min_amount < 0
+        OR line_item_max_amount < 0
+        OR line_item_min_amount > line_item_max_amount
+        OR line_item_max_amount > 9007199254740991 THEN
+        RAISE EXCEPTION 'estimate line item amounts must be nonnegative safe integer cents with min <= max'
+          USING ERRCODE = '23514';
+      END IF;
+
+      line_items_min_amount := line_items_min_amount + line_item_min_amount;
+      line_items_max_amount := line_items_max_amount + line_item_max_amount;
+    END LOOP;
+
+    min_amount := (estimate_total ->> 'minCents')::numeric;
+    max_amount := (estimate_total ->> 'maxCents')::numeric;
+    IF line_items_min_amount IS DISTINCT FROM min_amount
+      OR line_items_max_amount IS DISTINCT FROM max_amount THEN
+      RAISE EXCEPTION 'estimate totals must equal the sum of their line items' USING ERRCODE = '23514';
+    END IF;
+  END LOOP;
 
   expected_review_flags := ARRAY[]::text[];
   expected_review_reasons := '[]'::jsonb;
