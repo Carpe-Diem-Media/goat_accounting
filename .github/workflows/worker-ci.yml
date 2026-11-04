@@ -47,11 +47,20 @@ jobs:
       - name: Run tests
         run: bun run test
 
-      - name: Check generated Worker types
-        run: bun run check:worker-types
-
       - name: Build Worker and static assets
         run: bun run build
 
+      - name: Check generated Worker types
+        run: bun run check:worker-types
+
       - name: Validate preview Worker configuration without deploying
-        run: bun run wrangler deploy --dry-run --env preview
+        shell: bash
+        run: |
+          dry_run_log="$RUNNER_TEMP/wrangler-preview-dry-run.log"
+          if bun run wrangler deploy --dry-run --env preview >"$dry_run_log" 2>&1; then
+            echo "Wrangler preview dry run passed; output was withheld from Actions logs."
+          else
+            status=$?
+            echo "Wrangler preview dry run failed with exit code $status; output was withheld from Actions logs."
+            exit "$status"
+          fi

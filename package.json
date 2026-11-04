@@ -10,7 +10,7 @@
 	},
 	"scripts": {
 		"dev": "vite dev",
-		"build": "wrangler types --check && vite build",
+		"build": "vite build && wrangler types --check",
 		"check": "svelte-check --tsconfig ./tsconfig.json",
 		"preview": "wrangler dev --env preview",
 		"check:worker-types": "wrangler types --check",
