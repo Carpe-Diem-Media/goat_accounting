@@ -1,6 +1,7 @@
-import { LeadSchema } from '$lib/domain/lead_schema';
+import { LeadSchema } from '#lib/domain/lead_schema.js';
 import { sendLeadNotification } from '$lib/external/mailer_api';
 import { saveLeadToSupabase } from '$lib/external/supabase_leads';
+import { env } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 
 export const prerender = false;
@@ -33,7 +34,7 @@ function mapSupabaseErrorToStatus(error: ExternalErrorLike): number {
 	}
 }
 
-export const POST: RequestHandler = async ({ request, platform }) => {
+export const POST: RequestHandler = async ({ request }) => {
 	let requestBody: unknown;
 	try {
 		requestBody = await request.json();
@@ -55,7 +56,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 
 	const lead = parsedLead.data;
 
-	const saveResult = await saveLeadToSupabase(lead, platform?.env);
+	const saveResult = await saveLeadToSupabase(lead, env);
 	if (!saveResult.ok) {
 		return json(
 			{
@@ -69,7 +70,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		);
 	}
 
-	const mailResult = await sendLeadNotification(lead, platform?.env);
+	const mailResult = await sendLeadNotification(lead, env);
 
 	return json(
 		{

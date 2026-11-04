@@ -11,11 +11,16 @@
 	import Clock from '@lucide/svelte/icons/clock';
 	import CheckCircle from '@lucide/svelte/icons/check-circle-2';
 	import Send from '@lucide/svelte/icons/send';
-	import type { ActionData } from './$types';
 	import { WHATSAPP_URL } from '$lib/config/social.js';
 	import { abs_url } from '$lib/config/site.js';
 
-	let { form }: { form: ActionData } = $props();
+	type ContactFormState = {
+		success?: boolean;
+		values?: Partial<Record<'name' | 'email' | 'service' | 'date' | 'message', string>>;
+		errors?: Partial<Record<'name' | 'email' | 'message', string>>;
+	};
+
+	let { form }: { form?: ContactFormState | null } = $props();
 
 	let submitting = $state(false);
 

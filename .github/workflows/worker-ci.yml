@@ -1,0 +1,66 @@
+name: Worker CI
+
+on:
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+
+permissions:
+  contents: read
+
+concurrency:
+  group: worker-ci-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  validate:
+    name: Bun 1.3.10 checks and Worker dry run
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.10
+
+      - name: Verify toolchain and PR head
+        run: |
+          test "$(bun --version)" = "1.3.10"
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD_SHA"
+        env:
+          EXPECTED_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+
+      - name: Install locked dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Check Svelte and TypeScript
+        run: bun run check
+
+      - name: Run tests
+        run: bun run test
+
+      - name: Build Worker and static assets
+        run: bun run build
+
+      - name: Check generated Worker types
+        run: bun run check:worker-types
+
+      - name: Validate preview Worker configuration without deploying
+        shell: bash
+        run: |
+          dry_run_log="$RUNNER_TEMP/wrangler-preview-dry-run.log"
+          if bun run wrangler deploy --dry-run --env preview >"$dry_run_log" 2>&1; then
+            echo "Wrangler preview dry run passed; output was withheld from Actions logs."
+          else
+            status=$?
+            echo "Wrangler preview dry run failed with exit code $status; output was withheld from Actions logs."
+            exit "$status"
+          fi
