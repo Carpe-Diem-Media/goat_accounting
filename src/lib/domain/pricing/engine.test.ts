@@ -64,14 +64,22 @@ describe('pure pricing engine', () => {
 		const business = domain.CANONICAL_PRICING_TEST_CORPUS.find((scenario) => scenario.id === 'simple-current-sole-proprietor');
 		const personal = domain.CANONICAL_PRICING_TEST_CORPUS.find((scenario) => scenario.id === 'personal-salaried-taxpayer');
 		if (!business || !personal) throw new Error('corpus must contain business and personal baselines');
+		const businessAnswers = business.answers;
+		const personalAnswers = personal.answers;
+		if (businessAnswers.calculatorType !== 'business') {
+			throw new Error('business baseline must contain business answers');
+		}
+		if (personalAnswers.calculatorType !== 'personal') {
+			throw new Error('personal baseline must contain personal answers');
+		}
 
 		const businessResult = domain.calculateEstimate(business.answers, domain.TEST_PRICING_MODEL);
 		const personalResult = domain.calculateEstimate(personal.answers, domain.TEST_PRICING_MODEL);
 		const bothAnswers = domain.CanonicalEstimatorAnswersSchema.parse({
 			calculatorType: 'both',
 			urgency: 'no_urgent_deadline',
-			business: business.answers.business,
-			personal: personal.answers.personal
+			business: businessAnswers.business,
+			personal: personalAnswers.personal
 		});
 		const bothResult = domain.calculateEstimate(bothAnswers, domain.TEST_PRICING_MODEL);
 
@@ -157,6 +165,9 @@ describe('pure pricing engine', () => {
 				ongoingRequirements: ['annual_tax_return']
 			}
 		});
+		if (answersWithoutYearCount.calculatorType !== 'personal') {
+			throw new Error('personal outstanding-year fixture must use the personal calculator branch');
+		}
 		const answersWithYearCount = domain.CanonicalEstimatorAnswersSchema.parse({
 			...answersWithoutYearCount,
 			personal: { ...answersWithoutYearCount.personal, outstandingYears: 3 }

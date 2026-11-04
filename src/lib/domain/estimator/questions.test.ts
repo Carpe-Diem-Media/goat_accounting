@@ -25,7 +25,7 @@ describe('V1 estimator question contract', () => {
 			'P5'
 			]);
 			expect(questions.ESTIMATOR_QUESTION_CATALOG.map((question) => question.id)).toEqual(
-				questions.ESTIMATOR_QUESTION_IDS
+				[...questions.ESTIMATOR_QUESTION_IDS]
 			);
 		});
 	});
@@ -173,7 +173,10 @@ describe('V1 estimator question contract', () => {
 			'capitalGainsOccurred',
 			'outstandingYears'
 		]);
-		expect(questions.ESTIMATOR_QUESTION_CATALOG.some((question) => question.id === 'FREE_TEXT')).toBe(false);
+		const questionIds: readonly string[] = questions.ESTIMATOR_QUESTION_CATALOG.map(
+			(question) => question.id
+		);
+		expect(questionIds).not.toContain('FREE_TEXT');
 	});
 
 	it('represents P3 as a follow-up group without empty multi-select options', async () => {

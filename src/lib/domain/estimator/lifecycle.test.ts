@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'bun:test';
+import type { EstimateLifecycleRecord } from './lifecycle';
 
 async function getLifecycle() {
 	const module = await import('./lifecycle').catch(() => null);
@@ -10,9 +11,12 @@ describe('estimate lifecycle guards', () => {
 	it('supersedes a valid estimate while preserving its calculation snapshot', async () => {
 		const lifecycle = await getLifecycle();
 		if (!lifecycle) return;
-		const estimate = {
+		const estimate: EstimateLifecycleRecord & {
+			catchupMinCents: number;
+			pricingModelVersion: string;
+		} = {
 			id: 'estimate-old',
-			state: 'VALID' as const,
+			state: 'VALID',
 			catchupMinCents: 10_000,
 			pricingModelVersion: 'test-1'
 		};
