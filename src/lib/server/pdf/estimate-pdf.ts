@@ -5,6 +5,8 @@ import {
 	type PDFFont,
 	type PDFPage
 } from 'pdf-lib';
+import { MAX_PRICING_MODEL_RULE_COUNT } from '../../domain/pricing/model';
+import { MAX_PRICING_RULE_OPTION_COUNT } from '../../domain/pricing/rule-schema';
 
 export type EstimateDocumentLineItem = Readonly<{
 	label: string;
@@ -34,12 +36,14 @@ export type EstimateDocumentModel = Readonly<{
 
 export type EstimatePdfRenderOptions = Readonly<{
 	contactEmail?: string;
+	clock?: () => Date;
 }>;
 
 const PAGE_WIDTH = 595.28;
 const PAGE_HEIGHT = 841.89;
 const PAGE_MARGIN = 46;
-const MAX_LINE_ITEMS = 24;
+const MAX_SAVED_LINE_ITEMS = MAX_PRICING_MODEL_RULE_COUNT * MAX_PRICING_RULE_OPTION_COUNT;
+const MAX_RENDERED_LINE_ITEMS_PER_SECTION = 10;
 const MAX_ASSUMPTIONS = 24;
 const MAX_TEXT_LENGTH = 180;
 const MAX_ASSUMPTION_LABEL_LENGTH = 80;
@@ -117,7 +121,7 @@ function validateModel(model: EstimateDocumentModel): void {
 	assertCents(model.catchup.maxCents);
 	assertCents(model.ongoing.minCents);
 	assertCents(model.ongoing.maxCents);
-	if (model.catchup.lineItems.length + model.ongoing.lineItems.length > MAX_LINE_ITEMS) {
+	if (model.catchup.lineItems.length + model.ongoing.lineItems.length > MAX_SAVED_LINE_ITEMS) {
 		throw new Error('Saved estimate has too many document line items.');
 	}
 	if (model.assumptions.length > MAX_ASSUMPTIONS) throw new Error('Saved estimate has too many assumptions.');
@@ -137,15 +141,14 @@ function groupDigits(input: string): string {
 	return input.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 }
 
-function formatZar(cents: number): string {
+function formatZar(cents: number, roundUp: boolean): string {
 	const amount = BigInt(cents);
-	const whole = (amount / 100n).toString();
-	const fraction = (amount % 100n).toString().padStart(2, '0');
-	return `R ${groupDigits(whole)}.${fraction}`;
+	const whole = (roundUp ? (amount + 99n) / 100n : amount / 100n).toString();
+	return `R ${groupDigits(whole)}`;
 }
 
 function formatRange(minCents: number, maxCents: number): string {
-	return `${formatZar(minCents)} - ${formatZar(maxCents)}`;
+	return `${formatZar(minCents, false)} - ${formatZar(maxCents, true)}`;
 }
 
 function wrapText(text: string, font: PDFFont, size: number, width: number, maxLines = 4): string[] {
@@ -244,7 +247,7 @@ function drawRangePanel(
 	maxCents: number,
 	width: number
 ): void {
-	const top = 680;
+	const top = 667;
 	const height = 78;
 	page.drawRectangle({ x, y: top - height, width, height, color: COLORS.panel, borderColor: COLORS.border, borderWidth: 0.8 });
 	page.drawRectangle({ x, y: top - height, width: 4, height, color: COLORS.gold });
@@ -407,7 +410,7 @@ function drawOverflowServices(
 	x: number,
 	y: number,
 	width: number
-): void {
+): number {
 	let cursor = y;
 	let section = '';
 	for (const entry of items) {
@@ -416,9 +419,27 @@ function drawOverflowServices(
 			page.drawText(section, { x, y: cursor, size: 8, font: fontBold, color: COLORS.muted });
 			cursor -= 13;
 		}
-		const height = drawServiceItem(page, entry.item, font, x, cursor, width, 2);
+		const height = drawServiceItem(page, entry.item, font, x, cursor, width, 3);
 		cursor -= height + 2;
 	}
+	return cursor;
+}
+
+function drawOmittedDetails(
+	page: PDFPage,
+	counts: Readonly<{ catchup: number; ongoing: number }>,
+	font: PDFFont,
+	x: number,
+	y: number,
+	width: number
+): void {
+	if (counts.catchup + counts.ongoing === 0) return;
+	drawWrapped(
+		page,
+		`Not shown in detail: ${counts.catchup} catch-up and ${counts.ongoing} monthly line items. Saved ranges include every item.`,
+		font,
+		{ x, y, size: 7.5, width, color: COLORS.muted, maxLines: 3, lineHeight: 9 }
+	);
 }
 
 function formatDate(isoDate: string): string {
@@ -435,33 +456,49 @@ export async function renderEstimatePdf(
 	options: EstimatePdfRenderOptions = {}
 ): Promise<Uint8Array> {
 	validateModel(model);
+	const generatedAt = options.clock?.() ?? new Date();
+	if (!Number.isFinite(generatedAt.getTime())) throw new Error('Invalid PDF generation date.');
 	const document = await PDFDocument.create();
 	const display = await document.embedFont(StandardFonts.TimesRomanBold);
 	const body = await document.embedFont(StandardFonts.Helvetica);
 	const bodyBold = await document.embedFont(StandardFonts.HelveticaBold);
 	const catchupRange = formatRange(model.catchup.minCents, model.catchup.maxCents);
 	const ongoingRange = formatRange(model.ongoing.minCents, model.ongoing.maxCents);
-	const date = normalizeText(formatDate(model.createdAt), 40);
+	const estimateDate = normalizeText(formatDate(model.createdAt), 40);
+	const generatedOnDate = normalizeText(formatDate(generatedAt.toISOString()), 40);
+	const renderedCatchupItems = model.catchup.lineItems.slice(0, MAX_RENDERED_LINE_ITEMS_PER_SECTION);
+	const renderedOngoingItems = model.ongoing.lineItems.slice(0, MAX_RENDERED_LINE_ITEMS_PER_SECTION);
+	const omittedItems = {
+		catchup: model.catchup.lineItems.length - renderedCatchupItems.length,
+		ongoing: model.ongoing.lineItems.length - renderedOngoingItems.length
+	};
 
 	document.setCreator('Goat Accounting');
 	document.setTitle(`Goat Accounting estimate ${model.publicRef}`);
 	document.setSubject(`${catchupRange} | ${ongoingRange}`);
-	document.setCreationDate(new Date(model.createdAt));
+	document.setCreationDate(generatedAt);
 
 	const firstPage = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
 	firstPage.drawRectangle({ x: 0, y: 0, width: PAGE_WIDTH, height: PAGE_HEIGHT, color: COLORS.paper });
 	drawPageHeader(firstPage, { display, bodyBold }, 'Your estimate');
 	drawStatus(firstPage, model.state, bodyBold);
 	drawFitText(firstPage, `Reference: ${model.publicRef}`, bodyBold, PAGE_MARGIN, 719, 300, 8.5, COLORS.ink);
-	firstPage.drawText(`Estimate date: ${date}`, {
+	firstPage.drawText(`Estimate date: ${estimateDate}`, {
 		x: PAGE_WIDTH - PAGE_MARGIN - 180,
 		y: 719,
 		size: 8.5,
 		font: body,
 		color: COLORS.muted
 	});
-	drawRule(firstPage, 705);
-	firstPage.drawText('Estimated fees', { x: PAGE_MARGIN, y: 687, size: 10, font: bodyBold, color: COLORS.ink });
+	firstPage.drawText(`Generated on: ${generatedOnDate}`, {
+		x: PAGE_WIDTH - PAGE_MARGIN - 180,
+		y: 703,
+		size: 8.5,
+		font: body,
+		color: COLORS.muted
+	});
+	drawRule(firstPage, 691);
+	firstPage.drawText('Estimated fees', { x: PAGE_MARGIN, y: 674, size: 10, font: bodyBold, color: COLORS.ink });
 	const panelGap = 14;
 	const panelWidth = (PAGE_WIDTH - PAGE_MARGIN * 2 - panelGap) / 2;
 	drawRangePanel(firstPage, { body, bodyBold }, PAGE_MARGIN, 'Catch-up work', model.catchup.minCents, model.catchup.maxCents, panelWidth);
@@ -474,10 +511,15 @@ export async function renderEstimatePdf(
 		model.ongoing.maxCents,
 		panelWidth
 	);
-	const remainingItems = drawEstimateItems(firstPage, model, { body, bodyBold });
+	const visibleModel = {
+		...model,
+		catchup: { ...model.catchup, lineItems: renderedCatchupItems },
+		ongoing: { ...model.ongoing, lineItems: renderedOngoingItems }
+	};
+	const remainingItems = drawEstimateItems(firstPage, visibleModel, { body, bodyBold });
 	drawFirstPageNotes(firstPage, model, { body, bodyBold }, options.contactEmail);
 
-	const needsSecondPage = remainingItems.length > 0 || model.assumptions.length > 0;
+	const needsSecondPage = remainingItems.length > 0 || model.assumptions.length > 0 || omittedItems.catchup + omittedItems.ongoing > 0;
 	let secondPage: PDFPage | undefined;
 	if (needsSecondPage) {
 		secondPage = document.addPage([PAGE_WIDTH, PAGE_HEIGHT]);
@@ -489,7 +531,10 @@ export async function renderEstimatePdf(
 		const halfWidth = (columnsWidth - 20) / 2;
 		if (remainingItems.length) {
 			secondPage.drawText('Additional services', { x: PAGE_MARGIN, y: 681, size: 9, font: bodyBold, color: COLORS.ink });
-			drawOverflowServices(secondPage, remainingItems, body, bodyBold, PAGE_MARGIN, 661, halfWidth);
+			const overflowEndY = drawOverflowServices(secondPage, remainingItems, body, bodyBold, PAGE_MARGIN, 661, halfWidth);
+			drawOmittedDetails(secondPage, omittedItems, body, PAGE_MARGIN, overflowEndY - 8, halfWidth);
+		} else {
+			drawOmittedDetails(secondPage, omittedItems, body, PAGE_MARGIN, 661, halfWidth);
 		}
 		if (model.assumptions.length) {
 			const assumptionX = PAGE_MARGIN + halfWidth + 20;

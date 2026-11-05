@@ -52,6 +52,29 @@ function maximumDocumentModel(): EstimateDocumentModel {
 	};
 }
 
+function manyItemDocumentModel(): EstimateDocumentModel {
+	const catchupItems = Array.from({ length: 70 }, (_, index) => ({
+		label: `Catch-up ${index + 1}: saved service`,
+		minCents: 100_001 + index,
+		maxCents: 110_001 + index
+	}));
+	const ongoingItems = Array.from({ length: 58 }, (_, index) => ({
+		label: `Monthly ${index + 1}: saved service`,
+		minCents: 30_001 + index,
+		maxCents: 50_001 + index
+	}));
+	const total = (items: readonly { minCents: number; maxCents: number }[]) => ({
+		minCents: items.reduce((sum, item) => sum + item.minCents, 0),
+		maxCents: items.reduce((sum, item) => sum + item.maxCents, 0)
+	});
+
+	return {
+		...minimumDocumentModel(),
+		catchup: { ...total(catchupItems), lineItems: catchupItems },
+		ongoing: { ...total(ongoingItems), lineItems: ongoingItems }
+	};
+}
+
 async function extractPdfText(bytes: Uint8Array): Promise<string> {
 	const document = await PDFDocument.load(bytes);
 	const textRuns: string[] = [];
@@ -106,15 +129,70 @@ describe('saved estimate PDF renderer', () => {
 		const text = await extractPdfText(await module.renderEstimatePdf(model));
 
 		expect(text).toContain(model.publicRef);
-		expect(text).toContain('Catch-up 12:');
-		expect(text).toContain('Monthly 12:');
-		expect(text).toContain('R 1,250.00 - R 2,750.00');
-		expect(text).toContain('R 450.00 - R 800.00');
+		expect(text).toContain('Catch-up 10:');
+		expect(text).toContain('Monthly 10:');
+		expect(text).toContain('Not shown in detail: 2 catch-up and 2 monthly line items.');
+		expect(text).toContain('R 1,250 - R 2,750');
+		expect(text).toContain('R 450 - R 800');
 		expect(text).toContain('Confidence: preliminary');
 		expect(text).toContain('Manual review required');
 		expect(text).toContain('Indicative, not a final quote.');
 		expect(text).toContain('VOID');
 		expect(text).toContain('Resume "records" - unsupported glyphs: ?? ??');
+		expect(text).not.toMatch(/R\s+[\d,]+\.\d{2}/);
+	});
+
+	it('rounds saved range endpoints down and up to whole rand', async () => {
+		const module = await loadPdfModule();
+		expect(module).not.toBeNull();
+		if (!module) return;
+
+		const model = {
+			...minimumDocumentModel(),
+			catchup: { ...minimumDocumentModel().catchup, minCents: 125_049, maxCents: 275_050 },
+			ongoing: { ...minimumDocumentModel().ongoing, minCents: 45_050, maxCents: 80_049 }
+		};
+		const text = await extractPdfText(await module.renderEstimatePdf(model));
+
+		expect(text).toContain('R 1,250 - R 2,751');
+		expect(text).toContain('R 450 - R 801');
+		expect(text).not.toMatch(/R\s+[\d,]+\.\d{2}/);
+	});
+
+	it('shows original and generated dates separately and records generation time', async () => {
+		const module = await loadPdfModule();
+		expect(module).not.toBeNull();
+		if (!module) return;
+
+		const model = minimumDocumentModel();
+		const generatedAt = new Date('2026-11-06T14:32:11.000Z');
+		const bytes = await module.renderEstimatePdf(model, { clock: () => generatedAt });
+		const document = await PDFDocument.load(bytes);
+		const text = await extractPdfText(bytes);
+
+		expect(text).toContain('Estimate date: 05 Nov 2026');
+		expect(text).toContain('Generated on: 06 Nov 2026');
+		expect(document.getCreationDate()?.toISOString()).toBe(generatedAt.toISOString());
+	});
+
+	it('accepts 128 saved line items and labels the detail omitted from the two-page summary', async () => {
+		const module = await loadPdfModule();
+		expect(module).not.toBeNull();
+		if (!module) return;
+
+		const model = manyItemDocumentModel();
+		const bytes = await module.renderEstimatePdf(model);
+		const document = await PDFDocument.load(bytes);
+		const text = await extractPdfText(bytes);
+
+		expect(document.getPageCount()).toBeLessThanOrEqual(2);
+		expect(text).toContain('Catch-up 10: saved service');
+		expect(text).toContain('Monthly 10: saved service');
+		expect(text).toContain('Not shown in detail: 60 catch-up and 48 monthly line items.');
+		expect(text).toContain('R 70,024 - R 77,025');
+		expect(text).toContain('R 17,417 - R 29,018');
+		expect(document.getSubject()).toContain('R 70,024 - R 77,025');
+		expect(document.getSubject()).toContain('R 17,417 - R 29,018');
 	});
 
 	it('preserves the saved amount ranges and reference in document metadata', async () => {
@@ -123,13 +201,14 @@ describe('saved estimate PDF renderer', () => {
 		if (!module) return;
 
 		const model = minimumDocumentModel();
-		const bytes = await module.renderEstimatePdf(model);
+		const generatedAt = new Date('2026-11-06T14:32:11.000Z');
+		const bytes = await module.renderEstimatePdf(model, { clock: () => generatedAt });
 		const document = await PDFDocument.load(bytes);
 
 		expect(document.getTitle()).toContain(model.publicRef);
-		expect(document.getSubject()).toContain('R 1,250.00 - R 2,750.00');
-		expect(document.getSubject()).toContain('R 450.00 - R 800.00');
-		expect(document.getCreationDate()?.toISOString()).toBe(model.createdAt);
+		expect(document.getSubject()).toContain('R 1,250 - R 2,750');
+		expect(document.getSubject()).toContain('R 450 - R 800');
+		expect(document.getCreationDate()?.toISOString()).toBe(generatedAt.toISOString());
 	});
 
 	it('keeps maximum model-version text within the footer width', async () => {
