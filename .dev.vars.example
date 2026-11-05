@@ -1,6 +1,11 @@
 # Local Wrangler secrets for the existing booking integration only.
 SUPABASE_URL=https://your-project-ref.supabase.co
+SUPABASE_PUBLISHABLE_KEY=your-local-project-publishable-key
 SUPABASE_LEADS_TABLE=leads
 SUPABASE_SERVICE_ROLE_KEY=your-server-only-service-role-key
+# Remote staff auth requires a confirmed Goat project ref and an explicit enable flag.
+# Keep both unset until staging identity, initial staff accounts, and MFA are approved.
+# SUPABASE_STAFF_AUTH_ENABLED=true
+# GOAT_STAFF_SUPABASE_PROJECT_REF=confirmed-goat-staging-ref
 RESEND_API_KEY=your-resend-api-key
 GOOGLE_CALENDAR_ACCESS_TOKEN=your-google-calendar-access-token
