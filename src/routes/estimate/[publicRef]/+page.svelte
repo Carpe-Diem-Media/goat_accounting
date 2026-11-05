@@ -5,6 +5,26 @@
 
 	let { data }: PageProps = $props();
 	let estimate = $derived(data.estimate);
+	type EstimateLifecycleState = PageProps['data']['estimate']['state'];
+	type LifecycleNotice = Readonly<{
+		message: string;
+		role: 'alert' | 'status';
+		tone: 'invalidated' | 'historical';
+	}>;
+	const lifecycleNotices: Record<EstimateLifecycleState, LifecycleNotice | null> = {
+		VALID: null,
+		VOIDED: {
+			message: 'The saved amounts below have been invalidated. Do not rely on these saved amounts. This result remains available for your records.',
+			role: 'alert',
+			tone: 'invalidated'
+		},
+		SUPERSEDED: {
+			message: 'This saved result has been superseded. The amounts below belong to an earlier estimate.',
+			role: 'status',
+			tone: 'historical'
+		}
+	};
+	let lifecycleNotice = $derived(lifecycleNotices[estimate.state]);
 
 	const confidenceLabels = {
 		high: 'High',
@@ -52,6 +72,22 @@
 		</p>
 		<p class="text-xs text-muted-foreground">Reference <code class="font-mono">{estimate.publicRef}</code></p>
 	</header>
+	{#if lifecycleNotice}
+		<section
+			role={lifecycleNotice.role}
+			aria-labelledby="lifecycle-notice-heading"
+			class={lifecycleNotice.tone === 'invalidated'
+				? 'rounded-xl border-2 border-destructive bg-destructive/10 p-5 text-destructive sm:p-6'
+				: 'rounded-xl border border-border border-l-4 border-l-primary bg-muted p-5 text-foreground sm:p-6'}
+		>
+			{#if estimate.state === 'VOIDED'}
+				<h2 id="lifecycle-notice-heading" class="font-display text-xl font-semibold break-words min-w-0">This estimate has been invalidated</h2>
+			{:else}
+				<h2 id="lifecycle-notice-heading" class="font-display text-xl font-semibold break-words min-w-0">Historical estimate</h2>
+			{/if}
+			<p class="mt-2 text-sm leading-6">{lifecycleNotice.message}</p>
+		</section>
+	{/if}
 
 	<section aria-label="Estimate ranges" class="grid gap-4 sm:grid-cols-2">
 		<div class="rounded-xl border border-border bg-card p-5 sm:p-6">

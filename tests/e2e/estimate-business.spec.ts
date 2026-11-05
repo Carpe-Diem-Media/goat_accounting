@@ -4,6 +4,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { TEST_PRICING_MODEL } from '../../src/lib/domain/pricing/test-corpus';
 import { validatePricingModel } from '../../src/lib/domain/pricing/model';
 
+// Run with `bunx playwright test tests/e2e/estimate-business.spec.ts`. The Playwright config builds the Worker and starts Wrangler locally with synthetic Supabase settings. This spec supplies an in-process REST fake and the isolated TEST_PRICING_MODEL, so it needs no live Supabase project, credentials, migrations, or seed data.
+
 const APP_ORIGIN = 'http://127.0.0.1:8788';
 const SUPABASE_PORT = 55191;
 const SUPABASE_URL = `http://127.0.0.1:${SUPABASE_PORT}`;
@@ -265,6 +267,33 @@ test('completes a business estimate before contact and retakes as a new saved at
 	expect((savedEstimates[1].answers_snapshot as { business: Record<string, unknown> }).business).toHaveProperty('entityCount', 3);
 });
 
+test('shows lifecycle warnings while preserving saved amounts and hiding private lifecycle fields', async ({ page }) => {
+	await finishDefaultBusinessAnswers(page);
+	const publicRef = await submitEstimate(page);
+	const ranges = page.getByRole('region', { name: 'Estimate ranges' }).locator('p.tabular-nums');
+	const savedRanges = await ranges.allTextContents();
+	expect(savedEstimates[0].state).toBe('VALID');
+	await expect(page.getByText('Historical estimate', { exact: true })).toHaveCount(0);
+
+	const privateVoidReason = 'Private invalidation note';
+	savedEstimates[0].state = 'VOIDED';
+	savedEstimates[0].void_reason = privateVoidReason;
+	await page.goto(`${APP_ORIGIN}/estimate/${publicRef}`);
+	await expect(page.getByRole('alert')).toContainText('This estimate has been invalidated');
+	await expect(page.getByRole('alert')).toContainText('Do not rely on these saved amounts');
+	await expect(page.getByText(privateVoidReason, { exact: true })).toHaveCount(0);
+	expect(await ranges.allTextContents()).toEqual(savedRanges);
+
+	const internalReplacementId = '00000000-0000-4000-8000-000000000001';
+	savedEstimates[0].state = 'SUPERSEDED';
+	savedEstimates[0].superseded_by_estimate_id = internalReplacementId;
+	await page.reload();
+	await expect(page.getByRole('heading', { name: 'Historical estimate', exact: true })).toBeVisible();
+	await expect(page.getByText(/superseded/i)).toBeVisible();
+	await expect(page.getByText(internalReplacementId, { exact: true })).toHaveCount(0);
+	expect(await ranges.allTextContents()).toEqual(savedRanges);
+});
+
 test('asks schema-supported backlog and compliance branches and preserves approved complexity choices', async ({ page }) => {
 	await page.goto(`${APP_ORIGIN}/estimate`);
 	await choose(page, 'Pty Ltd / Close Corporation');
@@ -311,6 +340,63 @@ test('asks schema-supported backlog and compliance branches and preserves approv
 		expect(request.answers.business).not.toHaveProperty(unsupportedField);
 	}
 	await expect(page.getByRole('heading', { name: 'Your business estimate', exact: true })).toBeVisible();
+});
+
+test('clears incompatible outstanding months when B2 changes during backward navigation', async ({ page }) => {
+	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Sole proprietor');
+	await advance(page);
+	await choose(page, '1–2 years behind');
+	const monthsInput = page.getByLabel('Approximate months outstanding (optional)', { exact: true });
+	await monthsInput.fill('18');
+	await advance(page);
+	await choose(page, 'Accounting software is current/reasonably clean');
+	await advance(page);
+	await choose(page, 'Under 50');
+	await advance(page);
+	await choose(page, '1');
+	await advance(page);
+	await choose(page, 'None');
+	await advance(page);
+	await choose(page, 'Everything is submitted/current');
+	await advance(page);
+	await choose(page, 'Monthly bookkeeping/accounting');
+	await advance(page);
+	await choose(page, 'None of these');
+	await advance(page);
+	await choose(page, 'No urgent deadline');
+
+	for (let step = 0; step < 8; step += 1) {
+		await page.getByRole('button', { name: 'Back', exact: true }).click();
+	}
+	await expect(page.getByRole('heading', { name: 'How up to date are your books/accounting records?' })).toBeVisible();
+	await expect(page.getByLabel('1–2 years behind', { exact: true })).toBeChecked();
+	await expect(monthsInput).toHaveValue('18');
+	await expect(monthsInput).toHaveAttribute('min', '13');
+	await expect(monthsInput).toHaveAttribute('max', '24');
+
+	await choose(page, 'More than 2 years behind');
+	await expect(monthsInput).toHaveValue('');
+	await expect(monthsInput).toHaveAttribute('min', '25');
+	await expect(monthsInput).toHaveAttribute('max', '100');
+	await monthsInput.fill('25');
+	await advance(page);
+	await page.getByRole('button', { name: 'Back', exact: true }).click();
+	await expect(monthsInput).toHaveValue('25');
+
+	await choose(page, '1–2 years behind');
+	await expect(monthsInput).toHaveValue('');
+	await monthsInput.fill('24');
+	for (let step = 0; step < 8; step += 1) await advance(page);
+
+	const responsePromise = page.waitForResponse((response) => response.url().endsWith('/api/estimates'));
+	await page.getByRole('button', { name: 'View estimate', exact: true }).click();
+	const response = await responsePromise;
+	expect(response.status()).toBe(201);
+	const request = await response.request().postDataJSON() as {
+		answers: { business: Record<string, unknown> };
+	};
+	expect(request.answers.business).toMatchObject({ booksStatus: '1_to_2_years', outstandingMonths: 24 });
 });
 
 test('uses keyboard focus and radio navigation to advance through the questionnaire', async ({ page }) => {

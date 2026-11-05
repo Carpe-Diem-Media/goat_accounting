@@ -199,9 +199,17 @@
 				if (value !== 'multiple_entities') removeOptionalAnswer('entityCount');
 				break;
 			case 'B2':
-				answers = { ...answers, booksStatus: value as BusinessAnswers['booksStatus'] };
-				if (value !== '1_to_2_years' && value !== 'over_2_years') removeOptionalAnswer('outstandingMonths');
-				if (value === 'current_and_reconciled') removeOptionalAnswer('bankStatementsAvailableForFullPeriod');
+				{
+					const booksStatus = value as BusinessAnswers['booksStatus'];
+					answers = { ...answers, booksStatus };
+					const monthRange: readonly [number, number] | undefined = booksStatus === '1_to_2_years'
+						? [13, 24]
+						: booksStatus === 'over_2_years' ? [25, 100] : undefined;
+					if (!monthRange || !isNumberInRange(answers.outstandingMonths, monthRange[0], monthRange[1])) {
+						removeOptionalAnswer('outstandingMonths');
+					}
+					if (booksStatus === 'current_and_reconciled') removeOptionalAnswer('bankStatementsAvailableForFullPeriod');
+				}
 				break;
 			case 'B3':
 				answers = { ...answers, recordCondition: value as BusinessAnswers['recordCondition'] };
