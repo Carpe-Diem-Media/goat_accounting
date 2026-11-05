@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import ContactPanel from '$lib/ui/estimator/contact-panel.svelte';
 	import { goto } from '$app/navigation';
 	import type { PageProps } from './$types';
 
@@ -209,4 +210,7 @@
 			Start a new estimate
 		</button>
 	</div>
+	{#if data.contact && estimate.state === 'VALID'}
+		{#key estimate.publicRef}<ContactPanel publicRef={estimate.publicRef} siteKey={data.contact.siteKey} showBusinessName={estimate.calculatorType !== 'personal'} />{/key}
+	{/if}
 </article>

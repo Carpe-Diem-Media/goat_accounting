@@ -9,9 +9,11 @@ export const prerender = false;
 
 export const load: PageServerLoad = async ({ params, setHeaders, platform }) => {
 	const bindings = platform?.env ?? workerEnv;
-	return loadPublicEstimate(params.publicRef, bindings, setHeaders, {
+	const result = await loadPublicEstimate(params.publicRef, bindings, setHeaders, {
 		createClient: createEstimatorServiceClient,
 		createRepository: createEstimatesRepository,
 		getPublicEstimate
 	});
+	return { ...result, contact: bindings?.ESTIMATE_CONTACT_ENABLED === 'true' && bindings.TURNSTILE_SITE_KEY && bindings.TURNSTILE_SECRET_KEY && bindings.TURNSTILE_HOSTNAME
+		? { siteKey: bindings.TURNSTILE_SITE_KEY } : null };
 };

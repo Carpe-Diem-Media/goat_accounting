@@ -1,0 +1,9 @@
+name = "goat-contact-runtime-test"
+main = "worker.ts"
+compatibility_date = "2026-11-03"
+workers_dev = false
+
+[[ratelimits]]
+name = "CONTACT_RATE_LIMITER"
+namespace_id = "1007"
+simple = { limit = 20, period = 60 }

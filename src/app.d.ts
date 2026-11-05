@@ -3,6 +3,11 @@ declare namespace Cloudflare {
 	interface Env {
 		ESTIMATOR_ENABLED?: string;
 		ESTIMATE_READ_ENABLED?: string;
+		ESTIMATE_CONTACT_ENABLED?: string;
+		CONTACT_RATE_LIMITER?: RateLimit;
+		TURNSTILE_SITE_KEY?: string;
+		TURNSTILE_SECRET_KEY?: string;
+		TURNSTILE_HOSTNAME?: string;
 		CALENDAR_ACCESS_TOKEN?: string;
 		CALENDAR_API_KEY?: string;
 		GOOGLE_CALENDAR_ACCESS_TOKEN?: string;

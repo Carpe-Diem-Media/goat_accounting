@@ -236,6 +236,8 @@ export type Database = {
           id: string
           phone: string | null
           preferred_contact_method: string | null
+          requested_contact: boolean | null
+          requested_estimate_email: boolean | null
           state: Database["estimator"]["Enums"]["lead_state"]
           updated_at: string
         }
@@ -249,6 +251,8 @@ export type Database = {
           id?: string
           phone?: string | null
           preferred_contact_method?: string | null
+          requested_contact?: boolean | null
+          requested_estimate_email?: boolean | null
           state?: Database["estimator"]["Enums"]["lead_state"]
           updated_at?: string
         }
@@ -262,6 +266,8 @@ export type Database = {
           id?: string
           phone?: string | null
           preferred_contact_method?: string | null
+          requested_contact?: boolean | null
+          requested_estimate_email?: boolean | null
           state?: Database["estimator"]["Enums"]["lead_state"]
           updated_at?: string
         }
@@ -499,6 +505,20 @@ export type Database = {
           p_validated_model: Json
         }
         Returns: undefined
+      }
+      create_contact_lead: {
+        Args: {
+          p_business_name: string | null
+          p_contact_consent: boolean
+          p_email: string
+          p_estimate_id: string
+          p_full_name: string
+          p_phone: string | null
+          p_preferred_contact_method: string
+          p_requested_contact: boolean
+          p_requested_estimate_email: boolean
+        }
+        Returns: string
       }
       is_current_staff: {
         Args: {
