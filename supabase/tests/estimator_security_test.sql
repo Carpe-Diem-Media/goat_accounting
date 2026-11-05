@@ -200,7 +200,7 @@ SELECT ok(
         has_function_privilege('anon', proc.oid, 'EXECUTE')
         OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE') AND proc.proname <> 'is_current_staff')
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
-          AND proc.proname NOT IN ('is_current_staff', 'transition_lead'))
+          AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead'))
       )
   ),
   'no other estimator function is executable by Data API roles'
