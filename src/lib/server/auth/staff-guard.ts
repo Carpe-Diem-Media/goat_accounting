@@ -22,7 +22,7 @@ export type StaffIdentity = Readonly<{
 	claims: VerifiedClaims;
 }>;
 
-export type MfaOnboardingStage = 'setup' | 'challenge' | 'activate';
+export type MfaOnboardingStage = 'setup' | 'challenge' | 'pending';
 
 export type StaffAccess =
 	| { kind: 'unauthenticated' }
@@ -76,7 +76,7 @@ export function evaluateStaffAccess(input: {
 			assurance.currentLevel === 'aal2' &&
 			assurance.nextLevel === 'aal2'
 		) {
-			return { kind: 'invited', identity, stage: 'activate' };
+			return { kind: 'invited', identity, stage: 'pending' };
 		}
 		return { kind: 'unavailable' };
 	}

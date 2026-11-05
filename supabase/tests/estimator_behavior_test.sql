@@ -160,7 +160,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-SELECT plan(90);
+SELECT plan(86);
 
 SELECT is(
   (
@@ -1019,15 +1019,18 @@ SELECT is(
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
-SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000006","role":"authenticated","aal":"aal2"}', true);
+SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000006","role":"authenticated","aal":"aal1"}', true);
 SET LOCAL ROLE authenticated;
-SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'invited staff cannot read estimates');
-SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'invited staff cannot read leads');
-SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 1, 'invited staff can read only their own setup record');
-SELECT is((SELECT count(*)::integer FROM estimator.staff_users WHERE user_id <> auth.uid()), 0, 'invited staff cannot read another staff record');
+SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'invited AAL1 staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'invited AAL1 staff cannot read leads');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 1, 'invited AAL1 staff can read their own setup record');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users WHERE user_id <> auth.uid()), 0, 'invited AAL1 staff cannot read another staff record');
 SELECT ok(
-  pg_temp.throws_sqlstate('SELECT estimator.activate_invited_staff_after_mfa()', '42501'),
-  'invited staff cannot activate without a verified authenticator'
+  pg_temp.throws_sqlstate(
+    $sql$UPDATE estimator.staff_users SET state = 'ACTIVE' WHERE user_id = auth.uid()$sql$,
+    '42501'
+  ),
+  'invited AAL1 staff cannot change their state'
 );
 RESET ROLE;
 
@@ -1039,58 +1042,27 @@ VALUES (
 );
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
-SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000006","role":"authenticated","aal":"aal1"}', true);
-SET LOCAL ROLE authenticated;
-SELECT ok(
-  pg_temp.throws_sqlstate('SELECT estimator.activate_invited_staff_after_mfa()', '42501'),
-  'a verified factor does not activate an invited user below AAL2'
-);
-RESET ROLE;
-
-SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000006","role":"authenticated","aal":"aal2"}', true);
 SET LOCAL ROLE authenticated;
-SELECT ok(
-  pg_temp.exec_sql('SELECT estimator.activate_invited_staff_after_mfa()'),
-  'an invited user activates after verifying TOTP at AAL2'
-);
-SELECT is((SELECT state::text FROM estimator.staff_users WHERE user_id = auth.uid()), 'ACTIVE', 'MFA activation promotes only the signed-in staff account');
-SELECT is((SELECT count(*)::integer FROM estimator.staff_onboarding_events WHERE staff_user_id = auth.uid()), 0, 'invited staff cannot inspect the onboarding audit event');
-SELECT ok((SELECT count(*) FROM estimator.estimates) > 0, 'newly active staff can read estimates after activation at AAL2');
-SELECT ok((SELECT count(*) FROM estimator.leads) > 0, 'newly active staff can read leads after activation at AAL2');
-SELECT ok(
-  pg_temp.throws_sqlstate('SELECT estimator.activate_invited_staff_after_mfa()', '42501'),
-  'an active account cannot replay the invitation activation'
-);
-SELECT is((SELECT count(*)::integer FROM estimator.staff_onboarding_events WHERE staff_user_id = auth.uid()), 0, 'the invitee still cannot inspect their audit event after activation');
+SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'invited AAL2 staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'invited AAL2 staff cannot read leads');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 1, 'invited AAL2 staff can read their own setup record');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users WHERE user_id <> auth.uid()), 0, 'invited AAL2 staff cannot read another staff record');
+SELECT is((SELECT state::text FROM estimator.staff_users WHERE user_id = auth.uid()), 'INVITED', 'verified TOTP does not activate invited staff');
 SELECT ok(
   pg_temp.throws_sqlstate(
     $sql$UPDATE estimator.staff_users SET state = 'SUSPENDED' WHERE user_id = auth.uid()$sql$,
     '42501'
   ),
-  'authenticated staff cannot directly change staff state'
+  'invited AAL2 staff cannot change their state'
 );
-SELECT ok(
-  pg_temp.throws_sqlstate(
-    $sql$INSERT INTO estimator.staff_onboarding_events (staff_user_id, actor_user_id, from_state, to_state)
-      VALUES (auth.uid(), auth.uid(), 'INVITED', 'ACTIVE')$sql$,
-    '42501'
-  ),
-  'authenticated staff cannot forge onboarding audit events'
-);
-SELECT is((SELECT count(*)::integer FROM estimator.staff_onboarding_events), 0, 'invited staff cannot inspect onboarding audit events');
-RESET ROLE;
-
-SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000001', true);
-SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000001","role":"authenticated","aal":"aal2"}', true);
-SET LOCAL ROLE authenticated;
-SELECT is((SELECT count(*)::integer FROM estimator.staff_onboarding_events), 1, 'active administrator can inspect the onboarding audit event');
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000007', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000007","role":"authenticated","aal":"aal2"}', true);
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'suspended staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'suspended staff cannot read leads');
 SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 0, 'suspended staff cannot read staff records');
 RESET ROLE;
 
@@ -1098,6 +1070,7 @@ SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000008
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000008","role":"authenticated","aal":"aal2"}', true);
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'deactivated staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'deactivated staff cannot read leads');
 SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 0, 'deactivated staff cannot read staff records');
 RESET ROLE;
 

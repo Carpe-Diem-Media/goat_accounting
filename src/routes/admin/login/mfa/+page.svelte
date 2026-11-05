@@ -8,19 +8,21 @@
 
 <main class="flex min-h-screen items-center justify-center bg-background px-4 py-12">
 	<section class="w-full max-w-lg rounded-xl border border-border bg-card p-6 shadow-sm sm:p-8">
-		<a href="/admin/login" class="text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px">Staff sign-in</a>
+		{#if data.state !== 'pending'}
+			<a href="/admin/login" class="text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px">Staff sign-in</a>
+		{/if}
 		<h1 class="font-display mt-6 min-w-0 break-words text-3xl font-semibold tracking-tight">
 			{data.state === 'setup'
 				? 'Set up your authenticator'
-				: data.state === 'activate'
-					? 'Finish staff account setup'
+				: data.state === 'pending'
+					? 'Invitation awaiting activation'
 					: 'Verify your authenticator'}
 		</h1>
 		<p class="mt-2 text-sm leading-6 text-muted-foreground">
 			{data.state === 'setup'
 				? 'Staff access requires a verified authenticator. Add this account to your authenticator app, then enter its six-digit code.'
-				: data.state === 'activate'
-					? 'Your authenticator is verified. Finish the invitation setup to activate your staff account.'
+				: data.state === 'pending'
+					? 'Your authenticator is verified. An authorized administrator must activate your staff account before you can view estimates or leads.'
 					: 'Enter the current six-digit code from your authenticator app to continue.'}
 		</p>
 
@@ -30,12 +32,10 @@
 			</p>
 		{/if}
 
-		{#if data.state === 'activate'}
-			<form method="POST" action="?/verify" class="mt-6">
-				<button type="submit" class="w-full rounded-md bg-primary px-4 py-2.5 font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground">
-					Finish staff setup
-				</button>
-			</form>
+		{#if data.state === 'pending'}
+			<p role="status" aria-live="polite" class="mt-6 border-l-2 border-primary pl-3 text-sm leading-6 text-foreground">
+				Your invitation remains pending. Contact an administrator if you need an update.
+			</p>
 		{:else if data.state === 'setup' && !form?.enrollment}
 			<form method="POST" action="?/enroll" class="mt-6">
 				<button type="submit" class="rounded-md bg-primary px-4 py-2.5 font-semibold text-primary-foreground hover:bg-primary/90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground">

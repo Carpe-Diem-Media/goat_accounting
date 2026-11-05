@@ -21,7 +21,7 @@ SELECT is(
       AND rel.relrowsecurity
       AND rel.relforcerowsecurity
   ),
-  9,
+  8,
   'all estimator tables enforce row-level security'
 );
 
@@ -36,7 +36,7 @@ SELECT ok(
 
 SELECT ok(
   (
-    SELECT count(*) = 9 AND bool_and(
+    SELECT count(*) = 8 AND bool_and(
       NOT has_table_privilege('anon', rel.oid, 'SELECT')
       AND NOT has_table_privilege('anon', rel.oid, 'INSERT')
       AND NOT has_table_privilege('anon', rel.oid, 'UPDATE')
@@ -51,7 +51,7 @@ SELECT ok(
 
 SELECT ok(
   (
-    SELECT count(*) = 9 AND bool_and(
+    SELECT count(*) = 8 AND bool_and(
       NOT has_table_privilege('authenticated', rel.oid, 'INSERT')
       AND NOT has_table_privilege('authenticated', rel.oid, 'UPDATE')
       AND NOT has_table_privilege('authenticated', rel.oid, 'DELETE')
@@ -177,10 +177,14 @@ SELECT ok(
 );
 
 SELECT ok(
-  has_function_privilege('authenticated', 'estimator.activate_invited_staff_after_mfa()', 'EXECUTE')
-    AND NOT has_function_privilege('anon', 'estimator.activate_invited_staff_after_mfa()', 'EXECUTE')
-    AND NOT has_function_privilege('service_role', 'estimator.activate_invited_staff_after_mfa()', 'EXECUTE'),
-  'only authenticated callers can invoke the self-only TOTP activation function'
+  NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS proc
+    JOIN pg_catalog.pg_namespace AS ns ON ns.oid = proc.pronamespace
+    WHERE ns.nspname = 'estimator' AND proc.proname = 'activate_invited_staff_after_mfa'
+  )
+    AND pg_catalog.to_regclass('estimator.staff_onboarding_events') IS NULL,
+  'Task 10 has no invited-staff activation function or onboarding audit table'
 );
 
 SELECT ok(
@@ -206,7 +210,7 @@ SELECT ok(
       AND (
         has_function_privilege('anon', proc.oid, 'EXECUTE')
         OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE')
-          AND proc.proname NOT IN ('is_current_staff', 'activate_invited_staff_after_mfa'))
+          AND proc.proname <> 'is_current_staff')
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
           AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead'))
       )

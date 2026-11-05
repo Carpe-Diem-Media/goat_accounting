@@ -1,15 +1,19 @@
 import { describe, expect, it } from 'bun:test';
 import type { Actions } from './$types';
-import { actions } from './+page.server';
+import { actions, load as loadMfa } from './+page.server';
 import { load as loadLogin } from '../+page.server';
 
 const userId = '10000000-0000-4000-8000-000000000006';
 
-function makeEvent(options: { refreshAalAfterVerify: boolean; initialNextLevel?: string }) {
+function makeEvent(options: {
+	refreshAalAfterVerify: boolean;
+	initialNextLevel?: string;
+	initialAal?: string;
+}) {
 	let staffState = 'INVITED';
-	let aal = 'aal1';
-	let currentLevel = 'aal1';
-	let nextLevel = options.initialNextLevel ?? 'aal1';
+	let aal = options.initialAal ?? 'aal1';
+	let currentLevel = options.initialAal ?? 'aal1';
+	let nextLevel = options.initialNextLevel ?? options.initialAal ?? 'aal1';
 	let factorStatus = 'unverified';
 	const calls: string[] = [];
 	const tables: string[] = [];
@@ -54,7 +58,6 @@ function makeEvent(options: { refreshAalAfterVerify: boolean; initialNextLevel?:
 		},
 		rpc: async (name: string) => {
 			calls.push(`rpc:${name}`);
-			staffState = 'ACTIVE';
 			return { data: null, error: null };
 		}
 	};
@@ -65,17 +68,7 @@ function makeEvent(options: { refreshAalAfterVerify: boolean; initialNextLevel?:
 		request: { formData: async () => form }
 	} as unknown as Parameters<NonNullable<Actions['verify']>>[0];
 
-	return { calls, event, tables };
-}
-
-async function expectEstimateRedirect(event: Parameters<NonNullable<Actions['verify']>>[0]) {
-	try {
-		await actions.verify?.(event);
-	} catch (result) {
-		expect(result).toMatchObject({ status: 303, location: '/admin/estimates' });
-		return;
-	}
-	throw new Error('Expected completed onboarding to redirect to the admin area.');
+	return { calls, event, tables, staffState: () => staffState };
 }
 
 describe('invited staff MFA onboarding', () => {
@@ -91,24 +84,52 @@ describe('invited staff MFA onboarding', () => {
 		throw new Error('Expected invited staff to continue to the MFA setup page.');
 	});
 
-	it('activates only after factor verification establishes current AAL2', async () => {
-		const { calls, event, tables } = makeEvent({ refreshAalAfterVerify: true });
+	it('keeps invited staff pending after factor verification establishes current AAL2', async () => {
+		const { calls, event, tables, staffState } = makeEvent({ refreshAalAfterVerify: true });
 
-		await expectEstimateRedirect(event);
+		let actionError: unknown;
+		try {
+			await actions.verify?.(event);
+		} catch (result) {
+			actionError = result;
+		}
 
-		expect(calls).toEqual(['mfa.verify', 'rpc:activate_invited_staff_after_mfa']);
-		expect(tables).toEqual(['staff_users', 'staff_users', 'staff_users']);
+		expect(actionError).toBeUndefined();
+		expect(staffState()).toBe('INVITED');
+		expect(calls).toEqual(['mfa.verify']);
+		expect(tables).toEqual(['staff_users', 'staff_users']);
+		expect(
+			await loadMfa(event as unknown as Parameters<typeof loadMfa>[0])
+		).toEqual({ state: 'pending' });
 	});
 
-	it('verifies an unverified factor when an invited session reports AAL2 as its next level', async () => {
-		const { calls, event } = makeEvent({ refreshAalAfterVerify: true, initialNextLevel: 'aal2' });
+	it('keeps AAL2 invited staff pending without another challenge', async () => {
+		const { calls, event, staffState } = makeEvent({
+			refreshAalAfterVerify: false,
+			initialAal: 'aal2'
+		});
 
-		await expectEstimateRedirect(event);
-
-		expect(calls).toEqual(['mfa.verify', 'rpc:activate_invited_staff_after_mfa']);
+		expect(
+			await loadMfa(event as unknown as Parameters<typeof loadMfa>[0])
+		).toEqual({ state: 'pending' });
+		expect(staffState()).toBe('INVITED');
+		expect(calls).toEqual([]);
 	});
 
-	it('does not call activation when factor verification leaves the session at AAL1', async () => {
+	it('rejects MFA verification posts while the invitation awaits activation', async () => {
+		const { calls, event, staffState } = makeEvent({
+			refreshAalAfterVerify: false,
+			initialAal: 'aal2'
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toMatchObject({ status: 409 });
+		expect(calls).toEqual([]);
+		expect(staffState()).toBe('INVITED');
+	});
+
+	it('does not complete MFA when factor verification leaves the session at AAL1', async () => {
 		const { calls, event } = makeEvent({ refreshAalAfterVerify: false });
 
 		const result = await actions.verify?.(event);

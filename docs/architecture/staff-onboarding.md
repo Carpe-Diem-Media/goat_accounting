@@ -1,9 +1,13 @@
-# Staff invitation and MFA onboarding
+# Staff invitation and MFA setup
 
-There is no public staff registration. An authorized administrator provisions an `INVITED` row in `estimator.staff_users` with the role the new staff member will receive. That invitation pre-authorizes only the invited account and role.
+There is no public staff registration. An authorized administrator provisions an `INVITED` row in `estimator.staff_users` with the role the new staff member will receive. That invitation identifies the account and intended role, but does not grant access to admin records.
 
-An invited user may read their own staff row so the server can route them through authenticator setup. They cannot read estimates, leads, pricing data, other staff rows, or onboarding audit events while `INVITED`. Direct writes to staff state remain unavailable to authenticated users.
+An invited user may read only their own staff row so the server can route them through authenticator setup. They may enroll and verify a TOTP factor. They cannot read estimates, leads, pricing data, other staff rows, or staff audit events while `INVITED`, at either AAL1 or AAL2. They cannot change their own staff state.
 
-After the invited user enrolls and verifies a TOTP factor, the server checks the current Supabase AAL and calls `estimator.activate_invited_staff_after_mfa()` through the request-scoped client. The database function accepts no target-user argument: it requires the caller's signed-in subject, an AAL2 claim, a verified TOTP factor for that subject, and that subject's current state to be `INVITED`. It changes only that row to `ACTIVE` and inserts the corresponding `INVITED` to `ACTIVE` event in the same transaction. Active administrators can read the append-only onboarding events through RLS.
+After TOTP verification, an invited account remains `INVITED` and sees a pending-activation message. Task 10 does not activate staff or add staff-state mutations or an audit-log table. End-to-end invited-staff onboarding is not implemented.
 
-The protected page guard still rejects `INVITED` users, and estimate/lead RLS still requires an `ACTIVE` staff row and AAL2. Suspension and deactivation do not use this onboarding path; `DEACTIVATED` remains terminal. The flow does not change staff roles or activate another user's account.
+Only `ACTIVE` staff with a verified AAL2 session and an authorized database role can read estimates and leads. The application guard and RLS both deny `INVITED`, `SUSPENDED`, and `DEACTIVATED` accounts access to those records. `DEACTIVATED` remains terminal.
+
+The approved lifecycle remains `INVITED -> ACTIVE -> SUSPENDED`, authorized `SUSPENDED -> ACTIVE` reactivation, and authorized transitions from `INVITED`, `ACTIVE`, or `SUSPENDED` to terminal `DEACTIVATED`.
+
+The `INVITED -> ACTIVE` transition is deferred to a separately approved administrator operation. That work must verify the acting administrator, write an audit event with the state transition, enforce lifecycle guards, and preserve the last-active-administrator invariant. Until that work is approved and implemented, MFA completion alone never activates an invitation.
