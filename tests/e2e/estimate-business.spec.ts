@@ -182,6 +182,8 @@ async function advance(page: Page): Promise<void> {
 
 async function finishDefaultBusinessAnswers(page: Page): Promise<void> {
 	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	await advance(page);
 	await choose(page, 'Sole proprietor');
 	await advance(page);
 	await choose(page, 'Fully current and reconciled');
@@ -235,6 +237,8 @@ test('completes a business estimate before contact and retakes as a new saved at
 	expect((savedEstimates[0].answers_snapshot as { business: Record<string, unknown> }).business).not.toHaveProperty('entityCount');
 
 	await page.getByRole('button', { name: 'Start a new estimate', exact: true }).click();
+	await choose(page, 'Business accounting');
+	await advance(page);
 	await expect(page.getByRole('heading', { name: 'What type of business/entity is this?', exact: true })).toBeVisible();
 	await choose(page, 'Multiple entities');
 	await page.getByLabel('Number of entities (optional)', { exact: true }).fill('3');
@@ -340,6 +344,8 @@ test('offers a download link to the saved PDF endpoint', async ({ page }) => {
 
 test('asks schema-supported backlog and compliance branches and preserves approved complexity choices', async ({ page }) => {
 	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	await advance(page);
 	await choose(page, 'Pty Ltd / Close Corporation');
 	await advance(page);
 	await choose(page, '1–2 years behind');
@@ -388,6 +394,8 @@ test('asks schema-supported backlog and compliance branches and preserves approv
 
 test('clears incompatible outstanding months when B2 changes during backward navigation', async ({ page }) => {
 	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	await advance(page);
 	await choose(page, 'Sole proprietor');
 	await advance(page);
 	await choose(page, '1–2 years behind');
@@ -448,9 +456,15 @@ test('uses keyboard focus and radio navigation to advance through the questionna
 	await page.keyboard.press('Tab');
 	await expect(page.getByRole('link', { name: 'Skip to questionnaire' })).toBeFocused();
 	await page.keyboard.press('Enter');
+	await expect(page.getByRole('heading', { name: 'What would you like an estimate for?' })).toBeFocused();
+	await page.keyboard.press('Tab');
+	await page.keyboard.press('Space');
+	await page.keyboard.press('Tab');
+	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'What type of business/entity is this?' })).toBeFocused();
 	await page.keyboard.press('Tab');
 	await page.keyboard.press('Space');
+	await page.keyboard.press('Tab');
 	await page.keyboard.press('Tab');
 	await page.keyboard.press('Enter');
 	await expect(page.getByRole('heading', { name: 'How up to date are your books/accounting records?' })).toBeFocused();
@@ -465,6 +479,8 @@ test('uses keyboard focus and radio navigation to advance through the questionna
 test('stays within a mobile viewport without horizontal overflow', async ({ page }) => {
 	await page.setViewportSize({ width: 390, height: 844 });
 	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	await advance(page);
 	await expect(page.getByRole('heading', { name: 'What type of business/entity is this?' })).toBeVisible();
 	const widths = await page.evaluate(() => ({
 		viewport: document.documentElement.clientWidth,
@@ -475,6 +491,8 @@ test('stays within a mobile viewport without horizontal overflow', async ({ page
 
 test('recovers an in-progress, versioned draft after reload', async ({ page }) => {
 	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	await advance(page);
 	await choose(page, 'Multiple entities');
 	await page.getByLabel('Number of entities (optional)', { exact: true }).fill('3');
 	await advance(page);

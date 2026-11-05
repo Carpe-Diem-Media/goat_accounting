@@ -6,25 +6,30 @@
 		ANSWER_OPTION_VALUES,
 		BUSINESS_COMPLEXITY_QUESTION,
 		BUSINESS_QUESTIONS,
+		PERSONAL_QUESTIONS,
 		URGENCY_QUESTION,
 		type EstimatorOption,
 		type EstimatorQuestion
 	} from '$lib/domain/estimator/questions';
 	import {
 		CanonicalEstimatorAnswersSchema,
-		type BusinessAnswers
+		type BusinessAnswers,
+		type PersonalAnswers
 	} from '$lib/domain/estimator/answer-schema';
 
 	const DRAFT_KEY = 'goat-accounting:business-estimator:v1';
 	const DRAFT_VERSION = 1;
 	const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
-	type OptionQuestion = Extract<EstimatorQuestion, { type: 'single' | 'multi' }>;
-	const QUESTIONS: readonly OptionQuestion[] = [
-		...BUSINESS_QUESTIONS,
-		BUSINESS_COMPLEXITY_QUESTION,
-		URGENCY_QUESTION
-	];
-	const STEP_COUNT = QUESTIONS.length;
+	type CalculatorType = 'business' | 'personal' | 'both';
+	const typeQuestion = {
+		id: 'TYPE', question: 'What would you like an estimate for?', type: 'single',
+		options: [
+			{ value: 'business', label: 'Business accounting' },
+			{ value: 'personal', label: 'Personal tax' },
+			{ value: 'both', label: 'Business and personal tax' }
+		]
+	} as const;
+	type ActiveQuestion = EstimatorQuestion | typeof typeQuestion;
 
 	const statementOptions: readonly EstimatorOption[] = ANSWER_OPTION_VALUES[
 		'business.bankStatementsAvailableForFullPeriod'
@@ -53,6 +58,8 @@
 		expiresAt: number;
 		stepIndex: number;
 		answers: Partial<BusinessAnswers>;
+		personal: Partial<PersonalAnswers>;
+		calculatorType: CalculatorType | null;
 		urgency?: string;
 		freeText: string;
 		idempotencyKey?: string;
@@ -60,6 +67,8 @@
 	}>;
 
 	let answers = $state<Partial<BusinessAnswers>>({});
+	let personal = $state<Partial<PersonalAnswers>>({});
+	let calculatorType = $state<CalculatorType | undefined>();
 	let urgency = $state<string | undefined>();
 	let freeText = $state('');
 	let stepIndex = $state(0);
@@ -71,7 +80,16 @@
 	let storageMessage = $state('');
 	let isSubmitting = $state(false);
 	let questionHeading: HTMLHeadingElement;
-	let activeQuestion = $derived(QUESTIONS[stepIndex]);
+	let needsPersonalDetails = $derived(personal.currentStatus === 'multiple_years_outstanding' ||
+		(personal.incomeSources ?? []).some((source) => ['rental_property', 'foreign_income', 'capital_gains'].includes(source)));
+	let questions: readonly ActiveQuestion[] = $derived([
+		typeQuestion,
+		...(calculatorType === 'business' || calculatorType === 'both' ? [...BUSINESS_QUESTIONS, BUSINESS_COMPLEXITY_QUESTION] : []),
+		...(calculatorType === 'personal' || calculatorType === 'both' ? PERSONAL_QUESTIONS.filter((q) => q.id !== 'P3' || needsPersonalDetails) : []),
+		...(calculatorType ? [URGENCY_QUESTION] : [])
+	]);
+	let STEP_COUNT = $derived(questions.length);
+	let activeQuestion = $derived(questions[stepIndex] ?? typeQuestion);
 	let questionTitle = $derived(activeQuestion.question);
 	let progressValue = $derived(Math.round(((stepIndex + 1) / STEP_COUNT) * 100));
 	let submitButtonLabel = $derived(isSubmitting ? 'Saving…' : 'View estimate');
@@ -92,8 +110,13 @@
 		return typeof value === 'string' ? [value] : [];
 	}
 
-	function selectedFor(question: OptionQuestion): string[] {
+	function selectedFor(question: ActiveQuestion): string[] {
 		switch (question.id) {
+			case 'TYPE': return calculatorType ? [calculatorType] : [];
+			case 'P1': return personal.currentStatus ? [personal.currentStatus] : [];
+			case 'P2': return personal.incomeSources ?? [];
+			case 'P4': return personal.sarsPosition ? [personal.sarsPosition] : [];
+			case 'P5': return personal.ongoingRequirements ?? [];
 			case 'B1': return readStringArray('entityType');
 			case 'B2': return readStringArray('booksStatus');
 			case 'B3': return readStringArray('recordCondition');
@@ -134,6 +157,8 @@
 			expiresAt,
 			stepIndex,
 			answers,
+			personal,
+			calculatorType: calculatorType ?? null,
 			urgency,
 			freeText,
 			idempotencyKey,
@@ -141,7 +166,6 @@
 		};
 		try {
 			sessionStorage.setItem(DRAFT_KEY, JSON.stringify(draft));
-			storageMessage = '';
 		} catch {
 			storageMessage = 'This browser could not save a draft for this tab.';
 		}
@@ -167,7 +191,7 @@
 				stored.status !== 'IN_PROGRESS' ||
 				typeof stored.expiresAt !== 'number' || stored.expiresAt <= now ||
 				typeof stored.createdAt !== 'number' ||
-				typeof stored.stepIndex !== 'number' || stored.stepIndex < 0 || stored.stepIndex >= STEP_COUNT ||
+				typeof stored.stepIndex !== 'number' || stored.stepIndex < 0 || stored.stepIndex > 15 ||
 				!isRecord(stored.answers) || typeof stored.freeText !== 'string'
 				) {
 				if (typeof stored.expiresAt === 'number' && stored.expiresAt <= now) {
@@ -177,9 +201,11 @@
 				return;
 			}
 			answers = stored.answers as Partial<BusinessAnswers>;
+			calculatorType = stored.calculatorType === 'personal' || stored.calculatorType === 'both' ? stored.calculatorType : stored.calculatorType === 'business' || !Object.hasOwn(stored, 'calculatorType') ? 'business' : undefined;
+			personal = isRecord(stored.personal) ? stored.personal as Partial<PersonalAnswers> : {};
 			urgency = typeof stored.urgency === 'string' ? stored.urgency : undefined;
 			freeText = stored.freeText.slice(0, 2000);
-			stepIndex = stored.stepIndex;
+			stepIndex = !Object.hasOwn(stored, 'calculatorType') ? stored.stepIndex + 1 : stored.stepIndex;
 			createdAt = stored.createdAt;
 			expiresAt = stored.expiresAt;
 			idempotencyKey = typeof stored.idempotencyKey === 'string' ? stored.idempotencyKey : undefined;
@@ -194,6 +220,21 @@
 	function setSingleAnswer(value: string): void {
 		errorMessage = '';
 		switch (activeQuestion.id) {
+			case 'TYPE':
+				if (calculatorType !== value) {
+					calculatorType = value as CalculatorType;
+					answers = {}; personal = {}; urgency = undefined;
+				}
+				break;
+			case 'P1':
+				personal = { ...personal, currentStatus: value as PersonalAnswers['currentStatus'] };
+				if (value !== 'multiple_years_outstanding') {
+					const next = { ...personal };
+					delete next.outstandingYears;
+					personal = next;
+				}
+				break;
+			case 'P4': personal = { ...personal, sarsPosition: value as PersonalAnswers['sarsPosition'] }; break;
 			case 'B1':
 				answers = { ...answers, entityType: value as BusinessAnswers['entityType'] };
 				if (value !== 'multiple_entities') removeOptionalAnswer('entityCount');
@@ -247,6 +288,32 @@
 		saveDraft();
 	}
 
+	function togglePersonal(field: 'incomeSources' | 'ongoingRequirements', value: string): void {
+		const current: string[] = personal[field] ?? [];
+		const next = current.includes(value) ? current.filter((item) => item !== value) : [...current, value];
+		personal = { ...personal, [field]: next };
+		if (field === 'incomeSources') {
+			const clean = { ...personal };
+			if (!next.includes('rental_property')) delete clean.rentalPropertyCount;
+			if (!next.includes('foreign_income')) delete clean.foreignIncomePresent;
+			if (!next.includes('capital_gains')) delete clean.capitalGainsOccurred;
+			personal = clean;
+		}
+		errorMessage = ''; saveDraft();
+	}
+	function setPersonalDetail(key: 'rentalPropertyCount' | 'foreignIncomePresent' | 'capitalGainsOccurred', value: string): void {
+		personal = { ...personal, [key]: value }; errorMessage = ''; saveDraft();
+	}
+	function setOutstandingYears(value: string): void {
+		const next = { ...personal };
+		if (value === '') delete next.outstandingYears; else next.outstandingYears = Number(value);
+		personal = next; errorMessage = ''; saveDraft();
+	}
+	function personalOptions(key: 'personal.rentalPropertyCount' | 'personal.foreignIncomePresent' | 'personal.capitalGainsOccurred'): readonly EstimatorOption[] {
+		const labels: Record<string, string> = { one: '1', '2_to_3': '2–3', '4_plus': '4 or more', yes: 'Yes', no: 'No', not_sure: 'Not sure' };
+		return ANSWER_OPTION_VALUES[key].map((value) => ({ value, label: labels[value] }));
+	}
+
 	function setStatementAvailability(value: string): void {
 		answers = {
 			...answers,
@@ -285,6 +352,17 @@
 	function validateCurrentStep(): boolean {
 		errorMessage = '';
 		switch (activeQuestion.id) {
+			case 'TYPE': if (!calculatorType) errorMessage = 'Choose the type of estimate to continue.'; break;
+			case 'P1': if (!personal.currentStatus) errorMessage = 'Choose your current tax status to continue.'; break;
+			case 'P2': if (!personal.incomeSources?.length) errorMessage = 'Choose at least one income or activity source.'; break;
+			case 'P3':
+				if (personal.incomeSources?.includes('rental_property') && !personal.rentalPropertyCount ||
+					personal.incomeSources?.includes('foreign_income') && !personal.foreignIncomePresent ||
+					personal.incomeSources?.includes('capital_gains') && !personal.capitalGainsOccurred) errorMessage = 'Answer each applicable follow-up to continue.';
+				else if (!isNumberInRange(personal.outstandingYears, 2, 100)) errorMessage = 'Enter a whole number from 2 to 100 years, or leave this optional field blank.';
+				break;
+			case 'P4': if (!personal.sarsPosition) errorMessage = 'Choose your SARS position to continue.'; break;
+			case 'P5': if (!personal.ongoingRequirements?.length) errorMessage = 'Choose at least one type of support.'; break;
 			case 'B1':
 				if (!answers.entityType) errorMessage = 'Choose the business or entity type to continue.';
 				else if (answers.entityCount !== undefined && !isNumberInRange(answers.entityCount, 2, 1000)) {
@@ -373,14 +451,29 @@
 			if (answers[key] !== undefined) business[key] = answers[key];
 		}
 		return CanonicalEstimatorAnswersSchema.parse({
-			calculatorType: 'business',
-			urgency,
-			business
+			calculatorType, urgency,
+			...(calculatorType !== 'personal' ? { business } : {}),
+			...(calculatorType !== 'business' ? { personal } : {})
 		});
 	}
 
 	async function submitEstimate(): Promise<void> {
 		if (isSubmitting || !validateCurrentStep()) return;
+		if (expiresAt <= Date.now()) {
+			answers = {};
+			personal = {};
+			calculatorType = undefined;
+			urgency = undefined;
+			freeText = '';
+			stepIndex = 0;
+			idempotencyKey = undefined;
+			idempotencyPayloadSnapshot = undefined;
+			createdAt = Date.now();
+			expiresAt = createdAt + DRAFT_TTL_MS;
+			storageMessage = 'Your saved draft expired. Start a new estimate below.';
+			saveDraft();
+			return;
+		}
 		let canonical: unknown;
 		try {
 			canonical = canonicalAnswers();
@@ -391,7 +484,7 @@
 
 		const note = freeText.trim();
 		const payload = {
-			calculatorType: 'business',
+			calculatorType,
 			answers: canonical,
 			...(note ? { freeText: note } : {})
 		};
@@ -436,15 +529,15 @@
 </script>
 
 <svelte:head>
-	<title>Business estimate | Goat Accounting</title>
-	<meta name="description" content="Get an indicative estimate for your business accounting support." />
-	<meta property="og:title" content="Business estimate | Goat Accounting" />
+	<title>Accounting and tax estimate | Goat Accounting</title>
+	<meta name="description" content="Get an indicative estimate for accounting and tax support." />
+	<meta property="og:title" content="Accounting and tax estimate | Goat Accounting" />
 </svelte:head>
 
 <section aria-labelledby="estimate-title" class="space-y-7">
 	<header class="space-y-2">
 		<h1 id="estimate-title" class="font-display text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
-			Estimate your business accounting support
+			Estimate your accounting and tax support
 		</h1>
 		<p class="max-w-2xl text-base leading-7 text-muted-foreground">
 			Answer a few questions to see an indicative catch-up and monthly estimate. You can view it before sharing any contact details.
@@ -455,6 +548,7 @@
 		<p class="rounded-md border border-border bg-muted px-4 py-3 text-sm text-muted-foreground" role="status">{storageMessage}</p>
 	{/if}
 
+	{#if calculatorType}
 	<section aria-label="Questionnaire progress" class="space-y-2">
 		<div class="flex items-center justify-between gap-4 text-sm">
 			<p class="font-medium text-foreground">Step {stepIndex + 1} of {STEP_COUNT}</p>
@@ -466,13 +560,14 @@
 			aria-valuemin="0"
 			aria-valuemax="100"
 			aria-valuenow={progressValue}
-			class="grid h-1.5 grid-cols-10 gap-1 overflow-hidden rounded-full"
+			class="flex h-1.5 gap-1 overflow-hidden rounded-full"
 		>
-			{#each QUESTIONS as _, index (index)}
-				<span class={index <= stepIndex ? 'rounded-full bg-primary' : 'rounded-full bg-secondary'}></span>
+			{#each questions as _, index (index)}
+				<span class={index <= stepIndex ? 'flex-1 rounded-full bg-primary' : 'flex-1 rounded-full bg-secondary'}></span>
 			{/each}
 		</div>
 	</section>
+	{/if}
 
 	<section id="questionnaire" aria-labelledby="question-title" class="space-y-6">
 		<div class="space-y-6">
@@ -491,6 +586,7 @@
 			</div>
 
 			<div class="space-y-5">
+				{#if activeQuestion.type !== 'follow-up-group'}
 				<ChoiceOptions
 					groupId={`question-${activeQuestion.id}`}
 					legend={activeQuestion.question}
@@ -502,8 +598,30 @@
 						if (activeQuestion.type === 'single') setSingleAnswer(value);
 						else if (activeQuestion.id === 'B8') toggleMultiAnswer('ongoingServices', value);
 						else if (activeQuestion.id === 'COMPLEXITY') toggleMultiAnswer('complexityFactors', value);
+						else if (activeQuestion.id === 'P2') togglePersonal('incomeSources', value);
+						else if (activeQuestion.id === 'P5') togglePersonal('ongoingRequirements', value);
 					}}
 				/>
+
+				{/if}
+				{#if activeQuestion.id === 'P3'}
+					{#if personal.currentStatus === 'multiple_years_outstanding'}
+						<div class="space-y-2"><label for="outstanding-years" class="block text-sm font-medium">Years outstanding (optional)</label><input id="outstanding-years" type="number" min="2" max="100" step="1" value={personal.outstandingYears ?? ''} oninput={(event) => setOutstandingYears(event.currentTarget.value)} class="min-h-12 w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-base" />
+						</div>
+					{/if}
+					{#if personal.incomeSources?.includes('rental_property')}
+						<p class="text-sm font-medium text-foreground">How many rental properties?</p>
+						<ChoiceOptions groupId="rental-count" legend="How many rental properties?" mode="single" options={personalOptions('personal.rentalPropertyCount')} selected={personal.rentalPropertyCount ? [personal.rentalPropertyCount] : []} onSelect={(value) => setPersonalDetail('rentalPropertyCount', value)} />
+					{/if}
+					{#if personal.incomeSources?.includes('foreign_income')}
+						<p class="text-sm font-medium text-foreground">Is foreign income present?</p>
+						<ChoiceOptions groupId="foreign-income" legend="Is foreign income present?" mode="single" options={personalOptions('personal.foreignIncomePresent')} selected={personal.foreignIncomePresent ? [personal.foreignIncomePresent] : []} onSelect={(value) => setPersonalDetail('foreignIncomePresent', value)} />
+					{/if}
+					{#if personal.incomeSources?.includes('capital_gains')}
+						<p class="text-sm font-medium text-foreground">Did capital gains transactions occur?</p>
+						<ChoiceOptions groupId="capital-gains" legend="Did capital gains transactions occur?" mode="single" options={personalOptions('personal.capitalGainsOccurred')} selected={personal.capitalGainsOccurred ? [personal.capitalGainsOccurred] : []} onSelect={(value) => setPersonalDetail('capitalGainsOccurred', value)} />
+					{/if}
+				{/if}
 
 				{#if activeQuestion.id === 'B1' && answers.entityType === 'multiple_entities'}
 					<div class="space-y-2 border-t border-border pt-5">
@@ -617,7 +735,7 @@
 				{:else}
 					<span></span>
 				{/if}
-				{#if stepIndex < STEP_COUNT - 1}
+				{#if !calculatorType || stepIndex < STEP_COUNT - 1}
 					<button
 						type="button"
 						onclick={advanceStep}

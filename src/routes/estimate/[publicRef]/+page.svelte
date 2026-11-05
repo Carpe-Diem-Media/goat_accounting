@@ -5,6 +5,7 @@
 
 	let { data }: PageProps = $props();
 	let estimate = $derived(data.estimate);
+	let resultTitle = $derived(estimate.calculatorType === 'business' ? 'Your business estimate' : estimate.calculatorType === 'personal' ? 'Your personal tax estimate' : 'Your business and personal estimate');
 	type EstimateLifecycleState = PageProps['data']['estimate']['state'];
 	type LifecycleNotice = Readonly<{
 		message: string;
@@ -58,14 +59,14 @@
 
 <svelte:head>
 	<title>Your estimate | Goat Accounting</title>
-	<meta name="description" content="Your saved business accounting estimate from Goat Accounting." />
+	<meta name="description" content="Your saved accounting and tax estimate from Goat Accounting." />
 	<meta property="og:title" content="Your estimate | Goat Accounting" />
 </svelte:head>
 
 <article class="space-y-8" aria-labelledby="question-title">
 	<header class="space-y-3">
-		<h1 id="question-title" class="font-display text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
-			Your business estimate
+		<h1 id="question-title" class="min-w-0 [overflow-wrap:break-word] font-display text-3xl font-semibold leading-tight tracking-tight text-foreground sm:text-4xl">
+			{resultTitle}
 		</h1>
 		<p class="max-w-2xl text-base leading-7 text-muted-foreground">
 			This estimate is based on your answers and the saved pricing model. You can review the catch-up work and monthly support below.
@@ -128,7 +129,7 @@
 	{#if estimate.manualReviewRequired}
 		<section role="status" aria-labelledby="review-heading" class="rounded-xl border border-amber-300 bg-amber-50 p-5 text-amber-950 sm:p-6">
 			<h2 id="review-heading" class="font-display text-xl font-medium">A professional review is needed</h2>
-			<p class="mt-2 text-sm leading-6">The estimate is still available, but the once-off work needs review before a final quote can be confirmed.</p>
+			<p class="mt-2 text-sm leading-6">The estimate is still available, but your request needs review before a final quote can be confirmed.</p>
 			<ul class="mt-4 space-y-3 border-t border-amber-300/70 pt-4 text-sm leading-6">
 				{#each estimate.reviewFlags as flag}
 					<li>
@@ -154,7 +155,7 @@
 						{#each estimate.catchup.lineItems.filter((item) => item.category === 'catchup') as item}
 							<li class="flex flex-col gap-1 py-4 first:pt-0 last:pb-0 sm:flex-row sm:justify-between sm:gap-6">
 								<div class="space-y-1">
-									<p class="text-sm font-medium text-foreground">{item.label}</p>
+									<p class="text-sm font-medium text-foreground">{item.label}{#if estimate.calculatorType === 'both'} <span class="text-muted-foreground">({item.branch === 'business' ? 'Business' : 'Personal tax'})</span>{/if}</p>
 									<p class="max-w-xl text-sm leading-6 text-muted-foreground">{item.explanation}</p>
 								</div>
 								<p class="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatRange(item)}</p>
@@ -173,7 +174,7 @@
 						{#each estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing') as item}
 							<li class="flex flex-col gap-1 py-4 first:pt-0 last:pb-0 sm:flex-row sm:justify-between sm:gap-6">
 								<div class="space-y-1">
-									<p class="text-sm font-medium text-foreground">{item.label}</p>
+									<p class="text-sm font-medium text-foreground">{item.label}{#if estimate.calculatorType === 'both'} <span class="text-muted-foreground">({item.branch === 'business' ? 'Business' : 'Personal tax'})</span>{/if}</p>
 									<p class="max-w-xl text-sm leading-6 text-muted-foreground">{item.explanation}</p>
 								</div>
 								<p class="shrink-0 text-sm font-semibold tabular-nums text-foreground">{formatRange(item)}</p>
