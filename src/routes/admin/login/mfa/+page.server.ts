@@ -47,7 +47,7 @@ export const actions: Actions = {
 		return { enrollment: { qrCode: data.totp.qr_code, secret: data.totp.secret } };
 	},
 	verify: async (event) => {
-		const { client, state, invited } = await requireMfaState(event);
+		const { client, state } = await requireMfaState(event);
 		if (state === 'pending') {
 			return fail(409, { message: 'Your staff account is awaiting administrator activation.' });
 		}
@@ -60,13 +60,7 @@ export const actions: Actions = {
 
 		const unverifiedFactor = factors.totp.find((item) => item.status !== 'verified');
 		const verifiedFactor = factors.totp.find((item) => item.status === 'verified');
-		const factor = invited
-			? state === 'challenge'
-				? unverifiedFactor ?? verifiedFactor
-				: unverifiedFactor
-			: state === 'challenge'
-				? verifiedFactor
-				: unverifiedFactor;
+		const factor = state === 'challenge' ? verifiedFactor : unverifiedFactor;
 		if (!factor) {
 			return fail(409, {
 				message: state === 'challenge'

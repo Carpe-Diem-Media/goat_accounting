@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import type { Actions } from './$types';
 import { actions, load as loadMfa } from './+page.server';
 import { load as loadLogin } from '../+page.server';
+import { load as loadEstimateList } from '../../estimates/+page.server';
 
 const userId = '10000000-0000-4000-8000-000000000006';
 
@@ -9,12 +10,13 @@ function makeEvent(options: {
 	refreshAalAfterVerify: boolean;
 	initialNextLevel?: string;
 	initialAal?: string;
+	factors?: Array<{ id: string; status: string }>;
 }) {
 	let staffState = 'INVITED';
 	let aal = options.initialAal ?? 'aal1';
 	let currentLevel = options.initialAal ?? 'aal1';
 	let nextLevel = options.initialNextLevel ?? options.initialAal ?? 'aal1';
-	let factorStatus = 'unverified';
+	const factors = options.factors ?? [{ id: 'factor-1', status: 'unverified' }];
 	const calls: string[] = [];
 	const tables: string[] = [];
 	const client = {
@@ -26,13 +28,15 @@ function makeEvent(options: {
 					error: null
 				}),
 				listFactors: async () => ({
-					data: { totp: [{ id: 'factor-1', status: factorStatus }] },
+					data: { totp: factors },
 					error: null
 				}),
-				challenge: async () => ({ data: { id: 'challenge-1' }, error: null }),
-				verify: async () => {
-					calls.push('mfa.verify');
-					factorStatus = 'verified';
+				challenge: async ({ factorId }: { factorId: string }) => {
+					calls.push(`challenge:${factorId}`);
+					return { data: { id: 'challenge-1' }, error: null };
+				},
+				verify: async ({ factorId }: { factorId: string }) => {
+					calls.push(`verify:${factorId}`);
 					if (options.refreshAalAfterVerify) {
 						aal = 'aal2';
 						currentLevel = 'aal2';
@@ -65,6 +69,7 @@ function makeEvent(options: {
 	form.set('code', '123456');
 	const event = {
 		locals: { supabase: client },
+		url: new URL('https://goat.test/admin/login/mfa'),
 		request: { formData: async () => form }
 	} as unknown as Parameters<NonNullable<Actions['verify']>>[0];
 
@@ -96,11 +101,98 @@ describe('invited staff MFA onboarding', () => {
 
 		expect(actionError).toBeUndefined();
 		expect(staffState()).toBe('INVITED');
-		expect(calls).toEqual(['mfa.verify']);
+		expect(calls).toEqual(['challenge:factor-1', 'verify:factor-1']);
 		expect(tables).toEqual(['staff_users', 'staff_users']);
 		expect(
 			await loadMfa(event as unknown as Parameters<typeof loadMfa>[0])
 		).toEqual({ state: 'pending' });
+	});
+
+	it('uses the verified factor for an invited AAL1 challenge', async () => {
+		const { calls, event } = makeEvent({
+			refreshAalAfterVerify: true,
+			initialNextLevel: 'aal2',
+			factors: [{ id: 'verified-factor', status: 'verified' }]
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toEqual({});
+		expect(calls).toEqual(['challenge:verified-factor', 'verify:verified-factor']);
+	});
+
+	it('uses the verified factor when an unfinished enrollment is listed first', async () => {
+		const { calls, event } = makeEvent({
+			refreshAalAfterVerify: true,
+			initialNextLevel: 'aal2',
+			factors: [
+				{ id: 'unfinished-factor', status: 'unverified' },
+				{ id: 'verified-factor', status: 'verified' }
+			]
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toEqual({});
+		expect(calls).toEqual(['challenge:verified-factor', 'verify:verified-factor']);
+	});
+
+	it('uses the unverified factor for initial setup verification', async () => {
+		const { calls, event } = makeEvent({
+			refreshAalAfterVerify: true,
+			factors: [{ id: 'enrollment-factor', status: 'unverified' }]
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toEqual({});
+		expect(calls).toEqual(['challenge:enrollment-factor', 'verify:enrollment-factor']);
+	});
+
+	it('fails closed when no verified factor is available for a challenge', async () => {
+		const { calls, event } = makeEvent({
+			refreshAalAfterVerify: true,
+			initialNextLevel: 'aal2',
+			factors: [{ id: 'unfinished-factor', status: 'unverified' }]
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toMatchObject({ status: 409 });
+		expect(calls).toEqual([]);
+	});
+
+	it('fails closed when no unverified factor is available for setup', async () => {
+		const { calls, event } = makeEvent({
+			refreshAalAfterVerify: true,
+			factors: [{ id: 'verified-factor', status: 'verified' }]
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toMatchObject({ status: 409 });
+		expect(calls).toEqual([]);
+	});
+
+	it('denies protected estimates after invited MFA reaches AAL2', async () => {
+		const { calls, event, staffState } = makeEvent({
+			refreshAalAfterVerify: true,
+			initialNextLevel: 'aal2',
+			factors: [{ id: 'verified-factor', status: 'verified' }]
+		});
+
+		expect(await actions.verify?.(event)).toEqual({});
+		expect(staffState()).toBe('INVITED');
+
+		let denial: unknown;
+		try {
+			await loadEstimateList(event as unknown as Parameters<typeof loadEstimateList>[0]);
+		} catch (result) {
+			denial = result;
+		}
+
+		expect(denial).toMatchObject({ status: 403 });
+		expect(calls).toEqual(['challenge:verified-factor', 'verify:verified-factor']);
 	});
 
 	it('keeps AAL2 invited staff pending without another challenge', async () => {
@@ -135,6 +227,6 @@ describe('invited staff MFA onboarding', () => {
 		const result = await actions.verify?.(event);
 
 		expect(result).toMatchObject({ status: 400 });
-		expect(calls).toEqual(['mfa.verify']);
+		expect(calls).toEqual(['challenge:factor-1', 'verify:factor-1']);
 	});
 });
