@@ -130,7 +130,7 @@
 			<h2 id="review-heading" class="font-display text-xl font-medium">A professional review is needed</h2>
 			<p class="mt-2 text-sm leading-6">The estimate is still available, but the once-off work needs review before a final quote can be confirmed.</p>
 			<ul class="mt-4 space-y-3 border-t border-amber-300/70 pt-4 text-sm leading-6">
-				{#each estimate.reviewFlags as flag (flag.label)}
+				{#each estimate.reviewFlags as flag}
 					<li>
 						<p class="font-semibold">{flag.label}</p>
 						<p>{flag.reason}</p>
@@ -151,7 +151,7 @@
 				<h3 id="catchup-items-heading" class="font-semibold text-foreground">Catch-up work</h3>
 				{#if estimate.catchup.lineItems.filter((item) => item.category === 'catchup').length > 0}
 					<ul class="mt-3 divide-y divide-border">
-						{#each estimate.catchup.lineItems.filter((item) => item.category === 'catchup') as item (item.label)}
+						{#each estimate.catchup.lineItems.filter((item) => item.category === 'catchup') as item}
 							<li class="flex flex-col gap-1 py-4 first:pt-0 last:pb-0 sm:flex-row sm:justify-between sm:gap-6">
 								<div class="space-y-1">
 									<p class="text-sm font-medium text-foreground">{item.label}</p>
@@ -170,7 +170,7 @@
 				<h3 id="ongoing-items-heading" class="font-semibold text-foreground">Ongoing monthly services</h3>
 				{#if estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing').length > 0}
 					<ul class="mt-3 divide-y divide-border">
-						{#each estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing') as item (item.label)}
+						{#each estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing') as item}
 							<li class="flex flex-col gap-1 py-4 first:pt-0 last:pb-0 sm:flex-row sm:justify-between sm:gap-6">
 								<div class="space-y-1">
 									<p class="text-sm font-medium text-foreground">{item.label}</p>
@@ -194,6 +194,12 @@
 
 	<div class="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">
 		<p class="text-sm leading-6 text-muted-foreground">No contact details were needed to view this estimate.</p>
+		<a
+			href={`/api/estimates/${estimate.publicRef}/pdf`}
+			class="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+		>
+			Download PDF
+		</a>
 		<button
 			type="button"
 			onclick={() => goto('/estimate?new=1')}

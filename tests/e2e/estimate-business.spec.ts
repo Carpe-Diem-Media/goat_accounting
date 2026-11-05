@@ -294,6 +294,50 @@ test('shows lifecycle warnings while preserving saved amounts and hiding private
 	expect(await ranges.allTextContents()).toEqual(savedRanges);
 });
 
+test('renders duplicate labels in saved line items and review flags', async ({ page }) => {
+	await finishDefaultBusinessAnswers(page);
+	await submitEstimate(page);
+
+	const snapshot = savedEstimates[0].calculation_snapshot as unknown as {
+		catchup: { lineItems: { label: string }[] };
+		ongoing: { lineItems: { label: string }[] };
+		manualReviewRequired: boolean;
+		reviewFlags: { label: string; reason: string }[];
+		reviewReasons: string[];
+	};
+	expect(snapshot.catchup.lineItems.length).toBeGreaterThan(1);
+	expect(snapshot.ongoing.lineItems.length).toBeGreaterThan(1);
+	snapshot.catchup.lineItems[1].label = snapshot.catchup.lineItems[0].label;
+	snapshot.ongoing.lineItems[1].label = snapshot.ongoing.lineItems[0].label;
+	snapshot.reviewFlags = [
+		{ label: 'Shared review label', reason: 'First saved review reason.' },
+		{ label: 'Shared review label', reason: 'Second saved review reason.' }
+	];
+	snapshot.reviewReasons = snapshot.reviewFlags.map((flag) => flag.reason);
+	snapshot.manualReviewRequired = true;
+
+	await page.reload();
+	await expect(page.getByRole('heading', { name: 'Your business estimate', exact: true })).toBeVisible();
+	await expect(page.locator('section[aria-labelledby="catchup-items-heading"] li')).toHaveCount(snapshot.catchup.lineItems.length);
+	await expect(page.locator('section[aria-labelledby="ongoing-items-heading"] li')).toHaveCount(snapshot.ongoing.lineItems.length);
+	await expect(page.locator('section[aria-labelledby="review-heading"] li')).toHaveCount(2);
+});
+
+test('offers a download link to the saved PDF endpoint', async ({ page }) => {
+	await finishDefaultBusinessAnswers(page);
+	const publicRef = await submitEstimate(page);
+	const pdfPath = `/api/estimates/${publicRef}/pdf`;
+	const downloadLink = page.getByRole('link', { name: 'Download PDF', exact: true });
+	await expect(downloadLink).toBeVisible();
+	await expect(downloadLink).toHaveAttribute('href', pdfPath);
+
+	const response = await page.request.get(`${APP_ORIGIN}${pdfPath}`);
+	expect(response.status()).toBe(200);
+	expect(response.headers()['content-type']).toBe('application/pdf');
+	expect(response.headers()['content-disposition']).toContain('attachment');
+	expect((await response.body()).subarray(0, 5).toString()).toBe('%PDF-');
+});
+
 test('asks schema-supported backlog and compliance branches and preserves approved complexity choices', async ({ page }) => {
 	await page.goto(`${APP_ORIGIN}/estimate`);
 	await choose(page, 'Pty Ltd / Close Corporation');
