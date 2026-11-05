@@ -20,7 +20,7 @@
 			<a href="/" aria-label="Goat Accounting home" class="inline-flex min-h-10 items-center rounded-sm transition-opacity active:opacity-80 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
 				<img src={BRAND_WORDMARK_PRIMARY_URL} alt="Goat Accounting" class="h-8 w-auto max-w-44 object-contain" />
 			</a>
-			<p class="text-right text-sm font-medium text-muted-foreground">Business estimate</p>
+			<p class="text-right text-sm font-medium text-muted-foreground">Accounting and tax estimate</p>
 		</div>
 	</header>
 

@@ -16,7 +16,7 @@ const workerCommand = process.env.CI === 'true'
 
 export default defineConfig({
 	testDir: './tests/e2e',
-	testMatch: 'estimate-business.spec.ts',
+	testMatch: ['estimate-business.spec.ts', 'estimate-personal.spec.ts'],
 	fullyParallel: false,
 	workers: 1,
 	timeout: 60_000,
