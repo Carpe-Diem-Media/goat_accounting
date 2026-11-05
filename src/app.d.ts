@@ -1,11 +1,21 @@
 // Secret names for existing integrations. Values remain outside source control.
 declare namespace Cloudflare {
 	interface Env {
+		ESTIMATOR_ENABLED?: string;
+		ESTIMATE_READ_ENABLED?: string;
 		CALENDAR_ACCESS_TOKEN?: string;
 		CALENDAR_API_KEY?: string;
 		GOOGLE_CALENDAR_ACCESS_TOKEN?: string;
 		RESEND_API_KEY?: string;
+		SUPABASE_URL?: string;
+		SUPABASE_SECRET_KEY?: string;
 		SUPABASE_SERVICE_ROLE_KEY?: string;
+	}
+}
+
+declare namespace App {
+	interface Platform {
+		env: Cloudflare.Env;
 	}
 }
 
