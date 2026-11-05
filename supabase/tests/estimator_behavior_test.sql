@@ -360,11 +360,11 @@ BEGIN
     ) ON CONFLICT (id) DO NOTHING;
 
     INSERT INTO estimator.leads (
-      id, estimate_id, state, full_name, email, contact_consent_at
+      id, estimate_id, state, full_name, email, contact_consent_at, requested_contact, requested_estimate_email
     ) VALUES (
       '60000000-0000-4000-8000-000000000001',
       '40000000-0000-4000-8000-000000000001',
-      'NEW', 'Test Prospect', 'prospect@example.invalid', now()
+      'NEW', 'Test Prospect', 'prospect@example.invalid', now(), true, false
     ) ON CONFLICT (id) DO NOTHING;
   END IF;
 END;
@@ -762,9 +762,9 @@ SELECT ok(
   CASE WHEN pg_catalog.to_regclass('estimator.leads') IS NULL THEN false ELSE
     pg_temp.throws_sqlstate(
       $sql$INSERT INTO estimator.leads (
-        estimate_id, state, full_name, email, contact_consent_at
+        estimate_id, state, full_name, email, contact_consent_at, requested_contact, requested_estimate_email
       ) VALUES (
-        '40000000-0000-4000-8000-000000000001', 'NEW', 'Second Lead', 'second@example.invalid', now()
+        '40000000-0000-4000-8000-000000000001', 'NEW', 'Second Lead', 'second@example.invalid', now(), true, false
       )$sql$,
       '23505'
     )
