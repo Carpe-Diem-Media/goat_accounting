@@ -1,8 +1,10 @@
 <script lang="ts">
   import "./layout.css";
+  import { beforeNavigate } from "$app/navigation";
   import { page } from "$app/state";
   import { SITE_URL } from "$lib/config/site.js";
   import { BRAND_WORDMARK_PRIMARY_URL } from "$lib/config/brand.js";
+  import { shouldReloadForAdminTransition } from "$lib/navigation/admin-document-boundary";
 
   let { children } = $props();
 
@@ -17,6 +19,13 @@
   });
 
   const isAdmin = $derived(page.url.pathname.startsWith("/admin"));
+
+  beforeNavigate(({ from, to, cancel }) => {
+    if (!to || !shouldReloadForAdminTransition(from?.url ?? null, to.url)) return;
+
+    cancel();
+    window.location.assign(to.url);
+  });
 </script>
 
 <svelte:head>

@@ -8,7 +8,7 @@ export const load: LayoutServerLoad = async (event) => {
 	if (event.url.pathname.startsWith('/admin/login')) {
 		const access = await getStaffAccess(event);
 		if (access.kind === 'authorized') throw redirect(303, '/admin/estimates');
-		if (access.kind === 'setup' || access.kind === 'challenge') {
+		if (access.kind === 'setup' || access.kind === 'challenge' || access.kind === 'invited') {
 			if (!event.url.pathname.startsWith('/admin/login/mfa')) {
 				throw redirect(303, '/admin/login/mfa');
 			}

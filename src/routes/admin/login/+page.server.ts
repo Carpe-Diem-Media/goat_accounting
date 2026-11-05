@@ -7,7 +7,7 @@ export const load: PageServerLoad = async (event) => {
 
 	const access = await getStaffAccess(event);
 	if (access.kind === 'authorized') throw redirect(303, '/admin/estimates');
-	if (access.kind === 'setup' || access.kind === 'challenge') {
+	if (access.kind === 'setup' || access.kind === 'challenge' || access.kind === 'invited') {
 		throw redirect(303, '/admin/login/mfa');
 	}
 	return { configured: true };
@@ -34,6 +34,7 @@ export const actions: Actions = {
 				throw redirect(303, '/admin/estimates');
 			case 'setup':
 			case 'challenge':
+			case 'invited':
 				throw redirect(303, '/admin/login/mfa');
 			case 'denied':
 			case 'forbidden':

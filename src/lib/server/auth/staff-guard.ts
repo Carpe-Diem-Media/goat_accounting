@@ -22,12 +22,15 @@ export type StaffIdentity = Readonly<{
 	claims: VerifiedClaims;
 }>;
 
+export type MfaOnboardingStage = 'setup' | 'challenge' | 'activate';
+
 export type StaffAccess =
 	| { kind: 'unauthenticated' }
 	| { kind: 'denied' }
 	| { kind: 'forbidden' }
 	| { kind: 'setup'; identity: StaffIdentity }
 	| { kind: 'challenge'; identity: StaffIdentity }
+	| { kind: 'invited'; identity: StaffIdentity; stage: MfaOnboardingStage }
 	| { kind: 'authorized'; identity: StaffIdentity }
 	| { kind: 'unavailable' };
 
@@ -47,7 +50,7 @@ export function evaluateStaffAccess(input: {
 	if (typeof subject !== 'string' || subject.length === 0) return { kind: 'unauthenticated' };
 
 	const row = input.staff;
-	if (!row || row.user_id !== subject || row.state !== 'ACTIVE' || !isStaffRole(row.role)) {
+	if (!row || row.user_id !== subject || !isStaffRole(row.role)) {
 		return { kind: 'denied' };
 	}
 
@@ -58,6 +61,26 @@ export function evaluateStaffAccess(input: {
 	};
 	const assurance = input.assurance;
 	if (!assurance) return { kind: 'unavailable' };
+	if (row.state === 'INVITED') {
+		if (assurance.currentLevel === 'aal1' && assurance.nextLevel === 'aal2') {
+			return { kind: 'invited', identity, stage: 'challenge' };
+		}
+		if (
+			(assurance.currentLevel === 'aal1' && assurance.nextLevel === 'aal1') ||
+			(assurance.currentLevel === 'aal2' && assurance.nextLevel === 'aal1')
+		) {
+			return { kind: 'invited', identity, stage: 'setup' };
+		}
+		if (
+			claims.aal === 'aal2' &&
+			assurance.currentLevel === 'aal2' &&
+			assurance.nextLevel === 'aal2'
+		) {
+			return { kind: 'invited', identity, stage: 'activate' };
+		}
+		return { kind: 'unavailable' };
+	}
+	if (row.state !== 'ACTIVE') return { kind: 'denied' };
 
 	if (assurance.currentLevel === 'aal1' && assurance.nextLevel === 'aal1') {
 		return { kind: 'setup', identity };
@@ -145,6 +168,7 @@ export async function requireStaff(
 		case 'setup':
 		case 'challenge':
 			throw redirect(303, '/admin/login/mfa');
+		case 'invited':
 		case 'forbidden':
 		case 'denied':
 			throw error(403, 'You do not have access to this page.');

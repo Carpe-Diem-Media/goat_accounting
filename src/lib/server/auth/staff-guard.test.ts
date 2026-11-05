@@ -91,7 +91,7 @@ describe('evaluateStaffAccess', () => {
 		);
 		expect(
 			evaluateStaffAccess({ claims: claims(), staff: staff({ state: 'INVITED' }), assurance: aal2 }).kind
-		).toBe('denied');
+		).toBe('invited');
 		expect(
 			evaluateStaffAccess({ claims: claims(), staff: staff({ user_id: 'another-user' }), assurance: aal2 }).kind
 		).toBe('denied');
@@ -103,6 +103,36 @@ describe('evaluateStaffAccess', () => {
 		expect(
 			evaluateStaffAccess({ claims: claims(), staff: staff({ role: 'owner' }), assurance: aal2 }).kind
 		).toBe('denied');
+	});
+
+	it('routes invited staff through MFA setup and activation without authorizing protected access', () => {
+		const setup = evaluateStaffAccess({
+			claims: claims({ aal: 'aal1' }),
+			staff: staff({ state: 'INVITED' }),
+			assurance: { currentLevel: 'aal1', nextLevel: 'aal1' }
+		});
+		expect(setup).toMatchObject({ kind: 'invited', stage: 'setup' });
+
+		const challenge = evaluateStaffAccess({
+			claims: claims({ aal: 'aal1' }),
+			staff: staff({ state: 'INVITED' }),
+			assurance: { currentLevel: 'aal1', nextLevel: 'aal2' }
+		});
+		expect(challenge).toMatchObject({ kind: 'invited', stage: 'challenge' });
+
+		const activation = evaluateStaffAccess({
+			claims: claims(),
+			staff: staff({ state: 'INVITED' }),
+			assurance: aal2
+		});
+		expect(activation).toMatchObject({ kind: 'invited', stage: 'activate' });
+
+		const staleAal2 = evaluateStaffAccess({
+			claims: claims(),
+			staff: staff({ state: 'INVITED' }),
+			assurance: { currentLevel: 'aal2', nextLevel: 'aal1' }
+		});
+		expect(staleAal2).toMatchObject({ kind: 'invited', stage: 'setup' });
 	});
 
 	it('authorizes active viewer, advisor, and admin roles only at verified AAL2', () => {
@@ -264,5 +294,9 @@ describe('evaluateStaffAccess', () => {
 				403
 			);
 		}
+	});
+
+	it('never serves protected data to invited staff, even after MFA verification', async () => {
+		await expectGuardError(guardedEvent({ staff: staff({ state: 'INVITED' }) }), 403);
 	});
 });

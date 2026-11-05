@@ -469,6 +469,41 @@ export type Database = {
           },
         ]
       }
+      staff_onboarding_events: {
+        Row: {
+          actor_user_id: string
+          created_at: string
+          from_state: Database["estimator"]["Enums"]["staff_state"]
+          id: string
+          staff_user_id: string
+          to_state: Database["estimator"]["Enums"]["staff_state"]
+        }
+        Insert: {
+          actor_user_id: string
+          created_at?: string
+          from_state: Database["estimator"]["Enums"]["staff_state"]
+          id?: string
+          staff_user_id: string
+          to_state: Database["estimator"]["Enums"]["staff_state"]
+        }
+        Update: {
+          actor_user_id?: string
+          created_at?: string
+          from_state?: Database["estimator"]["Enums"]["staff_state"]
+          id?: string
+          staff_user_id?: string
+          to_state?: Database["estimator"]["Enums"]["staff_state"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "staff_onboarding_events_staff_user_id_fkey"
+            columns: ["staff_user_id"]
+            isOneToOne: false
+            referencedRelation: "staff_users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       staff_users: {
         Row: {
           created_at: string
@@ -498,6 +533,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_invited_staff_after_mfa: { Args: never; Returns: undefined }
       activate_pricing_model: {
         Args: {
           p_actor_user_id: string

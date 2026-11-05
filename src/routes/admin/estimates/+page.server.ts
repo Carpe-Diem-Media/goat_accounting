@@ -1,9 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireStaff } from '$lib/server/auth/staff-guard';
 
 const PAGE_SIZE = 25;
 
-export const load: PageServerLoad = async ({ locals, url }) => {
+export const load: PageServerLoad = async (event) => {
+	await requireStaff(event);
+	const { locals, url } = event;
 	const client = locals.supabase;
 	if (!client) throw error(503, 'Estimate records are temporarily unavailable.');
 

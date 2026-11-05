@@ -1,9 +1,12 @@
 import { error } from '@sveltejs/kit';
 import type { PageServerLoad } from './$types';
+import { requireStaff } from '$lib/server/auth/staff-guard';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export const load: PageServerLoad = async ({ locals, params }) => {
+export const load: PageServerLoad = async (event) => {
+	await requireStaff(event);
+	const { locals, params } = event;
 	if (!UUID.test(params.id)) throw error(404, 'Lead not found.');
 	const client = locals.supabase;
 	if (!client) throw error(503, 'Lead records are temporarily unavailable.');
