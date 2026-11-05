@@ -1,4 +1,33 @@
--- Run only against the disposable local Goat Supabase instance as a test administrator.
+-- See README.md for the disposable-instance authorization and execution procedure.
+\set ON_ERROR_STOP on
+\getenv task7_token GOAT_TASK7_AUTH_TOKEN
+\if :{?task7_token}
+SELECT pg_catalog.set_config('goat.task7_invocation_token', :'task7_token', false) AS task7_session_marker \gset
+\else
+\echo 'GOAT_TASK7_AUTH_TOKEN is required'
+SELECT 1 / 0;
+\endif
+
+DO $guard$
+DECLARE
+  authorized boolean := false;
+  cluster_id numeric;
+BEGIN
+  IF current_database() <> 'postgres' OR current_user <> 'supabase_admin'
+    OR inet_client_addr() IS NOT NULL
+    OR length(current_setting('goat.task7_invocation_token', true)) <> 64
+    OR to_regclass('task7_test_authorization.disposable_instance') IS NULL THEN
+    RAISE EXCEPTION 'Task 7 requires an authorized disposable local database';
+  END IF;
+  SELECT system_identifier INTO cluster_id FROM pg_control_system();
+  EXECUTE 'SELECT EXISTS (SELECT 1 FROM task7_test_authorization.disposable_instance WHERE token = $1 AND system_identifier = $2)'
+    INTO authorized USING current_setting('goat.task7_invocation_token', true), cluster_id;
+  IF authorized IS DISTINCT FROM true THEN
+    RAISE EXCEPTION 'Task 7 disposable database authorization failed';
+  END IF;
+END;
+$guard$;
+
 -- The committed synthetic fixture is required for visibility across independent sessions.
 BEGIN;
 
