@@ -2,6 +2,7 @@
 declare namespace Cloudflare {
 	interface Env {
 		ESTIMATOR_ENABLED?: string;
+		ESTIMATE_READ_ENABLED?: string;
 		CALENDAR_ACCESS_TOKEN?: string;
 		CALENDAR_API_KEY?: string;
 		GOOGLE_CALENDAR_ACCESS_TOKEN?: string;
