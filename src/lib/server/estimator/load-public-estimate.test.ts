@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'bun:test';
-import { loadPublicEstimate, type EstimateReadBindings } from './load-public-estimate';
+import { loadPublicEstimate, contactPanelConfig, type EstimateReadBindings } from './load-public-estimate';
 
 const REF = 'c'.repeat(32);
 const publicEstimate = { publicRef: REF, state: 'VALID' as const };
@@ -56,5 +56,32 @@ describe('public estimate result loader', () => {
 
 		expect(calls).toEqual({ clients: 0, repositories: 0, lookups: 0 });
 		expect(headers['cache-control']).toBe('private, no-store');
+	});
+});
+
+
+describe('contact panel configuration', () => {
+	const configured = {
+		ESTIMATE_CONTACT_ENABLED: 'true',
+		TURNSTILE_SITE_KEY: 'synthetic-public-key',
+		TURNSTILE_SECRET_KEY: 'synthetic-server-secret',
+		TURNSTILE_HOSTNAME: 'example.invalid',
+		CONTACT_RATE_LIMITER: { limit: async () => ({ success: true }) }
+	};
+
+	it('hides the panel when the required rate limiter is missing', () => {
+		const { CONTACT_RATE_LIMITER: _limiter, ...withoutLimiter } = configured;
+		expect(contactPanelConfig(withoutLimiter)).toBeNull();
+	});
+
+	it('returns only the public site key when all required bindings are present', () => {
+		expect(contactPanelConfig(configured)).toEqual({ siteKey: 'synthetic-public-key' });
+	});
+
+	it('defaults to hidden without an explicit flag and complete Turnstile configuration', () => {
+		expect(contactPanelConfig(undefined)).toBeNull();
+		for (const key of ['ESTIMATE_CONTACT_ENABLED', 'TURNSTILE_SITE_KEY', 'TURNSTILE_SECRET_KEY', 'TURNSTILE_HOSTNAME'] as const) {
+			expect(contactPanelConfig({ ...configured, [key]: undefined })).toBeNull();
+		}
 	});
 });

@@ -45,13 +45,28 @@ describe('createLeadsRepository', () => {
 	});
 
 	test('writes through the atomic contact RPC with the normalized DTO', async () => {
-		const { client, calls } = fakeClient({ data: 'lead-1', error: null });
+		const { client, calls } = fakeClient({ data: '40000000-0000-4000-8000-000000000001', error: null });
 		await createLeadsRepository(client).createContactLead('estimate-1', input);
 		expect(calls).toEqual([['rpc', 'create_contact_lead', {
 			p_estimate_id: 'estimate-1', p_full_name: 'Ada Lovelace', p_email: 'ada@example.com',
 			p_phone: null, p_business_name: null, p_preferred_contact_method: 'email',
 			p_contact_consent: true, p_requested_contact: true, p_requested_estimate_email: false
 		}]]);
+	});
+
+	test('accepts the returned UUID for initial submissions and matching retries without exposing it', async () => {
+		const { client, calls } = fakeClient({ data: '40000000-0000-4000-8000-000000000001', error: null });
+		const repository = createLeadsRepository(client);
+		await expect(repository.createContactLead('estimate-1', input)).resolves.toBeUndefined();
+		await expect(repository.createContactLead('estimate-1', input)).resolves.toBeUndefined();
+		expect(calls.filter((call) => Array.isArray(call) && call[0] === 'rpc')).toHaveLength(2);
+	});
+
+	test('rejects absent, malformed or unexpected RPC results even without a database error', async () => {
+		for (const data of [null, undefined, '', 'lead-1', '40000000-0000-4000-8000-00000000000Z', 42, {}, ['40000000-0000-4000-8000-000000000001']]) {
+			const { client } = fakeClient({ data, error: null });
+			await expect(createLeadsRepository(client).createContactLead('estimate-1', input)).rejects.toBeInstanceOf(ContactPersistenceError);
+		}
 	});
 
 	test('maps known database outcomes to safe errors', async () => {

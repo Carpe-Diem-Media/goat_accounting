@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import type { ContactInput } from '../../../domain/leads/contact';
 import type { EstimatorServiceClient } from '../repository.server';
 import {
@@ -28,7 +29,7 @@ export function createLeadsRepository(client: EstimatorServiceClient) {
 		},
 
 		async createContactLead(estimateId: string, input: ContactInput): Promise<void> {
-			const { error } = await client.rpc('create_contact_lead', {
+			const { data, error } = await client.rpc('create_contact_lead', {
 				p_estimate_id: estimateId,
 				p_full_name: input.fullName,
 				p_email: input.email,
@@ -41,6 +42,7 @@ export function createLeadsRepository(client: EstimatorServiceClient) {
 			});
 
 			if (error) throw contactError(error);
+			if (!z.uuid().safeParse(data).success) throw new ContactPersistenceError();
 		}
 	};
 }
