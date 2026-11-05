@@ -27,6 +27,7 @@ binding = "BOOKING_STATE"
 id = "4d81337b6bda43608aec68ff115720e9"
 
 [env.preview.vars]
+ESTIMATOR_ENABLED = "false"
 CALENDAR_PROVIDER = "google"
 GOOGLE_CALENDAR_ID = "primary"
 CALENDAR_EVENT_DURATION_MINUTES = "60"
@@ -46,6 +47,7 @@ binding = "BOOKING_STATE"
 id = "4d81337b6bda43608aec68ff115720e9"
 
 [env.production.vars]
+ESTIMATOR_ENABLED = "false"
 CALENDAR_PROVIDER = "google"
 GOOGLE_CALENDAR_ID = "primary"
 CALENDAR_EVENT_DURATION_MINUTES = "60"

@@ -87,12 +87,14 @@ export type Database = {
           engine_version: string
           free_text: string | null
           id: string
+          idempotency_key_hash: string | null
           manual_review_required: boolean
           ongoing_max_cents: number
           ongoing_min_cents: number
           pricing_model_id: string
           pricing_model_version: string
           public_ref: string
+          request_fingerprint_hash: string | null
           review_flag_codes: string[]
           review_reasons: Json
           state: Database["estimator"]["Enums"]["estimate_state"]
@@ -113,12 +115,14 @@ export type Database = {
           engine_version: string
           free_text?: string | null
           id?: string
+          idempotency_key_hash?: string | null
           manual_review_required: boolean
           ongoing_max_cents?: number
           ongoing_min_cents?: number
           pricing_model_id: string
           pricing_model_version: string
           public_ref?: string
+          request_fingerprint_hash?: string | null
           review_flag_codes?: string[]
           review_reasons?: Json
           state?: Database["estimator"]["Enums"]["estimate_state"]
@@ -139,12 +143,14 @@ export type Database = {
           engine_version?: string
           free_text?: string | null
           id?: string
+          idempotency_key_hash?: string | null
           manual_review_required?: boolean
           ongoing_max_cents?: number
           ongoing_min_cents?: number
           pricing_model_id?: string
           pricing_model_version?: string
           public_ref?: string
+          request_fingerprint_hash?: string | null
           review_flag_codes?: string[]
           review_reasons?: Json
           state?: Database["estimator"]["Enums"]["estimate_state"]
