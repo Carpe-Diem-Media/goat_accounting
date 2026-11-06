@@ -1,0 +1,15 @@
+# Local synthetic browser harness only. No remote bindings or production resources.
+name = "goat-contact-browser-test"
+main = "../../../.svelte-kit/cloudflare/_worker.js"
+compatibility_date = "2026-11-03"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = false
+
+[assets]
+directory = "../../../.svelte-kit/cloudflare"
+binding = "ASSETS"
+
+[[ratelimits]]
+name = "CONTACT_RATE_LIMITER"
+namespace_id = "1007"
+simple = { limit = 20, period = 60 }

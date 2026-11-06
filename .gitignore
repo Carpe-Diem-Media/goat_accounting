@@ -32,3 +32,9 @@ build_error.log
 
 # scratch files
 test-data.js
+
+# Local Task 7 verification artifacts
+.task7-local/
+.hallmark/
+test-results/
+playwright-report/

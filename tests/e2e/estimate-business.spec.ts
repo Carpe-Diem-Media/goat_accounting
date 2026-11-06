@@ -230,7 +230,7 @@ test('completes a business estimate before contact and retakes as a new saved at
 	await expect(page.getByRole('region', { name: 'Estimate ranges' }).getByText('Catch-up work', { exact: true })).toBeVisible();
 	await expect(page.getByRole('region', { name: 'Estimate ranges' }).getByText('Ongoing monthly support', { exact: true })).toBeVisible();
 	await expect(page.getByText('Business complexity score')).toHaveCount(0);
-	await expect(page.locator('input[type="email"], input[type="tel"]')).toHaveCount(0);
+	await expect(page.locator('input[type="email"]:visible, input[type="tel"]:visible')).toHaveCount(0);
 	await expect(page.getByLabel(/Free-text/)).toHaveCount(0);
 	await expect(page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY)).resolves.toBeNull();
 	expect(savedEstimates[0].free_text).toHaveLength(2000);

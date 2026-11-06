@@ -41,3 +41,16 @@ export async function loadPublicEstimate<
 	if (!estimate) throw error(404, 'Estimate not found.');
 	return { estimate };
 }
+
+
+export function contactPanelConfig(bindings: Pick<Cloudflare.Env,
+	'ESTIMATE_CONTACT_ENABLED' | 'TURNSTILE_SITE_KEY' | 'TURNSTILE_SECRET_KEY' | 'TURNSTILE_HOSTNAME' | 'CONTACT_RATE_LIMITER'
+> | undefined): { siteKey: string } | null {
+	return bindings?.ESTIMATE_CONTACT_ENABLED === 'true'
+		&& bindings.TURNSTILE_SITE_KEY
+		&& bindings.TURNSTILE_SECRET_KEY
+		&& bindings.TURNSTILE_HOSTNAME
+		&& bindings.CONTACT_RATE_LIMITER
+		? { siteKey: bindings.TURNSTILE_SITE_KEY }
+		: null;
+}
