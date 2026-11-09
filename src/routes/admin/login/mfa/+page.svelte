@@ -59,7 +59,7 @@
 						type="text"
 						inputmode="numeric"
 						autocomplete="one-time-code"
-						pattern="[0-9]{6}"
+						pattern={'[0-9]{6}'}
 						maxlength="6"
 						required
 						class="w-full rounded-md border border-muted-foreground bg-background px-3 py-2.5 text-base tracking-[0.2em] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px disabled:cursor-not-allowed disabled:bg-muted disabled:text-muted-foreground"

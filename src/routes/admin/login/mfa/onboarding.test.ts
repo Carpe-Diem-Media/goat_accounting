@@ -6,19 +6,41 @@ import { load as loadEstimateList } from '../../estimates/+page.server';
 
 const userId = '10000000-0000-4000-8000-000000000006';
 
+type Factor = {
+	id: string;
+	factor_type: 'phone' | 'totp' | 'webauthn' | 'recovery_code';
+	status: 'unverified' | 'verified';
+};
+
+type FactorList = {
+	all: Factor[];
+	phone: Factor[];
+	totp: Factor[];
+};
+
+const totpFactor = (id: string, status: Factor['status']): Factor => ({ id, factor_type: 'totp', status });
+const phoneFactor = (id: string, status: Factor['status']): Factor => ({ id, factor_type: 'phone', status });
+const otherFactor = (id: string, factor_type: 'webauthn' | 'recovery_code', status: Factor['status']): Factor => ({ id, factor_type, status });
+
 function makeEvent(options: {
 	refreshAalAfterVerify: boolean;
 	initialNextLevel?: string;
 	initialAal?: string;
-	factors?: Array<{ id: string; status: string }>;
+	factors?: FactorList;
+	verificationFails?: boolean;
 }) {
 	let staffState = 'INVITED';
 	let aal = options.initialAal ?? 'aal1';
 	let currentLevel = options.initialAal ?? 'aal1';
 	let nextLevel = options.initialNextLevel ?? options.initialAal ?? 'aal1';
-	const factors = options.factors ?? [{ id: 'factor-1', status: 'unverified' }];
+	const factors: FactorList = options.factors ?? {
+		all: [totpFactor('factor-1', 'unverified')],
+		phone: [],
+		totp: []
+	};
 	const calls: string[] = [];
 	const tables: string[] = [];
+	let nextFactorId = 1;
 	const client = {
 		auth: {
 			getClaims: async () => ({ data: { claims: { sub: userId, aal } }, error: null }),
@@ -28,9 +50,28 @@ function makeEvent(options: {
 					error: null
 				}),
 				listFactors: async () => ({
-					data: { totp: factors },
+				data: factors,
 					error: null
 				}),
+			unenroll: async ({ factorId }: { factorId: string }) => {
+				calls.push(`unenroll:${factorId}`);
+				factors.all = factors.all.filter((factor) => factor.id !== factorId);
+				factors.phone = factors.phone.filter((factor) => factor.id !== factorId);
+				factors.totp = factors.totp.filter((factor) => factor.id !== factorId);
+				return { error: null };
+			},
+			enroll: async () => {
+				const factor = totpFactor(`new-factor-${nextFactorId++}`, 'unverified');
+				factors.all.push(factor);
+				calls.push('enroll');
+				return {
+					data: {
+						id: factor.id,
+						totp: { qr_code: 'data:image/svg+xml;base64,AA==', secret: 'JBSWY3DPEHPK3PXP' }
+					},
+					error: null
+				};
+			},
 				challenge: async ({ factorId }: { factorId: string }) => {
 					calls.push(`challenge:${factorId}`);
 					return { data: { id: 'challenge-1' }, error: null };
@@ -42,7 +83,7 @@ function makeEvent(options: {
 						currentLevel = 'aal2';
 						nextLevel = 'aal2';
 					}
-					return { error: null };
+					return { error: options.verificationFails ? { message: 'Invalid TOTP code.' } : null };
 				}
 			}
 		},
@@ -71,9 +112,9 @@ function makeEvent(options: {
 		locals: { supabase: client },
 		url: new URL('https://goat.test/admin/login/mfa'),
 		request: { formData: async () => form }
-	} as unknown as Parameters<NonNullable<Actions['verify']>>[0];
+	} as unknown as Parameters<NonNullable<Actions['verify']>>[0] & Parameters<NonNullable<Actions['enroll']>>[0];
 
-	return { calls, event, tables, staffState: () => staffState };
+	return { calls, event, factors, tables, staffState: () => staffState };
 }
 
 describe('invited staff MFA onboarding', () => {
@@ -112,7 +153,11 @@ describe('invited staff MFA onboarding', () => {
 		const { calls, event } = makeEvent({
 			refreshAalAfterVerify: true,
 			initialNextLevel: 'aal2',
-			factors: [{ id: 'verified-factor', status: 'verified' }]
+			factors: {
+				all: [totpFactor('verified-factor', 'verified')],
+				phone: [],
+				totp: [totpFactor('verified-factor', 'verified')]
+			}
 		});
 
 		const result = await actions.verify?.(event);
@@ -125,10 +170,11 @@ describe('invited staff MFA onboarding', () => {
 		const { calls, event } = makeEvent({
 			refreshAalAfterVerify: true,
 			initialNextLevel: 'aal2',
-			factors: [
-				{ id: 'unfinished-factor', status: 'unverified' },
-				{ id: 'verified-factor', status: 'verified' }
-			]
+			factors: {
+				all: [totpFactor('unfinished-factor', 'unverified'), totpFactor('verified-factor', 'verified')],
+				phone: [],
+				totp: [totpFactor('verified-factor', 'verified')]
+			}
 		});
 
 		const result = await actions.verify?.(event);
@@ -140,7 +186,15 @@ describe('invited staff MFA onboarding', () => {
 	it('uses the unverified factor for initial setup verification', async () => {
 		const { calls, event } = makeEvent({
 			refreshAalAfterVerify: true,
-			factors: [{ id: 'enrollment-factor', status: 'unverified' }]
+		factors: {
+				all: [
+					totpFactor('enrollment-factor', 'unverified'),
+					phoneFactor('phone-factor', 'unverified'),
+					otherFactor('webauthn-factor', 'webauthn', 'unverified')
+				],
+				phone: [phoneFactor('phone-factor', 'unverified')],
+				totp: []
+			}
 		});
 
 		const result = await actions.verify?.(event);
@@ -153,7 +207,11 @@ describe('invited staff MFA onboarding', () => {
 		const { calls, event } = makeEvent({
 			refreshAalAfterVerify: true,
 			initialNextLevel: 'aal2',
-			factors: [{ id: 'unfinished-factor', status: 'unverified' }]
+		factors: {
+			all: [totpFactor('unfinished-factor', 'unverified')],
+			phone: [],
+			totp: []
+		}
 		});
 
 		const result = await actions.verify?.(event);
@@ -165,7 +223,11 @@ describe('invited staff MFA onboarding', () => {
 	it('fails closed when no unverified factor is available for setup', async () => {
 		const { calls, event } = makeEvent({
 			refreshAalAfterVerify: true,
-			factors: [{ id: 'verified-factor', status: 'verified' }]
+		factors: {
+			all: [totpFactor('verified-factor', 'verified')],
+			phone: [],
+			totp: [totpFactor('verified-factor', 'verified')]
+		}
 		});
 
 		const result = await actions.verify?.(event);
@@ -178,7 +240,11 @@ describe('invited staff MFA onboarding', () => {
 		const { calls, event, staffState } = makeEvent({
 			refreshAalAfterVerify: true,
 			initialNextLevel: 'aal2',
-			factors: [{ id: 'verified-factor', status: 'verified' }]
+		factors: {
+			all: [totpFactor('verified-factor', 'verified')],
+			phone: [],
+			totp: [totpFactor('verified-factor', 'verified')]
+		}
 		});
 
 		expect(await actions.verify?.(event)).toEqual({});
@@ -193,6 +259,68 @@ describe('invited staff MFA onboarding', () => {
 
 		expect(denial).toMatchObject({ status: 403 });
 		expect(calls).toEqual(['challenge:verified-factor', 'verify:verified-factor']);
+	});
+
+	it('fails safely when multiple unverified TOTP factors exist during setup', async () => {
+		const { calls, event } = makeEvent({
+			refreshAalAfterVerify: true,
+			factors: {
+				all: [totpFactor('unfinished-b', 'unverified'), totpFactor('unfinished-a', 'unverified')],
+				phone: [],
+				totp: []
+			}
+		});
+
+		const result = await actions.verify?.(event);
+
+		expect(result).toMatchObject({ status: 409 });
+		expect(calls).toEqual([]);
+	});
+
+	it('cleans up unverified TOTP factors in stable order and preserves verified and phone factors', async () => {
+		const verified = totpFactor('verified-factor', 'verified');
+		const phone = phoneFactor('phone-factor', 'unverified');
+		const webauthn = otherFactor('webauthn-factor', 'webauthn', 'unverified');
+		const { calls, event, factors } = makeEvent({
+			refreshAalAfterVerify: false,
+			factors: {
+				all: [totpFactor('unfinished-z', 'unverified'), phone, webauthn, verified, totpFactor('unfinished-a', 'unverified')],
+				phone: [phone],
+				totp: [verified]
+			}
+		});
+
+		const result = await actions.enroll?.(event);
+
+		expect(result).toMatchObject({ enrollment: { secret: 'JBSWY3DPEHPK3PXP' } });
+		expect(calls).toEqual(['unenroll:unfinished-a', 'unenroll:unfinished-z', 'enroll']);
+		expect(factors.all.map((factor) => factor.id)).toEqual([
+			'phone-factor',
+			'webauthn-factor',
+			'verified-factor',
+			'new-factor-1'
+		]);
+		expect(factors.totp.map((factor) => factor.id)).toEqual(['verified-factor']);
+		expect(factors.phone.map((factor) => factor.id)).toEqual(['phone-factor']);
+	});
+
+	it('removes the previous unfinished factor when the user restarts setup', async () => {
+		const { calls, event, factors } = makeEvent({ refreshAalAfterVerify: false, factors: { all: [], phone: [], totp: [] } });
+
+		await actions.enroll?.(event);
+		await actions.enroll?.(event);
+
+		expect(calls).toEqual(['enroll', 'unenroll:new-factor-1', 'enroll']);
+		expect(factors.all.map((factor) => factor.id)).toEqual(['new-factor-2']);
+	});
+
+	it('explains how to restart setup after an incorrect first code', async () => {
+		const { event } = makeEvent({ refreshAalAfterVerify: false, verificationFails: true });
+
+		const result = await actions.verify?.(event);
+
+		expect(result?.status).toBe(400);
+		expect(result?.data.message).toMatch(/restart authenticator setup/i);
 	});
 
 	it('keeps AAL2 invited staff pending without another challenge', async () => {

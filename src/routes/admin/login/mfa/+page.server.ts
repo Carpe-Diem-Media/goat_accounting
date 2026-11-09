@@ -32,7 +32,11 @@ export const actions: Actions = {
 		const { data: factors, error: factorsError } = await client.auth.mfa.listFactors();
 		if (factorsError) return fail(503, { message: 'Authenticator setup is temporarily unavailable.' });
 
-		for (const factor of factors.totp.filter((item) => item.status !== 'verified')) {
+		const unfinishedFactors = factors.all
+			.filter((factor) => factor.factor_type === 'totp' && factor.status === 'unverified')
+			.sort((left, right) => left.id.localeCompare(right.id));
+
+		for (const factor of unfinishedFactors) {
 			const { error: removeError } = await client.auth.mfa.unenroll({ factorId: factor.id });
 			if (removeError) return fail(503, { message: 'Authenticator setup is temporarily unavailable.' });
 		}
@@ -58,14 +62,20 @@ export const actions: Actions = {
 		const { data: factors, error: factorsError } = await client.auth.mfa.listFactors();
 		if (factorsError) return fail(503, { message: 'Authenticator verification is temporarily unavailable.' });
 
-		const unverifiedFactor = factors.totp.find((item) => item.status !== 'verified');
+		const unverifiedFactors = factors.all
+			.filter((item) => item.factor_type === 'totp' && item.status === 'unverified')
+			.sort((left, right) => left.id.localeCompare(right.id));
 		const verifiedFactor = factors.totp.find((item) => item.status === 'verified');
-		const factor = state === 'challenge' ? verifiedFactor : unverifiedFactor;
+		const factor = state === 'challenge'
+			? verifiedFactor
+			: unverifiedFactors.length === 1
+				? unverifiedFactors[0]
+				: undefined;
 		if (!factor) {
 			return fail(409, {
 				message: state === 'challenge'
 					? 'No verified authenticator is available for this account.'
-					: 'Start authenticator setup before entering a code.'
+					: 'No single authenticator setup is available. Restart setup before entering a code.'
 			});
 		}
 
@@ -77,7 +87,13 @@ export const actions: Actions = {
 			challengeId: challenge.id,
 			code
 		});
-		if (verifyError) return fail(400, { message: 'That code did not work. Check it and try again.' });
+		if (verifyError) {
+			return fail(400, {
+				message: state === 'setup'
+					? 'That code did not work. Restart authenticator setup to get a fresh code.'
+					: 'That code did not work. Check it and try again.'
+			});
+		}
 
 		const access = await getStaffAccess(event);
 		if (access.kind === 'authorized') throw redirect(303, '/admin/estimates');
