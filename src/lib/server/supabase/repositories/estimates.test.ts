@@ -105,7 +105,9 @@ describe('estimate persistence repository', () => {
 			{ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "estimates_idempotency_key_hash_uidx"' } },
 			{ data: savedRow(), error: null }
 		]);
-		const repository = module.createEstimatesRepository(mock.client);
+		const repository = module.createEstimatesRepository(mock.client, {
+			now: () => new Date(Date.parse(CREATED_AT) + 24 * 60 * 60 * 1000 - 1)
+		});
 
 		const row = await repository.createEstimateSnapshot(write());
 
@@ -118,7 +120,9 @@ describe('estimate persistence repository', () => {
 		const module = await getEstimatesRepositoryModule();
 		if (!module) return;
 		const mock = clientWithResponses([{ data: savedRow(), error: null }]);
-		const repository = module.createEstimatesRepository(mock.client);
+		const repository = module.createEstimatesRepository(mock.client, {
+			now: () => new Date(Date.parse(CREATED_AT) + 24 * 60 * 60 * 1000 - 1)
+		});
 
 		const row = await repository.findByIdempotencyKey(HASH, FINGERPRINT);
 
@@ -138,6 +142,28 @@ describe('estimate persistence repository', () => {
 
 		await expect(repository.createEstimateSnapshot(write())).rejects.toBeInstanceOf(module.IdempotencyPayloadMismatchError);
 	});
+
+	for (const operation of ['createEstimateSnapshot', 'findByIdempotencyKey'] as const) {
+		it(`rejects a matching key at exactly 24 hours via ${operation}`, async () => {
+			const module = await getEstimatesRepositoryModule();
+			if (!module) return;
+			const mock = clientWithResponses([
+				...(operation === 'createEstimateSnapshot'
+					? [{ data: null, error: { code: '23505', message: 'duplicate key value violates unique constraint "estimates_idempotency_key_hash_uidx"' } }]
+					: []),
+				{ data: savedRow(), error: null }
+			]);
+			const repository = module.createEstimatesRepository(mock.client, {
+				now: () => new Date(Date.parse(CREATED_AT) + 24 * 60 * 60 * 1000)
+			});
+
+			const result = operation === 'createEstimateSnapshot'
+				? repository.createEstimateSnapshot(write())
+				: repository.findByIdempotencyKey(HASH, FINGERPRINT);
+
+			await expect(result).rejects.toBeInstanceOf(module.IdempotencyWindowExpiredError);
+		});
+	}
 
 	it('rejects a matching key after the retry window expires', async () => {
 		const module = await getEstimatesRepositoryModule();
