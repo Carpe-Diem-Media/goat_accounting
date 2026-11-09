@@ -19,6 +19,20 @@ Follow the approved specifications and roadmap:
 
 All styling must use Tailwind CSS utility classes. Do not generate backend database schemas outside the approved Supabase migration workflow.
 
+## Development environment policy
+
+Owner decision recorded on 2026-11-06: the site is not yet in use. The existing hosted Cloudflare/Supabase setup is the approved development deployment target. Use the existing local Supabase development environment as the primary environment for development and repeatable security tests. A separate staging environment is not required.
+
+This decision supersedes only the separate/dedicated-staging requirements in the specifications, implementation plan, parallel roadmap and older deployment instructions. Their architecture, task dependencies, security acceptance and controlled release gates remain in force. Run repeatable security acceptance locally. Verify actual hosted configuration, migration history, RLS/privileges and deployment behavior on the approved hosted development target before activating affected features. Missing separate staging or shared preview/production resource IDs alone must not block development.
+
+Before hosted tests or changes, verify the exact GOAT project/deployment identity, current code SHA, bindings, migration history, policies and privileges relevant to the task. The configured Supabase endpoint is `https://pxguvhxfvaqtdvqwgbyd.supabase.co`; do not infer other projects are authorized. Use explicitly synthetic, owner-authorized fixtures with defined permitted changes and cleanup boundaries. Preserve authentication, AAL2/TOTP, role, RLS and RPC negative tests. Stop on an unknown target, unexpected security state or unknown fixture ownership.
+
+The owner permits development pushes and automatic Cloudflare builds. Pages automatic deployments being enabled is not a blanket reason to block merges; normal review and merge authorization still apply. Hosted database migrations, explicit Worker deployments or route changes, resets, credential changes, pricing activation and external messages retain their own appropriate approval gates. Hosted migrations require reviewed version-controlled SQL, local validation, explicit execution authorization and rollback/forward-fix planning. Destructive or irreversible database changes require separate approval. Existing secrets, email destinations and calendar integrations may be live despite the site's development status; verify scope without exposing values and authorize side effects separately.
+
+The merged staff-auth client requires explicit hosted enablement and an exact project-ref match; local testing does not activate hosted authentication. Preserve its fail-closed behavior and require separate activation approval after hosted verification. See the deployment guide for the implemented configuration checks.
+
+Cloudflare Pages automatic builds and Cloudflare Workers deployments are separate. A successful Pages build does not prove the target Worker runtime is deployed or tested. Follow `docs/deployment/sveltekit3-cloudflare-cutover.md` for serving-target verification and acceptance/deployment gates. This policy does not change `wrangler.toml`, bindings, feature flags or deployment settings. Its older comments about mandatory resource isolation are superseded by this policy, not by a configuration change.
+
 ## Skills
 A skill is a set of local instructions to follow that is stored in a `SKILL.md` file. Below is the list of skills that can be used. Each entry includes a name, description, and file path so you can open the source for full instructions when using a specific skill.
 ### Available skills
