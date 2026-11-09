@@ -24,6 +24,8 @@ describe('renderInternalLeadEmail', () => {
 		expect(rendered.html).toContain('historic-price-v2');
 		expect(rendered.html).toContain('historic-engine-v2');
 		expect(rendered.html).toContain('Catch-up estimate: R 123 - R 235');
+		expect(rendered.html).toContain('Ongoing estimate: R 65 - R 99/month');
+		expect(rendered.text).toContain('Ongoing estimate: R 65 - R 99/month');
 		expect(rendered.text).toContain('TEST-ONLY FLAG');
 		expect(rendered.text).toContain('<script>note</script>');
 		expect(rendered.html).not.toContain('<script>');

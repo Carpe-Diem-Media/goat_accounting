@@ -1,4 +1,5 @@
-import { expect, test } from 'bun:test';
+import { expect, test, spyOn } from 'bun:test';
+import * as fs from 'node:fs';
 import { mkdtempSync, readFileSync, statSync, rmSync, chmodSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -70,4 +71,44 @@ test('audit rejects symlinks and permissive existing files', () => {
   expect(appendReconciliationAudit(target, input)).toBe(false); expect(appendReconciliationAudit(link, input)).toBe(false);
   expect(readFileSync(target, 'utf8')).toBe('');
  } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+
+test('short audit writes, write errors and sync failures deny ambiguous-outcome dispatch', async () => {
+ const directory = mkdtempSync(join(tmpdir(), 'goat-task9-audit-failure-'));
+ const now = Date.now();
+ const row = { id, type: 'customer_estimate', state: 'FAILED_RETRYABLE', provider: 'resend', estimate_id: id, lead_id: null, attempt_count: 1,
+  created_at: new Date(now - 600000).toISOString(), last_attempt_at: new Date(now - 120000).toISOString(), last_error_code: 'PROVIDER_TIMEOUT', last_error_safe_message: null,
+  recipient_hash: null, recipient_masked: null, provider_message_id: null, sent_at: null };
+ const repository = { findById: async () => ({ row, error: null }) } as unknown as NonNullable<Parameters<typeof runNotificationCommand>[2]>['repository'];
+ try {
+  for (const failure of ['short', 'write', 'sync']) {
+   const path = join(directory, failure + '.jsonl'); let dispatches = 0; const outputs: unknown[] = [];
+   const write = failure === 'sync' ? null : spyOn(fs, 'writeSync').mockImplementation(((_fd: number, data: string | Uint8Array) => {
+    if (failure === 'write') throw new Error('TEST-ONLY write failure');
+    return Buffer.byteLength(data) - 1;
+   }) as typeof fs.writeSync);
+   const sync = failure === 'sync' ? spyOn(fs, 'fsyncSync').mockImplementation(() => { throw new Error('TEST-ONLY sync failure'); }) : null;
+   try {
+    const code = await runNotificationCommand(['--delivery-id', id, '--confirm-provider-reconciled', '--reconciliation-ref', 'TEST-ONLY-case-failure'], {
+     ESTIMATE_NOTIFICATIONS_ENABLED: 'true', ESTIMATE_NOTIFICATION_OPERATOR_UID: String(process.getuid?.()), ESTIMATE_NOTIFICATION_AUDIT_PATH: path
+    }, { repository, write: value => outputs.push(value), retry: async () => { dispatches++; return { status: 'accepted', outcomes: [{ deliveryId: id, code: 'PROVIDER_ACCEPTED', state: 'SENT' }] }; } });
+    expect(code).toBe(1); expect(dispatches).toBe(0); expect(outputs).toEqual([{ code: 'RECONCILIATION_AUDIT_UNAVAILABLE' }]);
+   } finally { write?.mockRestore(); sync?.mockRestore(); }
+  }
+ } finally { rmSync(directory, { recursive: true, force: true }); }
+});
+test('inspection holds consumed claims with missing outcomes and malformed retry metadata, but never retries terminal rows', () => {
+ const row = { id, type: 'customer_estimate' as const, state: 'FAILED_RETRYABLE' as const, attempt_count: 1,
+  created_at: '2026-11-09T00:00:00Z', last_attempt_at: '2026-11-09T00:01:00Z', last_error_code: null, last_error_safe_message: null };
+ expect(publicDeliveryStatus(row).reconciliationRequired).toBe(true);
+ expect(publicDeliveryStatus({ ...row, attempt_count: 0, last_attempt_at: null }).reconciliationRequired).toBe(false);
+ expect(publicDeliveryStatus({ ...row, last_error_code: 'PROVIDER_TRANSIENT', last_error_safe_message: 'malformed deadline' }).reconciliationRequired).toBe(true);
+ for (const last_attempt_at of ['invalid', null, '2026-11-08T23:59:00Z']) {
+  const status = publicDeliveryStatus({ ...row, last_attempt_at, last_error_code: 'PROVIDER_TRANSIENT' });
+  expect(status.reconciliationRequired).toBe(true); expect(status.nextEligibleAt).toBeNull();
+ }
+ for (const state of ['SENT', 'EXHAUSTED'] as const) {
+  const status = publicDeliveryStatus({ ...row, state, last_error_code: 'PROVIDER_TIMEOUT' });
+  expect(status.reconciliationRequired).toBe(false); expect(status.nextEligibleAt).toBeNull();
+ }
 });

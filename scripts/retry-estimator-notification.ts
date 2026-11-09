@@ -49,7 +49,9 @@ export function publicDeliveryStatus(row: StatusRow, now = Date.now()) {
  const last = row.last_attempt_at === null ? null : Date.parse(row.last_attempt_at);
  const deadline = row.last_error_safe_message === null ? null : parseRetryDeadlineMessage(row.last_error_safe_message);
  const expiry = Number.isFinite(created) ? created + 23 * 60 * 60_000 : null;
- const next = count === 0 ? created : count && count < 5 && last !== null && Number.isFinite(last) ? Math.max(last + [60,120,240,480][count - 1] * 1000, deadline ?? 0) + 7000 : null;
+ const invalidClaimMetadata = count === null || !Number.isFinite(created) || (count === 0 ? last !== null : last === null || !Number.isFinite(last) || last < created);
+ const terminal = row.state === 'SENT' || row.state === 'EXHAUSTED';
+ const next = terminal || invalidClaimMetadata ? null : count === 0 ? created : count && count < 5 && last !== null && Number.isFinite(last) ? Math.max(last + [60,120,240,480][count - 1] * 1000, deadline ?? 0) + 7000 : null;
  const iso = (value: number | null) => value !== null && Number.isFinite(value) && Number.isFinite(new Date(value).getTime()) ? new Date(value).toISOString() : null;
  return {
   deliveryId: UUID.test(row.id) ? row.id : null,
@@ -58,7 +60,7 @@ export function publicDeliveryStatus(row: StatusRow, now = Date.now()) {
   claimCount: count,
   code: row.last_error_code === null ? null : CODES.has(row.last_error_code) ? row.last_error_code : 'UNRECOGNIZED_STORED_ERROR',
   nextEligibleAt: iso(next), expiresAt: iso(expiry), expired: expiry !== null && now >= expiry,
-  reconciliationRequired: row.last_error_code !== null && !CODES.has(row.last_error_code) || ['ATTEMPT_OUTCOME_UNKNOWN','PROVIDER_TIMEOUT','PROVIDER_NETWORK_ERROR','RETRY_AFTER_INVALID','PROVIDER_RESPONSE_INVALID','PROVIDER_CONFLICT_UNKNOWN'].includes(row.last_error_code ?? '') || row.last_error_safe_message !== null && deadline === null
+  reconciliationRequired: !terminal && (invalidClaimMetadata || (row.attempt_count > 0 && row.last_error_code === null) || row.last_error_code !== null && !CODES.has(row.last_error_code) || ['ATTEMPT_OUTCOME_UNKNOWN','PROVIDER_TIMEOUT','PROVIDER_NETWORK_ERROR','RETRY_AFTER_INVALID','PROVIDER_RESPONSE_INVALID','PROVIDER_CONFLICT_UNKNOWN'].includes(row.last_error_code ?? '') || row.last_error_safe_message !== null && (deadline === null || !['PROVIDER_RATE_LIMITED', 'PROVIDER_TRANSIENT'].includes(row.last_error_code ?? '')))
  };
 }
 
@@ -73,7 +75,9 @@ export function appendReconciliationAudit(path: string, input: { deliveryId: str
   const record = { auditId: randomUUID(), recordedAt: new Date().toISOString(), operatorUid: process.getuid?.(), deliveryId: input.deliveryId,
    claimCount: input.attemptCount, previousCode: input.previousCode !== null && CODES.has(input.previousCode) ? input.previousCode : 'UNRECOGNIZED_STORED_ERROR',
    decision: 'provider_reconciled_retry_authorized', reference: input.reference };
-  writeSync(fd, JSON.stringify(record) + '\n'); fsyncSync(fd);
+  const encoded = Buffer.from(JSON.stringify(record) + '\n', 'utf8');
+  if (writeSync(fd, encoded) !== encoded.byteLength) return false;
+  fsyncSync(fd);
   return true;
  } catch { return false; }
  finally { if (fd !== undefined) closeSync(fd); }

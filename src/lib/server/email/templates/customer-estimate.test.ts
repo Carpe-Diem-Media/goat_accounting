@@ -14,7 +14,8 @@ describe('renderCustomerEstimate', () => {
 	test('uses the saved result and public page and PDF links only', () => {
 		const rendered = renderCustomerEstimateEmail(model, content);
 		expect(rendered.html).toContain('Catch-up estimate: R 100 - R 200');
-		expect(rendered.html).toContain('Ongoing estimate: R 50 - R 90');
+		expect(rendered.html).toContain('Ongoing estimate: R 50 - R 90/month');
+		expect(rendered.text).toContain('Ongoing estimate: R 50 - R 90/month');
 		expect(rendered.html).toContain('https://example.test/estimate/' + 'a'.repeat(32));
 		expect(rendered.html).toContain('https://example.test/api/estimates/' + 'a'.repeat(32) + '/pdf');
 		expect(rendered.text).toContain('Catch-up estimate: R 100 - R 200');

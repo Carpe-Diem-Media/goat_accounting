@@ -12,7 +12,7 @@ export function renderCustomerEstimateEmail(document: EstimateDocumentModel, con
 	const reviewText = document.manualReviewRequired ? 'Review required: Yes' : 'Review required: No';
 	const contact = contactBlock(content);
 	const subject = 'Your saved estimate';
-	const html = htmlDocument(subject, `<h1>${subject}</h1><p>Reference: ${document.publicRef}</p><p>Estimate status: ${escapeHtml(document.state)}</p><p>Catch-up estimate: ${catchup}</p><p>Ongoing estimate: ${ongoing}</p><p>Confidence: ${escapeHtml(document.confidence)}</p><p>${reviewText}</p><p><a href="${escapeHtml(estimateUrl)}">View estimate</a></p><p><a href="${escapeHtml(pdfUrl)}">Download estimate PDF</a></p>${contact.html}`);
-	const text = `${subject}\nReference: ${document.publicRef}\nEstimate status: ${document.state}\nCatch-up estimate: ${catchup}\nOngoing estimate: ${ongoing}\nConfidence: ${escapeHtml(document.confidence)}\n${reviewText}\nView estimate: ${estimateUrl}\nDownload estimate PDF: ${pdfUrl}\n${contact.text}`;
+	const html = htmlDocument(subject, `<h1>${subject}</h1><p>Reference: ${document.publicRef}</p><p>Estimate status: ${escapeHtml(document.state)}</p><p>Catch-up estimate: ${catchup}</p><p>Ongoing estimate: ${ongoing}/month</p><p>Confidence: ${escapeHtml(document.confidence)}</p><p>${reviewText}</p><p><a href="${escapeHtml(estimateUrl)}">View estimate</a></p><p><a href="${escapeHtml(pdfUrl)}">Download estimate PDF</a></p>${contact.html}`);
+	const text = `${subject}\nReference: ${document.publicRef}\nEstimate status: ${document.state}\nCatch-up estimate: ${catchup}\nOngoing estimate: ${ongoing}/month\nConfidence: ${escapeHtml(document.confidence)}\n${reviewText}\nView estimate: ${estimateUrl}\nDownload estimate PDF: ${pdfUrl}\n${contact.text}`;
 	return { subject, html, text };
 }

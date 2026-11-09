@@ -6,6 +6,8 @@ Notification sending is disabled by default. This change supplies no activation 
 
 Use the repository's pinned Bun 1.3.10 in a controlled server environment. The command imports server modules directly and does not import `cloudflare:workers`. It does not load secrets from shell arguments or print environment values. Provision the existing Goat Supabase server environment through the approved environment manager. Do not substitute another project's database.
 
+Hosted execution is blocked until an operator positively verifies the approved Goat project identity against independent owner-controlled records, checks its endpoint and credential scope, and records that verification. The command trusts its configured endpoint; a configured URL alone is not project verification. No hosted execution was performed in Task 9.
+
 Read-only discovery and inspection:
 
 ```sh
@@ -33,7 +35,7 @@ bun scripts/retry-estimator-notification.ts --delivery-id <delivery-uuid> \
   --confirm-provider-reconciled --reconciliation-ref <case-reference>
 ```
 
-`ESTIMATE_NOTIFICATION_AUDIT_PATH` must name an absolute path on a trusted local filesystem. The command rejects symlinks, nonregular files, different owners and permissions other than 0600. It appends and fsyncs the reconciliation decision before dispatch can claim. The journal contains a unique audit ID, timestamp, UID, delivery ID, claim count, safe prior code and case reference. Protect and retain this journal through the operator's existing access and backup policy. It is an audit record, not a tamper-proof external ledger. Failed journal writes prevent retry. The reconciliation permission is tied to the exact inspected attempt count, timestamp and outcome metadata. A changed token requires fresh inspection and a new audit decision. An unnecessary reconciliation flag is rejected without an audit write. Reconciliation cannot bypass backoff, expiry, attempt limits or provider payload conflicts.
+`ESTIMATE_NOTIFICATION_AUDIT_PATH` must name an absolute path on a trusted local filesystem. The command rejects symlinks, nonregular files, different owners and permissions other than 0600. It verifies that the complete UTF-8 record was written and fsyncs the reconciliation decision before dispatch can claim. A short write, write error or sync failure denies dispatch. An incomplete record may remain after a failed write and needs operator inspection before journal reuse. The journal contains a unique audit ID, timestamp, UID, delivery ID, claim count, safe prior code and case reference. Protect and retain this journal through the operator's existing access and backup policy. It is an audit record, not a tamper-proof external ledger. Failed journal writes prevent retry. The reconciliation permission is tied to the exact inspected attempt count, timestamp and outcome metadata. A changed token requires fresh inspection and a new audit decision. An unnecessary reconciliation flag is rejected without an audit write. Reconciliation cannot bypass backoff, expiry, attempt limits or provider payload conflicts.
 
 ## Activation dependencies
 

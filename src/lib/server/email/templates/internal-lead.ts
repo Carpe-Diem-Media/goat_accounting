@@ -41,14 +41,14 @@ export function renderInternalLeadEmail(input: InternalLeadEmailInput, content: 
 		`<p>Estimate reference: ${input.estimate.publicRef}</p>`,
 		`<p>Pricing model version: ${escapeHtml(input.estimate.pricingModelVersion)}</p>`,
 		`<p>Engine version: ${escapeHtml(input.estimate.engineVersion)}</p>`,
-		`<p>Catch-up estimate: ${catchup}</p><p>Ongoing estimate: ${ongoing}</p>`,
+		`<p>Catch-up estimate: ${catchup}</p><p>Ongoing estimate: ${ongoing}/month</p>`,
 		`<p>Manual review required: ${input.estimate.manualReviewRequired ? 'Yes' : 'No'}</p>`,
 		`<h2>Review flags</h2><ul>${flags.map((flag) => `<li>${escapeHtml(flag)}</li>`).join('')}</ul>`,
 		`<h2>Answers</h2><ul>${assumptions.map((item) => `<li>${escapeHtml(item)}</li>`).join('')}</ul>`,
 		freeText ? `<h2>Additional details</h2><p>${escapeHtml(freeText).replace(/\n/g, '<br>')}</p>` : '',
 		`<p><a href="${escapeHtml(adminUrl)}">Open estimate in admin</a></p>`
 	].join('');
-	const text = `Contact: ${bounded(input.contact.name, MAX_CONTACT_LENGTH)}\nEmail: ${bounded(input.contact.email, MAX_CONTACT_LENGTH)}\n${input.contact.phone ? `Phone: ${bounded(input.contact.phone, 40)}\n` : ''}${input.contact.businessName ? `Business: ${bounded(input.contact.businessName, MAX_CONTACT_LENGTH)}\n` : ''}${input.contact.preferredContactMethod ? `Preferred contact: ${bounded(input.contact.preferredContactMethod, 40)}\n` : ''}Estimate reference: ${input.estimate.publicRef}\nPricing model version: ${input.estimate.pricingModelVersion}\nEngine version: ${input.estimate.engineVersion}\nCatch-up estimate: ${catchup}\nOngoing estimate: ${ongoing}\nManual review required: ${input.estimate.manualReviewRequired ? 'Yes' : 'No'}\nReview flags:\n${flags.join('\n')}\nAnswers:\n${assumptions.join('\n')}${freeText ? `\nAdditional details:\n${bounded(input.freeText!, MAX_FREE_TEXT_LENGTH)}` : ''}\nAdmin estimate: ${adminUrl}\n${contact.text}`;
+	const text = `Contact: ${bounded(input.contact.name, MAX_CONTACT_LENGTH)}\nEmail: ${bounded(input.contact.email, MAX_CONTACT_LENGTH)}\n${input.contact.phone ? `Phone: ${bounded(input.contact.phone, 40)}\n` : ''}${input.contact.businessName ? `Business: ${bounded(input.contact.businessName, MAX_CONTACT_LENGTH)}\n` : ''}${input.contact.preferredContactMethod ? `Preferred contact: ${bounded(input.contact.preferredContactMethod, 40)}\n` : ''}Estimate reference: ${input.estimate.publicRef}\nPricing model version: ${input.estimate.pricingModelVersion}\nEngine version: ${input.estimate.engineVersion}\nCatch-up estimate: ${catchup}\nOngoing estimate: ${ongoing}/month\nManual review required: ${input.estimate.manualReviewRequired ? 'Yes' : 'No'}\nReview flags:\n${flags.join('\n')}\nAnswers:\n${assumptions.join('\n')}${freeText ? `\nAdditional details:\n${bounded(input.freeText!, MAX_FREE_TEXT_LENGTH)}` : ''}\nAdmin estimate: ${adminUrl}\n${contact.text}`;
 	const subject = 'New estimate contact request';
 	return { subject, html: htmlDocument(subject, `<h1>${subject}</h1>${details}${contact.html}`), text: `${subject}\n${text}` };
 }
