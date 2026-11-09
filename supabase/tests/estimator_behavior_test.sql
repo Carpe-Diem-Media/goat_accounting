@@ -160,7 +160,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-SELECT plan(63);
+SELECT plan(86);
 
 SELECT is(
   (
@@ -1019,28 +1019,79 @@ SELECT is(
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
+SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000006","role":"authenticated","aal":"aal1"}', true);
+SET LOCAL ROLE authenticated;
+SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'invited AAL1 staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'invited AAL1 staff cannot read leads');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 1, 'invited AAL1 staff can read their own setup record');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users WHERE user_id <> auth.uid()), 0, 'invited AAL1 staff cannot read another staff record');
+SELECT ok(
+  pg_temp.throws_sqlstate(
+    $sql$UPDATE estimator.staff_users SET state = 'ACTIVE' WHERE user_id = auth.uid()$sql$,
+    '42501'
+  ),
+  'invited AAL1 staff cannot change their state'
+);
+RESET ROLE;
+
+INSERT INTO auth.mfa_factors (id, user_id, factor_type, status, created_at, updated_at, secret)
+VALUES (
+  '80000000-0000-4000-8000-000000000001',
+  '10000000-0000-4000-8000-000000000006',
+  'totp', 'verified', now(), now(), 'pgTAP-fixture-only'
+);
+
+SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000006', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000006","role":"authenticated","aal":"aal2"}', true);
 SET LOCAL ROLE authenticated;
-SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'invited staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'invited AAL2 staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'invited AAL2 staff cannot read leads');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 1, 'invited AAL2 staff can read their own setup record');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users WHERE user_id <> auth.uid()), 0, 'invited AAL2 staff cannot read another staff record');
+SELECT is((SELECT state::text FROM estimator.staff_users WHERE user_id = auth.uid()), 'INVITED', 'verified TOTP does not activate invited staff');
+SELECT ok(
+  pg_temp.throws_sqlstate(
+    $sql$UPDATE estimator.staff_users SET state = 'SUSPENDED' WHERE user_id = auth.uid()$sql$,
+    '42501'
+  ),
+  'invited AAL2 staff cannot change their state'
+);
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000007', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000007","role":"authenticated","aal":"aal2"}', true);
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'suspended staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'suspended staff cannot read leads');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 0, 'suspended staff cannot read staff records');
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000008', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000008","role":"authenticated","aal":"aal2"}', true);
 SET LOCAL ROLE authenticated;
 SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'deactivated staff cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'deactivated staff cannot read leads');
+SELECT is((SELECT count(*)::integer FROM estimator.staff_users), 0, 'deactivated staff cannot read staff records');
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000004', true);
 SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000004","role":"authenticated","aal":"aal1"}', true);
 SET LOCAL ROLE authenticated;
+SELECT is(
+  (SELECT count(*)::integer FROM estimator.staff_users),
+  1,
+  'active staff can read only their own staff record before MFA'
+);
 SELECT is((SELECT count(*)::integer FROM estimator.estimates), 0, 'active staff below AAL2 cannot read estimates');
+SELECT is((SELECT count(*)::integer FROM estimator.leads), 0, 'active staff below AAL2 cannot read leads');
 SELECT is((SELECT count(*)::integer FROM estimator.notification_deliveries), 0, 'viewers cannot read admin-only notification records');
+RESET ROLE;
+
+SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000004', true);
+SELECT set_config('request.jwt.claims', '{"sub":"10000000-0000-4000-8000-000000000004","role":"authenticated","aal":"aal2"}', true);
+SET LOCAL ROLE authenticated;
+SELECT ok((SELECT count(*) FROM estimator.estimates) > 0, 'active viewer at AAL2 can read saved estimates');
+SELECT ok((SELECT count(*) FROM estimator.leads) > 0, 'active viewer at AAL2 can read saved leads');
 RESET ROLE;
 
 SELECT set_config('request.jwt.claim.sub', '10000000-0000-4000-8000-000000000004', true);
@@ -1054,6 +1105,52 @@ SELECT ok(
     )
   END,
   'viewer cannot update a lead'
+);
+SELECT ok(
+  CASE WHEN pg_catalog.to_regclass('estimator.estimates') IS NULL THEN false ELSE
+    pg_temp.throws_sqlstate(
+      $sql$UPDATE estimator.estimates SET free_text = 'changed' WHERE id = '40000000-0000-4000-8000-000000000001'$sql$,
+      '42501'
+    )
+  END,
+  'viewer cannot update an estimate'
+);
+SELECT ok(
+  CASE WHEN pg_catalog.to_regclass('estimator.estimates') IS NULL THEN false ELSE
+    pg_temp.throws_sqlstate(
+      $sql$INSERT INTO estimator.estimates (calculator_type) VALUES ('business')$sql$,
+      '42501'
+    )
+  END,
+  'viewer cannot insert an estimate'
+);
+SELECT ok(
+  CASE WHEN pg_catalog.to_regclass('estimator.estimates') IS NULL THEN false ELSE
+    pg_temp.throws_sqlstate(
+      $sql$DELETE FROM estimator.estimates WHERE id = '40000000-0000-4000-8000-000000000001'$sql$,
+      '42501'
+    )
+  END,
+  'viewer cannot delete an estimate'
+);
+SELECT ok(
+  CASE WHEN pg_catalog.to_regclass('estimator.leads') IS NULL THEN false ELSE
+    pg_temp.throws_sqlstate(
+      $sql$INSERT INTO estimator.leads (estimate_id, state, full_name, email)
+      VALUES ('40000000-0000-4000-8000-000000000001', 'NEW', 'Attempted Write', 'write@example.invalid')$sql$,
+      '42501'
+    )
+  END,
+  'viewer cannot insert a lead'
+);
+SELECT ok(
+  CASE WHEN pg_catalog.to_regclass('estimator.leads') IS NULL THEN false ELSE
+    pg_temp.throws_sqlstate(
+      $sql$DELETE FROM estimator.leads WHERE id = '60000000-0000-4000-8000-000000000001'$sql$,
+      '42501'
+    )
+  END,
+  'viewer cannot delete a lead'
 );
 RESET ROLE;
 

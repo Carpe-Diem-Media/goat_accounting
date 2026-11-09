@@ -18,12 +18,19 @@ declare namespace Cloudflare {
 		ESTIMATE_EMAIL_FROM?: string;
 		ESTIMATE_EMAIL_INTERNAL_TO?: string;
 		SUPABASE_URL?: string;
+		SUPABASE_PUBLISHABLE_KEY?: string;
+		SUPABASE_STAFF_AUTH_ENABLED?: string;
+		GOAT_STAFF_SUPABASE_PROJECT_REF?: string;
 		SUPABASE_SECRET_KEY?: string;
 		SUPABASE_SERVICE_ROLE_KEY?: string;
 	}
 }
 
 declare namespace App {
+	interface Locals {
+		supabase: import('$lib/server/supabase/session-client').StaffSessionClient | null;
+	}
+
 	interface Platform {
 		env: Cloudflare.Env;
 	}

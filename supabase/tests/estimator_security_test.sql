@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(17);
+SELECT plan(18);
 
 SELECT ok(
   has_schema_privilege('authenticated', 'estimator', 'USAGE')
@@ -181,6 +181,17 @@ SELECT ok(
     SELECT 1
     FROM pg_catalog.pg_proc AS proc
     JOIN pg_catalog.pg_namespace AS ns ON ns.oid = proc.pronamespace
+    WHERE ns.nspname = 'estimator' AND proc.proname = 'activate_invited_staff_after_mfa'
+  )
+    AND pg_catalog.to_regclass('estimator.staff_onboarding_events') IS NULL,
+  'Task 10 has no invited-staff activation function or onboarding audit table'
+);
+
+SELECT ok(
+  NOT EXISTS (
+    SELECT 1
+    FROM pg_catalog.pg_proc AS proc
+    JOIN pg_catalog.pg_namespace AS ns ON ns.oid = proc.pronamespace
     WHERE ns.nspname = 'estimator'
       AND proc.proname IN ('pricing_model_definition_checksum', 'pricing_model_activation_projection')
       AND (has_function_privilege('anon', proc.oid, 'EXECUTE')
@@ -198,7 +209,8 @@ SELECT ok(
     WHERE ns.nspname = 'estimator'
       AND (
         has_function_privilege('anon', proc.oid, 'EXECUTE')
-        OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE') AND proc.proname <> 'is_current_staff')
+        OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE')
+          AND proc.proname <> 'is_current_staff')
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
           AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead'))
       )
