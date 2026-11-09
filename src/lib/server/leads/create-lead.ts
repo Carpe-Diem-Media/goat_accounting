@@ -11,11 +11,14 @@ export class ContactVerificationError extends Error {
 export type ContactDependencies = Readonly<{
  verify: (token: string) => Promise<TurnstileResult>;
  findEstimateId: (publicRef: string) => Promise<string | null>;
- createContactLead: (estimateId: string, input: ContactInput) => Promise<void>;
+	createContactLead: (estimateId: string, input: ContactInput) => Promise<string | null | void>;
+	afterCommit?: (saved: SavedContactContext) => Promise<void> | void;
 }>;
 
-/** Only the atomic RPC persists the lead and pending deliveries. This service never sends mail. */
-export async function createLeadFromEstimate(publicRef: string, body: unknown, dependencies: ContactDependencies): Promise<void> {
+export type SavedContactContext = Readonly<{ leadId: string | null; estimateId: string }>;
+
+/** The RPC persists the lead and intents. The optional callback runs after that commit. */
+export async function createLeadFromEstimate(publicRef: string, body: unknown, dependencies: ContactDependencies): Promise<SavedContactContext> {
  if (!/^[a-f0-9]{32}$/.test(publicRef) || !body || typeof body !== 'object' || Array.isArray(body)) throw new ContactValidationError();
  const { turnstileToken, ...contact } = body as Record<string, unknown>;
  const parsed = contactInputSchema.safeParse(contact);
@@ -25,5 +28,8 @@ export async function createLeadFromEstimate(publicRef: string, body: unknown, d
  const estimateId = await dependencies.findEstimateId(publicRef);
  if (!estimateId) throw new ContactUnavailableError();
  // A matching retry remains valid after estimate invalidation. The RPC owns that decision.
- await dependencies.createContactLead(estimateId, parsed.data);
+	const returnedLeadId = await dependencies.createContactLead(estimateId, parsed.data);
+ const saved = { leadId: typeof returnedLeadId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(returnedLeadId) ? returnedLeadId : null, estimateId };
+	try { await dependencies.afterCommit?.(saved); } catch { /* Notification work cannot change an acknowledged save. */ }
+	return saved;
 }

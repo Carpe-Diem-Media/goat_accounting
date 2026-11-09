@@ -16,7 +16,7 @@ export function contactUnavailable(): Response {
  return contactResponse({ error: { code: 'CONTACT_UNAVAILABLE', message: 'Your request could not be saved right now. Please try again.' } }, 503);
 }
 
-export async function handleContactPost(request: Request, create: (body: unknown) => Promise<void>, checkLimit?: () => Promise<'allowed' | 'limited' | 'unavailable'>): Promise<Response> {
+export async function handleContactPost(request: Request, create: (body: unknown) => Promise<unknown>, checkLimit?: () => Promise<'allowed' | 'limited' | 'unavailable'>): Promise<Response> {
  const origin = request.headers.get('origin');
  if ((origin !== null && origin !== new URL(request.url).origin) || request.headers.get('sec-fetch-site') === 'cross-site') {
   return contactResponse({ error: { code: 'INVALID_ORIGIN', message: 'Submit your request from the estimate page.' } }, 403);
