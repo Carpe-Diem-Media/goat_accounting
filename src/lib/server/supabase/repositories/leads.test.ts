@@ -57,15 +57,15 @@ describe('createLeadsRepository', () => {
 	test('accepts the returned UUID for initial submissions and matching retries without exposing it', async () => {
 		const { client, calls } = fakeClient({ data: '40000000-0000-4000-8000-000000000001', error: null });
 		const repository = createLeadsRepository(client);
-		await expect(repository.createContactLead('estimate-1', input)).resolves.toBeUndefined();
-		await expect(repository.createContactLead('estimate-1', input)).resolves.toBeUndefined();
+		await expect(repository.createContactLead('estimate-1', input)).resolves.toBe('40000000-0000-4000-8000-000000000001');
+		await expect(repository.createContactLead('estimate-1', input)).resolves.toBe('40000000-0000-4000-8000-000000000001');
 		expect(calls.filter((call) => Array.isArray(call) && call[0] === 'rpc')).toHaveLength(2);
 	});
 
-	test('rejects absent, malformed or unexpected RPC results even without a database error', async () => {
+	test('returns null for absent or malformed successful RPC results', async () => {
 		for (const data of [null, undefined, '', 'lead-1', '40000000-0000-4000-8000-00000000000Z', 42, {}, ['40000000-0000-4000-8000-000000000001']]) {
 			const { client } = fakeClient({ data, error: null });
-			await expect(createLeadsRepository(client).createContactLead('estimate-1', input)).rejects.toBeInstanceOf(ContactPersistenceError);
+			await expect(createLeadsRepository(client).createContactLead('estimate-1', input)).resolves.toBeNull();
 		}
 	});
 

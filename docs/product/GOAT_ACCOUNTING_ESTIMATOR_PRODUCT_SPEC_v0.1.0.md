@@ -990,15 +990,20 @@ If the same prospect returns after closure, create a new lead/estimate relations
 
 ### Transitions
 
+- `PENDING -> PENDING` through a conditional claim that increments `attempt_count` and records `last_attempt_at`;
 - `PENDING -> SENT`
 - `PENDING -> FAILED_RETRYABLE`
-- `FAILED_RETRYABLE -> PENDING` through authorised/system retry
+- `PENDING -> EXHAUSTED` when the delivery cannot be attempted;
+- `FAILED_RETRYABLE -> FAILED_RETRYABLE` through an authorised conditional retry claim that increments `attempt_count` and records `last_attempt_at`; retry does not return the delivery to `PENDING`;
+- `FAILED_RETRYABLE -> SENT` after provider acceptance;
 - `FAILED_RETRYABLE -> EXHAUSTED` when retry policy is exhausted or failure is permanent
 
 ### Terminal states
 
 - `SENT`
 - `EXHAUSTED`
+
+`SENT` and `EXHAUSTED` are immutable. An update that leaves a terminal row identical has no effect; any state change or field mutation is forbidden.
 
 Email failure must not roll back a valid estimate or lead record.
 

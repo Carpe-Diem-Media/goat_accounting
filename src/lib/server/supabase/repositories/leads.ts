@@ -28,7 +28,7 @@ export function createLeadsRepository(client: EstimatorServiceClient) {
 			return data?.id ?? null;
 		},
 
-		async createContactLead(estimateId: string, input: ContactInput): Promise<void> {
+		async createContactLead(estimateId: string, input: ContactInput): Promise<string | null> {
 			const { data, error } = await client.rpc('create_contact_lead', {
 				p_estimate_id: estimateId,
 				p_full_name: input.fullName,
@@ -42,7 +42,7 @@ export function createLeadsRepository(client: EstimatorServiceClient) {
 			});
 
 			if (error) throw contactError(error);
-			if (!z.uuid().safeParse(data).success) throw new ContactPersistenceError();
+			return z.uuid().safeParse(data).success ? data : null;
 		}
 	};
 }
