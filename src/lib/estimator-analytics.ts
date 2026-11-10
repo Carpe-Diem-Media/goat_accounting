@@ -30,7 +30,10 @@ export function createEstimatorEvent(event: string, metadata: Record<string, unk
 export function trackEstimatorEvent(event: EstimatorEventName, metadata: EstimatorMetadata = {}, send: (event: SafeEvent) => void = pushDataLayer): void {
   try {
     const safe = createEstimatorEvent(event, metadata);
-    if (safe) send(safe);
+    if (safe) {
+      send(safe);
+      if (typeof window !== 'undefined') void sendEstimatorRelay(safe);
+    }
   } catch { /* Analytics must not interrupt the operation. */ }
 }
 
@@ -41,4 +44,15 @@ export function createEstimatorOnceTracker(send: (event: SafeEvent) => void = pu
     sent.add(event);
     trackEstimatorEvent(event, metadata, send);
   };
+}
+
+export async function sendEstimatorRelay(event: SafeEvent, fetcher: (input: string, init: RequestInit) => Promise<Response> = (input, init) => fetch(input, init)): Promise<void> {
+  try {
+    const safe = createEstimatorEvent(event.event, event);
+    if (!safe) return;
+    await fetcher('/api/analytics/events', {
+      method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(safe),
+      credentials: 'omit', referrerPolicy: 'no-referrer', cache: 'no-store', keepalive: true
+    });
+  } catch { /* Telemetry cannot block or alter the customer journey. */ }
 }

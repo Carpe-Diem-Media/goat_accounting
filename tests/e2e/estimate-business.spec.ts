@@ -180,8 +180,8 @@ async function advance(page: Page): Promise<void> {
 	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
-async function finishDefaultBusinessAnswers(page: Page): Promise<void> {
-	await page.goto(`${APP_ORIGIN}/estimate`);
+async function finishDefaultBusinessAnswers(page: Page, alreadyStarted = false): Promise<void> {
+	if (!alreadyStarted) await page.goto(`${APP_ORIGIN}/estimate`);
 	await choose(page, 'Business accounting');
 	await advance(page);
 	await choose(page, 'Sole proprietor');
@@ -598,16 +598,63 @@ test('saved-result events do not contain the estimate reference or answer values
   expect(JSON.stringify(events)).not.toContain(ref);
   expect(JSON.stringify(events)).not.toContain('Sole proprietor');
   const pdf = page.getByRole('link', { name: 'Download PDF' });
-  await pdf.evaluate((link) => link.addEventListener('click', (event) => event.preventDefault()));
+  await page.route(`**/api/estimates/${ref}/pdf`, (route) => route.fulfill({ status: 503, body: '' }));
   await pdf.click();
-  const afterDownload = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
-  expect(afterDownload).toContainEqual({ event: 'estimate_pdf_downloaded', calculator_type: 'business' });
+  await expect(page.getByRole('status').filter({ hasText: 'PDF could not be downloaded' })).toBeVisible();
+  const failed = await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []);
+  expect(failed.filter((event) => event.event === 'estimate_pdf_downloaded')).toHaveLength(0);
+  await page.unroute(`**/api/estimates/${ref}/pdf`);
+  await page.route(`**/api/estimates/${ref}/pdf`, (route) => route.fulfill({ status: 200, contentType: 'application/pdf', body: 'not-a-pdf' }));
+  await pdf.click();
+  await expect(page.getByRole('status').filter({ hasText: 'PDF could not be downloaded' })).toBeVisible();
+  expect((await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? [])).filter((event) => event.event === 'estimate_pdf_downloaded')).toHaveLength(0);
+  await page.unroute(`**/api/estimates/${ref}/pdf`);
+  for (let count = 1; count <= 2; count++) {
+    const download = page.waitForEvent('download');
+    await pdf.click();
+    expect((await download).suggestedFilename()).toBe(`estimate-${ref}.pdf`);
+    await expect.poll(() => page.evaluate(() => ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).filter((event) => event.event === 'estimate_pdf_downloaded').length)).toBe(count);
+  }
+  await page.setViewportSize({ width: 375, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
   expect(tagRequests).toEqual([]);
+});
+
+test('marketing to saved estimate navigation cannot leak references to external requests', async ({ page }) => {
+  const external: Array<{ url: string; referer: string }> = [];
+  const relay: Array<{ referer: string; cookie: string }> = [];
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === '/api/analytics/events') relay.push({ referer: request.headers().referer ?? '', cookie: request.headers().cookie ?? '' });
+    if (url.origin !== APP_ORIGIN) {
+      external.push({ url: request.url(), referer: request.headers().referer ?? '' });
+      if (url.hostname === 'www.googletagmanager.com' && url.pathname.endsWith('/gtm.js')) {
+        await route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.__syntheticGtmLoaded = true;' });
+      } else await route.abort();
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => (window as Window & { __syntheticGtmLoaded?: boolean }).__syntheticGtmLoaded)).toBe(true);
+  await page.evaluate(() => { const link = document.createElement('a'); link.href = '/estimate'; link.textContent = 'Synthetic estimator link'; document.body.append(link); });
+  await page.getByRole('link', { name: 'Synthetic estimator link' }).click();
+  await expect(page).toHaveURL(`${APP_ORIGIN}/estimate`);
+  expect(await page.evaluate(() => (window as Window & { __syntheticGtmLoaded?: boolean }).__syntheticGtmLoaded)).toBeUndefined();
+  await finishDefaultBusinessAnswers(page, true);
+  const ref = await submitEstimate(page);
+  await expect.poll(() => relay.length).toBeGreaterThan(0);
+  expect(external.some((item) => item.url.includes(ref) || item.referer.includes(ref))).toBe(false);
+  expect(relay.every((item) => !item.referer && !item.cookie)).toBe(true);
 });
 
 test('direct unauthenticated dashboard access never returns metrics', async ({ request }) => {
   const response = await request.get('/admin/dashboard', { maxRedirects: 0 });
   expect([303, 403, 503]).toContain(response.status());
   expect(await response.text()).not.toContain('Catch-up opportunity');
+  const relay = await request.post('/api/analytics/events', { headers: { origin: APP_ORIGIN, 'content-type': 'application/json' }, data: { event: 'estimate_started' } });
+  expect(relay.status()).toBe(503);
+  expect(relay.headers()['cache-control']).toContain('no-store');
 });
 }

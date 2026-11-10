@@ -29,3 +29,10 @@ test('provider observation preserves thrown failures when logging also fails', a
   const failure = new Error('provider exception');
   await expect(observeProvider('estimate_contact', undefined, async () => { throw failure; }, () => { throw new Error('logger failure'); })).rejects.toBe(failure);
 });
+test('response observation logs rejections without leaking the exception or changing it', async () => {
+  const events: unknown[] = [];
+  const failure = new Error('private@example.invalid?token=secret');
+  await expect(observeResponse('estimate_create', Promise.reject(failure), (event) => events.push(event), 'c0ffee00-0000-4000-8000-000000000000')).rejects.toBe(failure);
+  expect(events).toEqual([{ route: 'estimate_create', outcome: 'failure', request_id: 'c0ffee00-0000-4000-8000-000000000000', error_code: 'unavailable' }]);
+  expect(JSON.stringify(events)).not.toContain('private');
+});

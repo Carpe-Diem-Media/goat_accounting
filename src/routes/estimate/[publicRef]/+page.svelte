@@ -28,6 +28,8 @@
 		}
 	};
 	let lifecycleNotice = $derived(lifecycleNotices[estimate.state]);
+	let pdfDownloadPending = $state(false);
+	let pdfDownloadError = $state(false);
 
 	const confidenceLabels = {
 		high: 'High',
@@ -47,6 +49,32 @@
 		const minRand = Math.floor(range.minCents / 100);
 		const maxRand = Math.ceil(range.maxCents / 100);
 		return `${formatRand(minRand)} – ${formatRand(maxRand)}`;
+	}
+
+	async function downloadEstimatePdf(event: MouseEvent): Promise<void> {
+		event.preventDefault();
+		if (pdfDownloadPending) return;
+		pdfDownloadPending = true;
+		pdfDownloadError = false;
+		try {
+			const response = await fetch(`/api/estimates/${estimate.publicRef}/pdf`);
+			if (!response.ok || response.headers.get('content-type')?.split(';', 1)[0].trim().toLowerCase() !== 'application/pdf') {
+				throw new Error('PDF response was unsuccessful');
+			}
+			const pdf = await response.blob();
+			if (pdf.size < 5 || await pdf.slice(0, 5).text() !== '%PDF-') throw new Error('PDF response was invalid');
+			const url = URL.createObjectURL(pdf);
+			const link = document.createElement('a');
+			link.href = url;
+			link.download = `estimate-${estimate.publicRef}.pdf`;
+			link.click();
+			setTimeout(() => URL.revokeObjectURL(url), 1000);
+			trackEstimatorEvent('estimate_pdf_downloaded', { calculator_type: estimate.calculatorType });
+		} catch {
+			pdfDownloadError = true;
+		} finally {
+			pdfDownloadPending = false;
+		}
 	}
 
 	onMount(() => {
@@ -200,11 +228,13 @@
 		<p class="text-sm leading-6 text-muted-foreground">No contact details were needed to view this estimate.</p>
 		<a
 			href={`/api/estimates/${estimate.publicRef}/pdf`}
-			onclick={() => trackEstimatorEvent('estimate_pdf_downloaded', { calculator_type: estimate.calculatorType })}
+			onclick={downloadEstimatePdf}
+			aria-disabled={pdfDownloadPending}
 			class="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 		>
-			Download PDF
+			{pdfDownloadPending ? 'Preparing PDF…' : 'Download PDF'}
 		</a>
+		{#if pdfDownloadError}<p role="status" class="text-sm text-destructive">The PDF could not be downloaded. Please try again.</p>{/if}
 		<button
 			type="button"
 			onclick={() => goto('/estimate?new=1')}

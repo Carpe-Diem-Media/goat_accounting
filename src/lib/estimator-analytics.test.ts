@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { createEstimatorEvent, trackEstimatorEvent, createEstimatorOnceTracker } from './estimator-analytics';
+import { createEstimatorEvent, trackEstimatorEvent, createEstimatorOnceTracker, sendEstimatorRelay } from './estimator-analytics';
 
 describe('estimator analytics privacy boundary', () => {
   test('keeps only explicitly allowed metadata and enum values', () => {
@@ -26,4 +26,10 @@ test('a successful operation emits at most once for a mounted journey', () => {
   trackOnce('estimate_completed');
   trackOnce('estimate_contact_submitted');
   expect(events).toEqual([{ event: 'estimate_completed' }, { event: 'estimate_contact_submitted' }]);
+});
+
+test('browser relay omits credentials and referrer and sends only the validated event', async () => {
+  const calls: unknown[] = [];
+  await sendEstimatorRelay({ event: 'estimate_started' }, async (...args) => { calls.push(args); return new Response(null, { status: 503 }); });
+  expect(calls).toEqual([['/api/analytics/events', expect.objectContaining({ method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', body: '{"event":"estimate_started"}' })]]);
 });

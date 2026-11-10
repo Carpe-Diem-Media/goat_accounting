@@ -32,10 +32,15 @@ export function newCorrelationId(): string | undefined {
   try { return crypto.randomUUID(); } catch { return undefined; }
 }
 export async function observeResponse(route: Route, response: Promise<Response>, write?: (event: OperationalEvent) => void, requestId = newCorrelationId()): Promise<Response> {
-  const result = await response;
-  logOperationalEvent({ route, outcome: result.ok ? 'success' : 'failure', request_id: requestId,
-    ...(result.ok ? {} : { error_code: result.status < 500 ? 'invalid_request' : 'unavailable' }) }, write);
-  return result;
+  try {
+    const result = await response;
+    logOperationalEvent({ route, outcome: result.ok ? 'success' : 'failure', request_id: requestId,
+      ...(result.ok ? {} : { error_code: result.status < 500 ? 'invalid_request' : 'unavailable' }) }, write);
+    return result;
+  } catch (error) {
+    logOperationalEvent({ route, outcome: 'failure', request_id: requestId, error_code: 'unavailable' }, write);
+    throw error;
+  }
 }
 export async function observeProvider<T extends { success: boolean; reason?: string }>(route: Route, requestId: string | undefined, operation: () => Promise<T>, write?: (event: OperationalEvent) => void): Promise<T> {
   const started = Date.now();
