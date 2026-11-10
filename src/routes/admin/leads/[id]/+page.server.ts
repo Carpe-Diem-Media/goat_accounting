@@ -1,4 +1,3 @@
-import { env as workerEnv } from 'cloudflare:workers';
 import { error, fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 import { getLeadTransitions, LEAD_STATES, type LeadState } from '$lib/domain/leads/lifecycle';
@@ -84,7 +83,7 @@ export const actions: Actions = {
 
 		let repository: ReturnType<typeof createLeadsRepository>;
 		try {
-			const bindings = (platform?.env ?? workerEnv) as EstimatorServerEnv;
+			const bindings = (platform?.env ?? (await import('cloudflare:workers')).env) as EstimatorServerEnv;
 			repository = createLeadsRepository(createEstimatorServiceClient(bindings));
 		} catch {
 			throw error(503, 'Lead records are temporarily unavailable.');

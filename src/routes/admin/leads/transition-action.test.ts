@@ -1,7 +1,5 @@
-import { describe, expect, mock, test } from 'bun:test';
+import { describe, expect, test } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
-
-mock.module('cloudflare:workers', () => ({ env: {} }));
 
 const { actions } = await import('./[id]/+page.server');
 const transitionAction = actions.transition as (event: RequestEvent) => Promise<unknown>;
@@ -158,6 +156,26 @@ describe('lead transition action stale form handling', () => {
 			expect(forged).toMatchObject({ kind: 'returned', status: 409 });
 			expect(harness.state()).toBe('NEW');
 			expect(harness.eventCount()).toBe(1);
+			expect(harness.rpcCalls()).toBe(0);
+		} finally {
+			harness.restoreFetch();
+		}
+	});
+
+	test('fails closed when Worker bindings are unavailable', async () => {
+		const harness = createHarness('NEW');
+		try {
+			const event = harness.event(advisorA, {
+				expectedState: 'NEW',
+				targetState: 'CONTACTED',
+				reason: '',
+				note: ''
+			});
+			Object.assign(event, { platform: undefined });
+
+			const result = await outcome(event);
+
+			expect(result).toMatchObject({ kind: 'thrown', status: 503 });
 			expect(harness.rpcCalls()).toBe(0);
 		} finally {
 			harness.restoreFetch();
