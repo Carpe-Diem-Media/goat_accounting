@@ -9,6 +9,7 @@ type TransitionActor = Readonly<{ userId: string; role: StaffRole }>;
 
 export type LeadTransitionInput = Readonly<{
 	leadId: string;
+	expectedState: unknown;
 	toState: unknown;
 	actor: TransitionActor;
 	reason?: unknown;
@@ -61,12 +62,7 @@ export async function runLeadTransition(
 	if (input.actor.role !== 'advisor' && input.actor.role !== 'admin') {
 		return { kind: 'forbidden' };
 	}
-	if (!isLeadState(input.toState)) return { kind: 'invalid' };
-
-	const reason = optionalText(input.reason);
-	const note = optionalText(input.note);
-	if (!reason.valid || !note.valid) return { kind: 'invalid' };
-	if (note.value && Array.from(note.value).length > 2000) return { kind: 'invalid' };
+	if (!isLeadState(input.expectedState)) return { kind: 'invalid' };
 
 	let currentState: LeadState | null;
 	try {
@@ -75,12 +71,19 @@ export async function runLeadTransition(
 		return { kind: 'unavailable' };
 	}
 	if (!currentState) return { kind: 'not_found' };
-	if (!canTransitionLead(currentState, input.toState, reason.value)) return { kind: 'invalid' };
+	if (currentState !== input.expectedState) return { kind: 'conflict' };
+	if (!isLeadState(input.toState)) return { kind: 'invalid' };
+
+	const reason = optionalText(input.reason);
+	const note = optionalText(input.note);
+	if (!reason.valid || !note.valid) return { kind: 'invalid' };
+	if (note.value && Array.from(note.value).length > 2000) return { kind: 'invalid' };
+	if (!canTransitionLead(input.expectedState, input.toState, reason.value)) return { kind: 'invalid' };
 
 	try {
 		const { error } = await dependencies.transition({
 			leadId: input.leadId,
-			expectedState: currentState,
+			expectedState: input.expectedState,
 			toState: input.toState,
 			actorUserId: input.actor.userId,
 			reasonCode: reason.value,

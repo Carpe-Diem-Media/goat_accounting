@@ -931,6 +931,7 @@ SELECT ok(
   END,
   'lead events cannot be deleted'
 );
+SELECT set_config('estimator.lead_reason_code', 'lifecycle_test', true);
 SELECT ok(
   CASE WHEN pg_catalog.to_regclass('estimator.leads') IS NULL THEN false ELSE
     pg_temp.throws_sqlstate(
@@ -940,6 +941,7 @@ SELECT ok(
   END,
   'lead lifecycle rejects invalid transitions'
 );
+SELECT set_config('estimator.lead_reason_code', '', true);
 SELECT ok(
   CASE WHEN pg_catalog.to_regprocedure('estimator.activate_pricing_model(uuid,uuid,jsonb)') IS NULL THEN false ELSE
     pg_temp.throws_sqlstate(
@@ -1160,7 +1162,7 @@ SET LOCAL ROLE service_role;
 SELECT ok(
   CASE WHEN pg_catalog.to_regclass('estimator.leads') IS NULL THEN false ELSE
     pg_temp.exec_sql($sql$SELECT estimator.transition_lead(
-      '60000000-0000-4000-8000-000000000001', 'CONTACTED',
+      '60000000-0000-4000-8000-000000000001', 'NEW', 'CONTACTED',
       '10000000-0000-4000-8000-000000000001', 'follow_up', 'Test note'
     )$sql$)
   END,

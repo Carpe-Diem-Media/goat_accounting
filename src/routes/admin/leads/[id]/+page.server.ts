@@ -70,6 +70,7 @@ export const actions: Actions = {
 		}
 
 		const targetState = formData.get('targetState');
+		const expectedState = formData.get('expectedState');
 		const reason = formData.get('reason');
 		const note = formData.get('note');
 		const formValues = {
@@ -77,8 +78,8 @@ export const actions: Actions = {
 			reason: typeof reason === 'string' ? reason : '',
 			note: typeof note === 'string' ? note : ''
 		};
-		if (typeof targetState !== 'string' || !(LEAD_STATES as readonly string[]).includes(targetState)) {
-			return fail(400, { message: 'Choose a valid next state.', ...formValues });
+		if (typeof expectedState !== 'string' || !(LEAD_STATES as readonly string[]).includes(expectedState)) {
+			return fail(400, { message: 'Refresh the page before changing this lead.', ...formValues });
 		}
 
 		let repository: ReturnType<typeof createLeadsRepository>;
@@ -92,7 +93,8 @@ export const actions: Actions = {
 		const result = await runLeadTransition(
 			{
 				leadId: params.id,
-				toState: targetState as LeadState,
+				expectedState: expectedState as LeadState,
+				toState: targetState,
 				actor: { userId: actor.userId, role: actor.role },
 				reason,
 				note
@@ -125,7 +127,7 @@ export const actions: Actions = {
 				});
 			case 'conflict':
 				return fail(409, {
-					message: 'The lead changed while you were saving. Review its current state and history, then try again.',
+					message: 'The lead changed after this form loaded. Refresh the page to review its current state and history before trying again.',
 					...formValues
 				});
 			case 'unavailable':

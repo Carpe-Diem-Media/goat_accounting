@@ -31,12 +31,13 @@ assert.equal(database.username, 'postgres', 'test cleanup requires the local pos
 const actors = {
 	admin: randomUUID(),
 	advisor: randomUUID(),
+	advisorB: randomUUID(),
 	viewer: randomUUID()
 };
 const modelId = randomUUID();
 const ruleId = randomUUID();
 const version = `99.0.0+${randomUUID().replaceAll('-', '')}.leadtest`;
-const testLeads = Array.from({ length: 4 }, () => ({ id: randomUUID(), estimateId: randomUUID() }));
+const testLeads = Array.from({ length: 5 }, () => ({ id: randomUUID(), estimateId: randomUUID() }));
 const seededUserIds = Object.values(actors);
 const seededEstimateIds = testLeads.map((lead) => lead.estimateId);
 let seeded = false;
@@ -144,11 +145,13 @@ INSERT INTO auth.users (id, aud, role, email, raw_app_meta_data, raw_user_meta_d
 VALUES
   ('${actors.admin}', 'authenticated', 'authenticated', '${actors.admin}@lead-test.example.invalid', '{}', '{}', now(), now()),
   ('${actors.advisor}', 'authenticated', 'authenticated', '${actors.advisor}@lead-test.example.invalid', '{}', '{}', now(), now()),
+  ('${actors.advisorB}', 'authenticated', 'authenticated', '${actors.advisorB}@lead-test.example.invalid', '{}', '{}', now(), now()),
   ('${actors.viewer}', 'authenticated', 'authenticated', '${actors.viewer}@lead-test.example.invalid', '{}', '{}', now(), now());
 INSERT INTO estimator.staff_users (user_id, role, state)
 VALUES
   ('${actors.admin}', 'admin', 'ACTIVE'),
   ('${actors.advisor}', 'advisor', 'ACTIVE'),
+  ('${actors.advisorB}', 'advisor', 'ACTIVE'),
   ('${actors.viewer}', 'viewer', 'ACTIVE');
 INSERT INTO estimator.pricing_models (
   id, version, name, engine_contract_version, confidence_high_max_points,
@@ -247,6 +250,12 @@ FROM estimator.lead_events WHERE lead_id = '${testLeads[2].id}'::uuid AND event_
 	assert.equal(await transition(testLeads[2].id, 'CLOSED_WON', 'CLOSED_LOST', actors.advisor, 'Synthetic test'), '23514');
 	await assertStateAndEventCount(testLeads[2].id, 'CLOSED_WON', 6);
 	process.stdout.write('PASS invalid, duplicate, terminal, missing-reason, and viewer requests: no write or event\n');
+
+	assert.equal(await transition(testLeads[4].id, 'NEW', 'CONTACTED', actors.advisor), '00000');
+	await assertStateAndEventCount(testLeads[4].id, 'CONTACTED', 2);
+	assert.equal(await transition(testLeads[4].id, 'NEW', 'CLOSED_LOST', actors.advisorB, 'No response'), '40001');
+	await assertStateAndEventCount(testLeads[4].id, 'CONTACTED', 2);
+	process.stdout.write('PASS older form after another advisor commits: stale RPC rejected with no additional event\n');
 
 	const privileges = await psql(`SELECT
   pg_catalog.has_function_privilege('anon', 'estimator.transition_lead(uuid,estimator.lead_state,estimator.lead_state,uuid,text,text)', 'EXECUTE')::text || ':' ||

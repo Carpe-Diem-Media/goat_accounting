@@ -56,6 +56,7 @@
 			<h2 id="lead-transition-heading" class="font-display min-w-0 break-words text-xl font-semibold">Update lead state</h2>
 			{#if data.availableTransitions.length > 0}
 				<form method="POST" action="?/transition" class="mt-4 grid gap-4 sm:grid-cols-2">
+					<input type="hidden" name="expectedState" value={data.lead.state} />
 					{#if form?.message}
 						<p class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive sm:col-span-2" role="alert">{form.message}</p>
 					{/if}
