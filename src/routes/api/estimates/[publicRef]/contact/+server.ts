@@ -1,4 +1,4 @@
-import { observeResponse } from '$lib/server/observability';
+import { newCorrelationId, observeProvider, observeResponse } from '$lib/server/observability';
 import { env as workerEnv } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 import { createEstimatorServiceClient } from '$lib/server/supabase/client.server';
@@ -15,6 +15,7 @@ export const prerender = false;
 export const POST: RequestHandler = async ({ request, params, platform }) => {
  const bindings = platform?.env ?? workerEnv;
  if (bindings?.ESTIMATE_CONTACT_ENABLED !== 'true' || !bindings.TURNSTILE_SECRET_KEY || !bindings.TURNSTILE_HOSTNAME) return contactUnavailable();
+ const requestId = newCorrelationId();
  try {
   const repository = createLeadsRepository(createEstimatorServiceClient(bindings));
   return await observeResponse('estimate_contact', handleContactPost(request, (body) => createLeadFromEstimate(params.publicRef, body, {
@@ -27,9 +28,9 @@ export const POST: RequestHandler = async ({ request, params, platform }) => {
      });
     } catch { console.error('Estimator notification phase outcome', { code: 'notification_setup_failed' }); }
    },
-   verify: (token) => verifyTurnstile(token, {
+   verify: (token) => observeProvider('estimate_contact', requestId, () => verifyTurnstile(token, {
     secret: bindings.TURNSTILE_SECRET_KEY!, hostname: bindings.TURNSTILE_HOSTNAME!
-   })
-  }), () => checkContactRateLimit(bindings.CONTACT_RATE_LIMITER, params.publicRef, request.headers.get('cf-connecting-ip'))));
+   }))
+  }), () => checkContactRateLimit(bindings.CONTACT_RATE_LIMITER, params.publicRef, request.headers.get('cf-connecting-ip'))), undefined, requestId);
  } catch { return contactUnavailable(); }
 };

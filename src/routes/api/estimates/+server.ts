@@ -1,4 +1,4 @@
-import { observeResponse } from '$lib/server/observability';
+import { logOperationalEvent, newCorrelationId, observeResponse } from '$lib/server/observability';
 import { env as workerEnv } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 import { createEstimate } from '$lib/server/estimator/create-estimate';
@@ -26,6 +26,7 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 	const bindings = platform?.env ?? workerEnv;
 	if (bindings?.ESTIMATOR_ENABLED !== 'true') return unavailable();
 
+	const requestId = newCorrelationId();
 	try {
 		const client = createEstimatorServiceClient(bindings);
 		const pricingRepository = createEstimatorRepository(client);
@@ -34,9 +35,18 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 			createEstimate(withRequestKey(body, idempotencyKey), {
 				getActivePricingModel: () => pricingRepository.getActivePricingModel(),
 				findByIdempotencyKey: (keyHash, fingerprintHash) => estimatesRepository.findByIdempotencyKey(keyHash, fingerprintHash),
-				persistEstimate: (snapshot) => estimatesRepository.createEstimateSnapshot(snapshot)
+				persistEstimate: async (snapshot) => {
+					const saved = await estimatesRepository.createEstimateSnapshot(snapshot);
+					const calculation = saved.calculation_snapshot;
+					const manualReview = calculation && typeof calculation === 'object' && !Array.isArray(calculation)
+						? calculation.manualReviewRequired : undefined;
+					logOperationalEvent({ route: 'estimate_create', outcome: 'success', request_id: requestId,
+						pricing_version: saved.pricing_model_version, engine_version: saved.engine_version,
+						manual_review: manualReview });
+					return saved;
+				}
 		})
-		));
+		), undefined, requestId);
 	} catch {
 		return unavailable();
 	}

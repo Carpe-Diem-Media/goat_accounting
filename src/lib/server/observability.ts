@@ -28,11 +28,24 @@ export function createOperationalEvent(input: Record<string, unknown>): Operatio
 export function logOperationalEvent(input: Record<string, unknown>, write: (event: OperationalEvent) => void = (event) => console.info(JSON.stringify(event))): void {
   try { const event = createOperationalEvent(input); if (event) write(event); } catch { /* Do not change request outcomes. */ }
 }
-export async function observeResponse(route: Route, response: Promise<Response>, write?: (event: OperationalEvent) => void): Promise<Response> {
+export function newCorrelationId(): string | undefined {
+  try { return crypto.randomUUID(); } catch { return undefined; }
+}
+export async function observeResponse(route: Route, response: Promise<Response>, write?: (event: OperationalEvent) => void, requestId = newCorrelationId()): Promise<Response> {
   const result = await response;
-  let requestId: string | undefined;
-  try { requestId = crypto.randomUUID(); } catch { /* Correlation is optional if entropy is unavailable. */ }
   logOperationalEvent({ route, outcome: result.ok ? 'success' : 'failure', request_id: requestId,
     ...(result.ok ? {} : { error_code: result.status < 500 ? 'invalid_request' : 'unavailable' }) }, write);
   return result;
+}
+export async function observeProvider<T extends { success: boolean; reason?: string }>(route: Route, requestId: string | undefined, operation: () => Promise<T>, write?: (event: OperationalEvent) => void): Promise<T> {
+  const started = Date.now();
+  try {
+    const result = await operation();
+    logOperationalEvent({ route, request_id: requestId, outcome: result.success ? 'success' : 'failure', provider_latency_ms: Date.now() - started,
+      ...(result.success ? {} : { error_code: result.reason === 'rejected' ? 'invalid_request' : 'provider_failed' }) }, write);
+    return result;
+  } catch (error) {
+    logOperationalEvent({ route, request_id: requestId, outcome: 'failure', provider_latency_ms: Date.now() - started, error_code: 'provider_failed' }, write);
+    throw error;
+  }
 }

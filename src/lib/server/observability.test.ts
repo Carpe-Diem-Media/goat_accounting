@@ -1,5 +1,5 @@
 import { expect, test } from 'bun:test';
-import { createOperationalEvent, logOperationalEvent } from './observability';
+import { createOperationalEvent, logOperationalEvent, observeProvider, observeResponse } from './observability';
 
 test('operational logs drop unapproved fields and invalid values', () => {
   const event = createOperationalEvent({ route: 'estimate_create', outcome: 'failure', request_id: 'bad@example.com', error_code: 'private@example.com', provider_latency_ms: 12, answers: 'private', url: '?token=secret' });
@@ -9,11 +9,23 @@ test('logging failure never interrupts the request', () => {
   expect(() => logOperationalEvent({ route: 'estimate_create', outcome: 'success' }, () => { throw new Error('unavailable'); })).not.toThrow();
 });
 
-import { observeResponse } from './observability';
 test('observation preserves the response and emits no request data', async () => {
   const events: unknown[] = [];
   const response = new Response('saved', { status: 201 });
   expect(await observeResponse('estimate_create', Promise.resolve(response), (event) => events.push(event))).toBe(response);
   expect(events).toHaveLength(1);
   expect(events[0]).toMatchObject({ route: 'estimate_create', outcome: 'success' });
+});
+
+test('provider observation preserves the result and correlates a safe latency event', async () => {
+  const events: unknown[] = [];
+  const result = { success: false, reason: 'unavailable', private: 'not logged' };
+  expect(await observeProvider('estimate_contact', 'c0ffee00-0000-4000-8000-000000000000', async () => result, (event) => events.push(event))).toBe(result);
+  expect(events).toHaveLength(1);
+  expect(events[0]).toMatchObject({ route: 'estimate_contact', outcome: 'failure', request_id: 'c0ffee00-0000-4000-8000-000000000000', error_code: 'provider_failed' });
+  expect(JSON.stringify(events)).not.toContain('not logged');
+});
+test('provider observation preserves thrown failures when logging also fails', async () => {
+  const failure = new Error('provider exception');
+  await expect(observeProvider('estimate_contact', undefined, async () => { throw failure; }, () => { throw new Error('logger failure'); })).rejects.toBe(failure);
 });
