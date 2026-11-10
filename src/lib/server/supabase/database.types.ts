@@ -188,6 +188,7 @@ export type Database = {
         Row: {
           actor_user_id: string | null
           created_at: string
+          event_order: number | null
           from_state: Database["estimator"]["Enums"]["lead_state"] | null
           id: string
           lead_id: string
@@ -198,6 +199,7 @@ export type Database = {
         Insert: {
           actor_user_id?: string | null
           created_at?: string
+          event_order?: number | null
           from_state?: Database["estimator"]["Enums"]["lead_state"] | null
           id?: string
           lead_id: string
@@ -208,6 +210,7 @@ export type Database = {
         Update: {
           actor_user_id?: string | null
           created_at?: string
+          event_order?: number | null
           from_state?: Database["estimator"]["Enums"]["lead_state"] | null
           id?: string
           lead_id?: string
@@ -538,6 +541,7 @@ export type Database = {
       transition_lead: {
         Args: {
           p_actor_user_id: string
+          p_expected_state: Database["estimator"]["Enums"]["lead_state"]
           p_lead_id: string
           p_note?: string
           p_reason_code?: string

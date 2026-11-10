@@ -36,6 +36,28 @@ const input = {
 } satisfies ContactInput;
 
 describe('createLeadsRepository', () => {
+	test('uses the transactional transition RPC with the verified staff actor', async () => {
+		const { client, calls } = fakeClient({ data: null, error: null });
+		const repository = createLeadsRepository(client);
+		await repository.transitionLead({
+			leadId: '40000000-0000-4000-8000-000000000001',
+			expectedState: 'NEW',
+			toState: 'CONTACTED',
+			actorUserId: '10000000-0000-4000-8000-000000000001',
+			reasonCode: 'follow up',
+			note: 'Called the prospect'
+		});
+
+		expect(calls).toEqual([['rpc', 'transition_lead', {
+			p_lead_id: '40000000-0000-4000-8000-000000000001',
+			p_expected_state: 'NEW',
+			p_to_state: 'CONTACTED',
+			p_actor_user_id: '10000000-0000-4000-8000-000000000001',
+			p_reason_code: 'follow up',
+			p_note: 'Called the prospect'
+		}]]);
+	});
+
 	test('looks up only the estimate id by public reference', async () => {
 		const { client, calls } = fakeClient({ data: { id: 'estimate-1' }, error: null });
 		await expect(createLeadsRepository(client).findEstimateId('public-1')).resolves.toBe('estimate-1');

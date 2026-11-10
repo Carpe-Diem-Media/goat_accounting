@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'bun:test';
-import { canTransitionLead } from './lifecycle';
+import { canTransitionLead, getLeadTransitions } from './lifecycle';
 
 const states = ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL_SENT', 'CLOSED_WON', 'CLOSED_LOST', 'CLOSED_NOT_A_FIT'] as const;
 const allowed: ReadonlyArray<readonly [typeof states[number], typeof states[number]]> = [
@@ -29,5 +29,19 @@ describe('canTransitionLead', () => {
 			expect(canTransitionLead(source, target, '  ')).toBe(false);
 			expect(canTransitionLead(source, target, 'not a fit')).toBe(true);
 		}
+	});
+});
+
+describe('getLeadTransitions', () => {
+	test('returns the exact product-spec transition graph for the detail form', () => {
+		expect(states.map((state) => [state, getLeadTransitions(state)])).toEqual([
+			['NEW', ['CONTACTED', 'CLOSED_LOST', 'CLOSED_NOT_A_FIT']],
+			['CONTACTED', ['QUALIFIED', 'CLOSED_LOST', 'CLOSED_NOT_A_FIT']],
+			['QUALIFIED', ['PROPOSAL_SENT', 'CLOSED_LOST', 'CLOSED_NOT_A_FIT']],
+			['PROPOSAL_SENT', ['CLOSED_WON', 'CLOSED_LOST']],
+			['CLOSED_WON', []],
+			['CLOSED_LOST', []],
+			['CLOSED_NOT_A_FIT', []]
+		]);
 	});
 });
