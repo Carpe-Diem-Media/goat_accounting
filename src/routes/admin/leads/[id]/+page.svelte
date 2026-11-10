@@ -1,8 +1,9 @@
 <script lang="ts">
-	let { data } = $props();
+	let { data, form } = $props();
 	const date = (value: string) => new Intl.DateTimeFormat('en-ZA', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(value));
 	const money = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR', maximumFractionDigits: 2 });
 	const range = (minimum: number, maximum: number) => `${money.format(minimum / 100)} – ${money.format(maximum / 100)}`;
+	const stateLabel = (state: string) => state.toLowerCase().replaceAll('_', ' ');
 </script>
 
 <svelte:head>
@@ -49,4 +50,86 @@
 			{/if}
 		</section>
 	</div>
+
+	{#if data.canManage}
+		<section class="mt-7 rounded-lg border border-border bg-card p-5 sm:p-6" aria-labelledby="lead-transition-heading">
+			<h2 id="lead-transition-heading" class="font-display min-w-0 break-words text-xl font-semibold">Update lead state</h2>
+			{#if data.availableTransitions.length > 0}
+				<form method="POST" action="?/transition" class="mt-4 grid gap-4 sm:grid-cols-2">
+					<input type="hidden" name="expectedState" value={data.lead.state} />
+					{#if form?.message}
+						<p class="rounded-md border border-destructive/40 bg-destructive/5 px-3 py-2 text-sm text-destructive sm:col-span-2" role="alert">{form.message}</p>
+					{/if}
+					<div>
+						<label for="lead-target-state" class="text-sm font-medium">Move to</label>
+						<select id="lead-target-state" name="targetState" required class="mt-1.5 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-not-allowed disabled:opacity-50">
+							<option value="" disabled selected={!form?.targetState}>Choose a state</option>
+							{#each data.availableTransitions as state}
+								<option value={state} selected={form?.targetState === state}>{stateLabel(state)}</option>
+							{/each}
+						</select>
+					</div>
+					<div>
+						<label for="lead-transition-reason" class="text-sm font-medium">Reason</label>
+						<input id="lead-transition-reason" name="reason" type="text" value={form?.reason ?? ''} aria-describedby="lead-transition-reason-help" class="mt-1.5 min-h-11 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring" />
+						<p id="lead-transition-reason-help" class="mt-1 text-xs text-muted-foreground">Required when moving the lead to a closed state.</p>
+					</div>
+					<div class="sm:col-span-2">
+						<label for="lead-transition-note" class="text-sm font-medium">Note <span class="font-normal text-muted-foreground">(optional)</span></label>
+						<textarea id="lead-transition-note" name="note" rows="3" maxlength="2000" class="mt-1.5 w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">{form?.note ?? ''}</textarea>
+					</div>
+					<div class="sm:col-span-2">
+						<button type="submit" class="inline-flex min-h-11 items-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px">Save state change</button>
+					</div>
+				</form>
+			{:else}
+				<p class="mt-3 text-sm text-muted-foreground">No further state changes are available for this lead.</p>
+			{/if}
+		</section>
+	{/if}
+
+	<section class="mt-7 rounded-lg border border-border bg-card p-5 sm:p-6" aria-labelledby="lead-history-heading">
+		<h2 id="lead-history-heading" class="font-display min-w-0 break-words text-xl font-semibold">Event history</h2>
+		{#if data.events.length > 0}
+			{#if data.events.some((event) => event.event_order === null)}
+				<p class="mt-3 text-sm text-muted-foreground">Some older events predate sequence tracking, so their exact order cannot be reconstructed.</p>
+			{/if}
+			<ol class="mt-4 space-y-4">
+				{#each data.events as event (event.id)}
+					<li class="rounded-md border border-border bg-background p-4">
+						<div class="flex flex-wrap items-start justify-between gap-2">
+							<p class="text-sm font-medium">
+								{#if event.from_state}
+									Moved from {stateLabel(event.from_state)} to {stateLabel(event.to_state)}
+								{:else}
+									Lead created as {stateLabel(event.to_state)}
+								{/if}
+							</p>
+							<time datetime={event.created_at} class="text-sm text-muted-foreground">{date(event.created_at)}</time>
+						</div>
+						<dl class="mt-3 grid gap-3 text-sm sm:grid-cols-2">
+							<div>
+								<dt class="text-muted-foreground">Actor user ID</dt>
+								<dd class="mt-1 break-all font-mono text-xs">{event.actor_user_id ?? 'System'}</dd>
+							</div>
+							{#if event.reason_code && event.reason_code !== 'state_changed' && event.reason_code !== 'lead_created'}
+								<div>
+									<dt class="text-muted-foreground">Reason</dt>
+									<dd class="mt-1 break-words">{event.reason_code}</dd>
+								</div>
+							{/if}
+							{#if event.note}
+								<div class="sm:col-span-2">
+									<dt class="text-muted-foreground">Note</dt>
+									<dd class="mt-1 whitespace-pre-wrap break-words">{event.note}</dd>
+								</div>
+							{/if}
+						</dl>
+					</li>
+				{/each}
+			</ol>
+		{:else}
+			<p class="mt-3 text-sm text-muted-foreground">No event history is available for this lead.</p>
+		{/if}
+	</section>
 </section>

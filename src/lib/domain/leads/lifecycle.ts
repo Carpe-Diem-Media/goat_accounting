@@ -22,6 +22,10 @@ const transitions: Readonly<Record<LeadState, readonly LeadState[]>> = {
 
 const closureStates = new Set<LeadState>(['CLOSED_WON', 'CLOSED_LOST', 'CLOSED_NOT_A_FIT']);
 
+export function getLeadTransitions(from: LeadState): readonly LeadState[] {
+	return transitions[from];
+}
+
 export function canTransitionLead(from: LeadState, to: LeadState, reason?: string): boolean {
 	if (!transitions[from].includes(to)) return false;
 	return !closureStates.has(to) || Boolean(reason?.trim());

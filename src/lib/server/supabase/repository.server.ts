@@ -130,21 +130,5 @@ export function createEstimatorRepository(client: EstimatorServiceClient) {
 			throw new Error(PRICING_ACTIVATION_INTEGRATION_BLOCKER);
 		},
 
-		/** Call only after the server has verified the actor's authenticated session, AAL2, and staff role. */
-		transitionLead(input: {
-			leadId: string;
-			toState: Database['estimator']['Enums']['lead_state'];
-			actorUserId: string;
-			reasonCode?: string;
-			note?: string;
-		}) {
-			return client.rpc('transition_lead', {
-				p_lead_id: input.leadId,
-				p_to_state: input.toState,
-				p_actor_user_id: input.actorUserId,
-				p_reason_code: input.reasonCode,
-				p_note: input.note
-			});
-		}
 	};
 }
