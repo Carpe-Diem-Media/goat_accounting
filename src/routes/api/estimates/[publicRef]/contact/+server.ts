@@ -1,3 +1,4 @@
+import { observeResponse } from '$lib/server/observability';
 import { env as workerEnv } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 import { createEstimatorServiceClient } from '$lib/server/supabase/client.server';
@@ -16,7 +17,7 @@ export const POST: RequestHandler = async ({ request, params, platform }) => {
  if (bindings?.ESTIMATE_CONTACT_ENABLED !== 'true' || !bindings.TURNSTILE_SECRET_KEY || !bindings.TURNSTILE_HOSTNAME) return contactUnavailable();
  try {
   const repository = createLeadsRepository(createEstimatorServiceClient(bindings));
-  return await handleContactPost(request, (body) => createLeadFromEstimate(params.publicRef, body, {
+  return await observeResponse('estimate_contact', handleContactPost(request, (body) => createLeadFromEstimate(params.publicRef, body, {
    ...repository,
    afterCommit: async (saved) => {
     try {
@@ -29,6 +30,6 @@ export const POST: RequestHandler = async ({ request, params, platform }) => {
    verify: (token) => verifyTurnstile(token, {
     secret: bindings.TURNSTILE_SECRET_KEY!, hostname: bindings.TURNSTILE_HOSTNAME!
    })
-  }), () => checkContactRateLimit(bindings.CONTACT_RATE_LIMITER, params.publicRef, request.headers.get('cf-connecting-ip')));
+  }), () => checkContactRateLimit(bindings.CONTACT_RATE_LIMITER, params.publicRef, request.headers.get('cf-connecting-ip'))));
  } catch { return contactUnavailable(); }
 };

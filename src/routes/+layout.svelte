@@ -19,6 +19,7 @@
   });
 
   const isAdmin = $derived(page.url.pathname.startsWith("/admin"));
+  const isEstimator = $derived(page.url.pathname === "/estimate" || page.url.pathname.startsWith("/estimate/"));
 
   beforeNavigate(({ from, to, cancel }) => {
     if (!to || !shouldReloadForAdminTransition(from?.url ?? null, to.url)) return;
@@ -39,7 +40,7 @@
   {/if}
 </svelte:head>
 
-{#if !isAdmin}
+{#if !isAdmin && !isEstimator}
   <noscript>
     <iframe src="https://www.googletagmanager.com/ns.html?id=GTM-KQ3W4DKN" title="" height="0" width="0" class="hidden"></iframe>
   </noscript>

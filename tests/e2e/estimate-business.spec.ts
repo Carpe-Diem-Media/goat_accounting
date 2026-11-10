@@ -527,6 +527,8 @@ test('reuses the completion idempotency key on retry after an unavailable API re
 	await page.getByRole('button', { name: 'View estimate', exact: true }).click();
 	await expect(page.getByRole('alert')).toContainText('could not be saved');
 	await expect(page.getByRole('button', { name: 'View estimate', exact: true })).toBeEnabled();
+	const failedEvents = await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []);
+	expect(failedEvents.some((event) => event.event === 'estimate_completed')).toBe(false);
 	await page.unroute('**/api/estimates');
 	const responsePromise = page.waitForResponse((response) => response.url().endsWith('/api/estimates'));
 	await page.getByRole('button', { name: 'View estimate', exact: true }).click();
@@ -535,6 +537,7 @@ test('reuses the completion idempotency key on retry after an unavailable API re
 	expect(idempotencyKeys).toHaveLength(2);
 	expect(idempotencyKeys[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
 	expect(idempotencyKeys[1]).toBe(idempotencyKeys[0]);
+	await expect.poll(() => page.evaluate(() => ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).filter((event) => event.event === 'estimate_completed').length)).toBe(1);
 });
 
 test('submits only once when the completion button receives a rapid double click', async ({ page }) => {
@@ -567,5 +570,44 @@ test('does not claim completion when the estimate API is unavailable', async ({ 
 	expect(draft.idempotencyKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
 	expect(draft.status).toBe('IN_PROGRESS');
 	expect(savedEstimates).toHaveLength(0);
+});
+
+test('estimator pages isolate GTM and emit only coarse in-memory events', async ({ page }) => {
+  const tagRequests: string[] = [];
+  page.on('request', (request) => { if (request.url().includes('googletagmanager.com')) tagRequests.push(request.url()); });
+  await page.goto('/estimate?email=private%40example.invalid');
+  await expect(page.getByRole('heading', { name: 'Estimate your accounting and tax support' })).toBeVisible();
+  await choose(page, 'Business accounting');
+  await advance(page);
+  const events = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
+  expect(events).toContainEqual({ event: 'estimate_started' });
+  expect(events).toContainEqual({ event: 'estimate_step_completed', calculator_type: 'business' });
+  expect(JSON.stringify(events)).not.toContain('private');
+  expect(tagRequests).toEqual([]);
+});
+
+test('saved-result events do not contain the estimate reference or answer values', async ({ page }) => {
+  const tagRequests: string[] = [];
+  page.on('request', (request) => { if (request.url().includes('googletagmanager.com')) tagRequests.push(request.url()); });
+  await finishDefaultBusinessAnswers(page);
+  const ref = await submitEstimate(page);
+  await expect.poll(() => page.evaluate(() => ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).some((event) => event.event === 'estimate_result_viewed'))).toBe(true);
+  const events = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
+  expect(events).toContainEqual({ event: 'estimate_completed', calculator_type: 'business' });
+  expect(events).toContainEqual(expect.objectContaining({ event: 'estimate_result_viewed', calculator_type: 'business' }));
+  expect(JSON.stringify(events)).not.toContain(ref);
+  expect(JSON.stringify(events)).not.toContain('Sole proprietor');
+  const pdf = page.getByRole('link', { name: 'Download PDF' });
+  await pdf.evaluate((link) => link.addEventListener('click', (event) => event.preventDefault()));
+  await pdf.click();
+  const afterDownload = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
+  expect(afterDownload).toContainEqual({ event: 'estimate_pdf_downloaded', calculator_type: 'business' });
+  expect(tagRequests).toEqual([]);
+});
+
+test('direct unauthenticated dashboard access never returns metrics', async ({ request }) => {
+  const response = await request.get('/admin/dashboard', { maxRedirects: 0 });
+  expect([303, 403, 503]).toContain(response.status());
+  expect(await response.text()).not.toContain('Catch-up opportunity');
 });
 }

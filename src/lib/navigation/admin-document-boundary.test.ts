@@ -52,3 +52,11 @@ describe('shouldReloadForAdminTransition', () => {
 		expect(shouldReloadForAdminTransition(new URL('https://goat.test/'), null)).toBe(false);
 	});
 });
+
+describe('estimator privacy document boundary', () => {
+  it('unloads public tracking when entering or leaving the estimator', () => {
+    expect(shouldReloadForAdminTransition(new URL('https://goat.test/services'), new URL('https://goat.test/estimate'))).toBe(true);
+    expect(shouldReloadForAdminTransition(new URL('https://goat.test/estimate/abc'), new URL('https://goat.test/services'))).toBe(true);
+    expect(shouldReloadForAdminTransition(new URL('https://goat.test/estimate'), new URL('https://goat.test/estimate/abc'))).toBe(false);
+  });
+});

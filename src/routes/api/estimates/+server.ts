@@ -1,3 +1,4 @@
+import { observeResponse } from '$lib/server/observability';
 import { env as workerEnv } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 import { createEstimate } from '$lib/server/estimator/create-estimate';
@@ -29,13 +30,13 @@ export const POST: RequestHandler = async ({ request, platform }) => {
 		const client = createEstimatorServiceClient(bindings);
 		const pricingRepository = createEstimatorRepository(client);
 		const estimatesRepository = createEstimatesRepository(client);
-		return handleEstimatePost(request, (body, idempotencyKey) =>
+		return observeResponse('estimate_create', handleEstimatePost(request, (body, idempotencyKey) =>
 			createEstimate(withRequestKey(body, idempotencyKey), {
 				getActivePricingModel: () => pricingRepository.getActivePricingModel(),
 				findByIdempotencyKey: (keyHash, fingerprintHash) => estimatesRepository.findByIdempotencyKey(keyHash, fingerprintHash),
 				persistEstimate: (snapshot) => estimatesRepository.createEstimateSnapshot(snapshot)
-			})
-		);
+		})
+		));
 	} catch {
 		return unavailable();
 	}

@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <script>
-      if (!window.location.pathname.startsWith("/admin")) {
+      if (!window.location.pathname.startsWith("/admin") && window.location.pathname !== "/estimate" && !window.location.pathname.startsWith("/estimate/")) {
         (function (w, d, s, l, i) {
           w[l] = w[l] || [];
           w[l].push({ "gtm.start": new Date().getTime(), event: "gtm.js" });

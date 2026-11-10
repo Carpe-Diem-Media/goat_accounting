@@ -257,6 +257,10 @@ if (typeof Bun === 'undefined') {
 			expect(activeState.events).toBe(1);
 			expect(activeState.deliveries).toEqual(selection.deliveries);
 			await expect(page.getByRole('status')).toContainText('Your request has been saved.');
+			const analytics = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
+			expect(analytics).toContainEqual({ event: 'estimate_contact_submitted' });
+			expect(JSON.stringify(analytics)).not.toContain('prospect@example.invalid');
+			expect(JSON.stringify(analytics)).not.toContain('Synthetic Prospect');
 			await expect(page.getByRole('status')).toContainText(/does not mean an email has been sent/i);
 			expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain('prospect@example.invalid');
 			expect(await page.evaluate(() => JSON.stringify(sessionStorage))).not.toContain('prospect@example.invalid');
@@ -279,6 +283,8 @@ if (typeof Bun === 'undefined') {
 		const failed = await submitContact(page);
 		expect(failed.status()).toBe(403);
 		await expect(page.getByRole('alert')).toContainText(/security check/i);
+		const eventsBeforeRetry = await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []);
+		expect(eventsBeforeRetry.some((event) => event.event === 'estimate_contact_submitted')).toBe(false);
 		await expect.poll(() => activeState.consumedTokens.size).toBe(1);
 		const retried = await submitContact(page);
 		expect(retried.status()).toBe(200);

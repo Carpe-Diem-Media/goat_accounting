@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
+	import { trackEstimatorEvent } from '$lib/estimator-analytics';
 	import ContactPanel from '$lib/ui/estimator/contact-panel.svelte';
 	import { goto } from '$app/navigation';
 	import type { PageProps } from './$types';
@@ -49,6 +50,7 @@
 	}
 
 	onMount(() => {
+		trackEstimatorEvent('estimate_result_viewed', { calculator_type: estimate.calculatorType, confidence: estimate.confidence });
 		// A result is available only after the server loader has returned the saved DTO.
 		try {
 			sessionStorage.removeItem('goat-accounting:business-estimator:v1');
@@ -198,6 +200,7 @@
 		<p class="text-sm leading-6 text-muted-foreground">No contact details were needed to view this estimate.</p>
 		<a
 			href={`/api/estimates/${estimate.publicRef}/pdf`}
+			onclick={() => trackEstimatorEvent('estimate_pdf_downloaded', { calculator_type: estimate.calculatorType })}
 			class="inline-flex min-h-12 items-center justify-center rounded-md border border-border bg-card px-6 py-3 text-sm font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
 		>
 			Download PDF
