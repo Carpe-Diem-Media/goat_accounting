@@ -355,6 +355,7 @@ export type Database = {
       }
       pricing_models: {
         Row: {
+          draft_revision: number
           activated_at: string | null
           activated_by: string | null
           checksum: string | null
@@ -373,6 +374,7 @@ export type Database = {
           version: string
         }
         Insert: {
+          draft_revision?: number
           activated_at?: string | null
           activated_by?: string | null
           checksum?: string | null
@@ -391,6 +393,7 @@ export type Database = {
           version: string
         }
         Update: {
+          draft_revision?: number
           activated_at?: string | null
           activated_by?: string | null
           checksum?: string | null
@@ -504,6 +507,14 @@ export type Database = {
       dashboard_metrics: {
         Args: { p_start: string; p_end: string }
         Returns: Json
+      }
+      save_pricing_draft: {
+        Args: { p_model_id: string; p_actor_user_id: string; p_expected_revision: number; p_high_max_points: number; p_good_max_points: number; p_rules: Json }
+        Returns: number
+      }
+      clone_pricing_model: {
+        Args: { p_source_id: string; p_version: string; p_actor_user_id: string }
+        Returns: string
       }
       activate_pricing_model: {
         Args: {

@@ -160,7 +160,7 @@ EXCEPTION WHEN OTHERS THEN
 END;
 $$;
 
-SELECT plan(86);
+SELECT plan(87);
 
 SELECT is(
   (
@@ -956,6 +956,7 @@ SELECT ok(
   'advisor cannot activate a pricing model'
 );
 
+SELECT set_config('estimator.test_historical_snapshot', (SELECT calculation_snapshot::text FROM estimator.estimates WHERE id = '40000000-0000-4000-8000-000000000001'), true);
 DO $$
 DECLARE
   active_count integer;
@@ -982,6 +983,12 @@ SELECT is(
   current_setting('estimator.test_active_model_count', true),
   '1',
   'replacing a model commits exactly one active model'
+);
+
+SELECT is(
+  (SELECT calculation_snapshot::text FROM estimator.estimates WHERE id = '40000000-0000-4000-8000-000000000001'),
+  current_setting('estimator.test_historical_snapshot', true),
+  'pricing replacement preserves the saved historical calculation snapshot'
 );
 
 SELECT ok(

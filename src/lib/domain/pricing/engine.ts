@@ -247,12 +247,22 @@ export function evaluatePricingRules(
 	answers: CanonicalEstimatorAnswers,
 	model: ValidatedPricingModel
 ): PricingRuleEvaluation {
+	if (model.state !== 'ACTIVE') throw new PricingEngineError('Only an active pricing model can evaluate pricing rules.');
+	return evaluateValidatedRules(answers, model);
+}
+
+/** Internal acceptance path. Drafts never pass the public estimate guard. */
+export function evaluateDraftPricingRules(answers: CanonicalEstimatorAnswers, model: ValidatedPricingModel): PricingRuleEvaluation {
+	if (model.state !== 'DRAFT') throw new PricingEngineError('Candidate evaluation requires a draft pricing model.');
+	return evaluateValidatedRules(answers, model);
+}
+
+function evaluateValidatedRules(answers: CanonicalEstimatorAnswers, model: ValidatedPricingModel): PricingRuleEvaluation {
 	if (model.engineVersion !== PRICING_ENGINE_VERSION) {
 		throw new PricingEngineError(
 			`Pricing model requires unsupported pricing engine version ${model.engineVersion}; this engine supports ${PRICING_ENGINE_VERSION}.`
 		);
 	}
-	if (model.state !== 'ACTIVE') throw new PricingEngineError('Only an active pricing model can evaluate pricing rules.');
 	const items = [
 		...(hasBusiness(answers) ? lineItemsForBranch(answers, model, 'business') : []),
 		...(hasPersonal(answers) ? lineItemsForBranch(answers, model, 'personal') : [])
