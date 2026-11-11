@@ -7,10 +7,13 @@ CREATE FUNCTION estimator.advance_pricing_model_revision() RETURNS trigger
 LANGUAGE plpgsql SET search_path = pg_catalog, estimator AS $$
 BEGIN
   IF OLD.state = 'DRAFT' AND NEW.state = 'DRAFT' THEN
-    IF NEW.draft_revision IS DISTINCT FROM OLD.draft_revision AND current_user <> 'postgres' THEN
-      RAISE EXCEPTION 'draft revision is database controlled' USING ERRCODE = '42501';
+    IF NEW.draft_revision IS DISTINCT FROM OLD.draft_revision THEN
+      IF current_user <> 'postgres' THEN
+        RAISE EXCEPTION 'draft revision is database controlled' USING ERRCODE = '42501';
+      END IF;
+      RETURN NEW;
     END IF;
-    IF (pg_catalog.to_jsonb(NEW) - 'draft_revision') IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - 'draft_revision') THEN
+    IF (pg_catalog.to_jsonb(NEW) - ARRAY['draft_revision','updated_at']) IS DISTINCT FROM (pg_catalog.to_jsonb(OLD) - ARRAY['draft_revision','updated_at']) THEN
       NEW.draft_revision := OLD.draft_revision + 1;
     END IF;
   END IF;
@@ -22,9 +25,15 @@ CREATE TRIGGER pricing_models_revision BEFORE UPDATE ON estimator.pricing_models
 
 CREATE FUNCTION estimator.advance_pricing_rules_revision() RETURNS trigger
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, estimator AS $$
+DECLARE model_id uuid := CASE WHEN TG_OP = 'DELETE' THEN OLD.pricing_model_id ELSE NEW.pricing_model_id END;
 BEGIN
-  UPDATE estimator.pricing_models SET draft_revision = draft_revision + 1
-  WHERE id = CASE WHEN TG_OP = 'DELETE' THEN OLD.pricing_model_id ELSE NEW.pricing_model_id END;
+  IF pg_catalog.current_setting('estimator.pricing_draft_save_model', true) = model_id::text THEN
+    RETURN NULL;
+  END IF;
+  IF TG_OP = 'UPDATE' AND (pg_catalog.to_jsonb(NEW) - 'updated_at') IS NOT DISTINCT FROM (pg_catalog.to_jsonb(OLD) - 'updated_at') THEN
+    RETURN NULL;
+  END IF;
+  UPDATE estimator.pricing_models SET draft_revision = draft_revision + 1 WHERE id = model_id;
   RETURN NULL;
 END;
 $$;
@@ -37,7 +46,7 @@ CREATE FUNCTION estimator.save_pricing_draft(
   p_high_max_points bigint, p_good_max_points bigint, p_rules jsonb
 ) RETURNS bigint
 LANGUAGE plpgsql SECURITY DEFINER SET search_path = pg_catalog, estimator, auth AS $$
-DECLARE model estimator.pricing_models%ROWTYPE; item jsonb; actual_count integer; updated_count integer;
+DECLARE model estimator.pricing_models%ROWTYPE; item jsonb; actual_count integer; matched_count integer; updated_count integer; changed_count integer := 0; prior_save_model text;
 BEGIN
   PERFORM 1 FROM estimator.staff_users WHERE user_id = p_actor_user_id AND role = 'admin' AND state = 'ACTIVE' FOR SHARE;
   IF NOT FOUND THEN RAISE EXCEPTION 'active administrator required' USING ERRCODE = '42501'; END IF;
@@ -54,7 +63,10 @@ BEGIN
   IF (SELECT count(DISTINCT (value->>'id')::uuid) FROM pg_catalog.jsonb_array_elements(p_rules)) <> actual_count THEN
     RAISE EXCEPTION 'duplicate rule identifiers' USING ERRCODE = '22023';
   END IF;
-  UPDATE estimator.pricing_models SET confidence_high_max_points = p_high_max_points, confidence_good_max_points = p_good_max_points WHERE id = p_model_id;
+  SELECT count(*) INTO matched_count
+    FROM pg_catalog.jsonb_array_elements(p_rules) AS submitted(value)
+    JOIN estimator.pricing_rules AS rule ON rule.id = (submitted.value->>'id')::uuid AND rule.pricing_model_id = p_model_id;
+  IF matched_count <> actual_count THEN RAISE EXCEPTION 'rule set changed' USING ERRCODE = '22023'; END IF;
   FOR item IN SELECT value FROM pg_catalog.jsonb_array_elements(p_rules) LOOP
     IF pg_catalog.jsonb_typeof(item) <> 'object' OR (item - ARRAY['id','label','parameters','conditions','enabled']) <> '{}'::jsonb
       OR pg_catalog.jsonb_typeof(item->'id') IS DISTINCT FROM 'string'
@@ -64,11 +76,23 @@ BEGIN
       OR pg_catalog.jsonb_typeof(item->'enabled') IS DISTINCT FROM 'boolean' THEN
       RAISE EXCEPTION 'invalid rule update' USING ERRCODE = '22023';
     END IF;
-    UPDATE estimator.pricing_rules SET label = item->>'label', parameters = item->'parameters', conditions = item->'conditions', enabled = (item->>'enabled')::boolean
-      WHERE id = (item->>'id')::uuid AND pricing_model_id = p_model_id;
-    GET DIAGNOSTICS updated_count = ROW_COUNT;
-    IF updated_count <> 1 THEN RAISE EXCEPTION 'rule does not belong to draft' USING ERRCODE = '22023'; END IF;
   END LOOP;
+  prior_save_model := pg_catalog.current_setting('estimator.pricing_draft_save_model', true);
+  PERFORM pg_catalog.set_config('estimator.pricing_draft_save_model', p_model_id::text, true);
+  FOR item IN SELECT value FROM pg_catalog.jsonb_array_elements(p_rules) LOOP
+    UPDATE estimator.pricing_rules AS rule SET label = item->>'label', parameters = item->'parameters', conditions = item->'conditions', enabled = (item->>'enabled')::boolean
+      WHERE rule.id = (item->>'id')::uuid AND rule.pricing_model_id = p_model_id
+        AND ROW(rule.label, rule.parameters, rule.conditions, rule.enabled)
+          IS DISTINCT FROM ROW(item->>'label', item->'parameters', item->'conditions', (item->>'enabled')::boolean);
+    GET DIAGNOSTICS updated_count = ROW_COUNT;
+    changed_count := changed_count + updated_count;
+  END LOOP;
+  PERFORM pg_catalog.set_config('estimator.pricing_draft_save_model', COALESCE(prior_save_model, ''), true);
+  IF changed_count > 0 OR model.confidence_high_max_points IS DISTINCT FROM p_high_max_points
+     OR model.confidence_good_max_points IS DISTINCT FROM p_good_max_points THEN
+    UPDATE estimator.pricing_models SET confidence_high_max_points = p_high_max_points,
+      confidence_good_max_points = p_good_max_points, draft_revision = model.draft_revision + 1 WHERE id = p_model_id;
+  END IF;
   SELECT draft_revision INTO model.draft_revision FROM estimator.pricing_models WHERE id = p_model_id;
   RETURN model.draft_revision;
 END;

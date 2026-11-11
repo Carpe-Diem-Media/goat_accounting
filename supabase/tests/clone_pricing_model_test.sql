@@ -105,9 +105,12 @@ BEGIN
   SELECT jsonb_agg(jsonb_build_object('id', id, 'label', label, 'parameters', parameters, 'conditions', conditions, 'enabled', enabled) ORDER BY sort_order)
     INTO updates FROM estimator.pricing_rules WHERE pricing_model_id = draft_id;
   new_revision := estimator.save_pricing_draft(draft_id, actor, revision, 0, 1, updates);
-  IF new_revision <= revision THEN RAISE EXCEPTION 'revision did not increase'; END IF;
+  IF new_revision <> revision THEN RAISE EXCEPTION 'no-op save advanced the draft revision'; END IF;
+  altered := jsonb_set(jsonb_set(updates, '{0,label}', to_jsonb(updates->0->>'label' || ' edited')), '{1,label}', to_jsonb(updates->1->>'label' || ' edited'));
+  new_revision := estimator.save_pricing_draft(draft_id, actor, revision, 1, 2, altered);
+  IF new_revision <> revision + 1 THEN RAISE EXCEPTION 'one aggregate save must advance revision exactly once'; END IF;
   BEGIN
-    PERFORM estimator.save_pricing_draft(draft_id, actor, revision, 0, 1, updates);
+    PERFORM estimator.save_pricing_draft(draft_id, actor, revision, 1, 2, altered);
     RAISE EXCEPTION 'stale edit accepted';
   EXCEPTION WHEN serialization_failure THEN NULL; END;
   altered := jsonb_set(updates, '{1,label}', 'null'::jsonb);
@@ -117,6 +120,14 @@ BEGIN
   EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
   IF (SELECT draft_revision FROM estimator.pricing_models WHERE id = draft_id) <> new_revision THEN
     RAISE EXCEPTION 'failed edit left a partial write';
+  END IF;
+  UPDATE estimator.pricing_rules SET label = label WHERE id = (updates->0->>'id')::uuid;
+  IF (SELECT draft_revision FROM estimator.pricing_models WHERE id = draft_id) <> new_revision THEN
+    RAISE EXCEPTION 'no-op direct rule update advanced the draft revision';
+  END IF;
+  UPDATE estimator.pricing_models SET confidence_high_max_points = confidence_high_max_points WHERE id = draft_id;
+  IF (SELECT draft_revision FROM estimator.pricing_models WHERE id = draft_id) <> new_revision THEN
+    RAISE EXCEPTION 'no-op direct model update advanced the draft revision';
   END IF;
   altered := jsonb_set(updates, '{1,id}', to_jsonb(replace(updates->0->>'id', '-', '')));
   BEGIN

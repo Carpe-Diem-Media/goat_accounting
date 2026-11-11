@@ -5,8 +5,36 @@ import { calculateReviewFlags } from '../../domain/estimator/review-flags';
 import { evaluateDraftPricingRules } from '../../domain/pricing/engine';
 import { validatePricingModel } from '../../domain/pricing/model';
 import { MoneyRangeSchema } from '../../domain/pricing/rule-schema';
+import type { CanonicalEstimatorAnswers } from '../../domain/estimator/answer-schema';
 
 const codes=z.array(z.string().min(1).max(100)).max(256).refine(values=>new Set(values).size===values.length);
+type CoverageCase={id:string;matches:(answers:CanonicalEstimatorAnswers)=>boolean};
+const business=(id:string,matches:(answers:Extract<CanonicalEstimatorAnswers,{calculatorType:'business'}>['business'])=>boolean):CoverageCase=>({
+ id,matches:answers=>answers.calculatorType==='business'&&matches(answers.business)
+});
+const personal=(id:string,matches:(answers:Extract<CanonicalEstimatorAnswers,{calculatorType:'personal'}>['personal'])=>boolean):CoverageCase=>({
+ id,matches:answers=>answers.calculatorType==='personal'&&matches(answers.personal)
+});
+/** The full required corpus from the Tech Spec and current canonical scenario contracts; no golden values are included. */
+export const REQUIRED_PRICING_SCENARIO_CASES:readonly CoverageCase[]=[
+ business('simple-current-sole-proprietor',a=>a.entityType==='sole_proprietor'&&a.booksStatus==='current_and_reconciled'),
+ business('current-pty-ltd-with-vat',a=>a.entityType==='pty_ltd'&&a.booksStatus==='current_and_reconciled'&&a.ongoingServices.includes('vat')),
+ business('current-sme-ten-employees',a=>a.booksStatus==='current_and_reconciled'&&a.employeeCount==='6_to_15'),
+ business('six-months-behind-clean-records',a=>a.booksStatus==='3_to_6_months'&&a.recordCondition==='clean_software'),
+ business('unknown-business-backlog-duration',a=>a.booksStatus==='not_sure'),
+ business('eighteen-months-incomplete-records',a=>a.booksStatus==='1_to_2_years'&&a.outstandingMonths===18&&a.recordCondition==='incomplete_or_messy'&&a.bankStatementsAvailableForFullPeriod==='no'),
+ business('eighteen-months-incomplete-records-statements-available',a=>a.booksStatus==='1_to_2_years'&&a.outstandingMonths===18&&a.recordCondition==='incomplete_or_messy'&&a.bankStatementsAvailableForFullPeriod==='yes'),
+ business('ecommerce-multiple-gateways',a=>a.complexityFactors.includes('ecommerce_payment_gateways')),
+ business('multiple-entities',a=>a.entityType==='multiple_entities'&&a.entityCount!==undefined),
+ business('multiple-entities-unknown-count',a=>a.entityType==='multiple_entities'&&a.entityCount===undefined),
+ personal('personal-salaried-taxpayer',a=>a.incomeSources.includes('salary')),
+ personal('rental-and-provisional-tax',a=>a.incomeSources.includes('rental_property')&&a.incomeSources.includes('provisional_tax')),
+ personal('high-risk-sars-dispute',a=>a.currentStatus==='sars_issue'&&a.sarsPosition==='objection_appeal'),
+ business('unknown-transaction-volume',a=>a.monthlyTransactionVolume==='not_sure'&&a.booksStatus==='current_and_reconciled'),
+ business('unknown-volume-with-major-backlog',a=>a.monthlyTransactionVolume==='not_sure'&&['6_to_12_months','1_to_2_years','over_2_years'].includes(a.booksStatus)),
+ business('moderate-uncertainty-good-confidence',a=>a.monthlyTransactionVolume==='under_50'&&a.financialAccounts==='not_sure'),
+ business('high-volume-boundary',a=>a.monthlyTransactionVolume==='over_750'&&a.financialAccounts==='7_plus')
+];
 const manifestSchema=z.object({
  modelId:z.string().min(1).max(100), definitionFingerprint:z.string().regex(/^[0-9a-f]{64}$/), revision:z.string().min(1).max(80),
  scenarios:z.array(z.object({id:z.string().min(1).max(100),answers:CanonicalEstimatorAnswersSchema,expected:z.object({
@@ -36,6 +64,8 @@ export async function runPricingCorpus(input: unknown, inputManifest: unknown, e
  const model=validatePricingModel({...draft,rules:draft.rules.filter((_rule,index)=>flags[index])});
  const manifest=manifestSchema.parse(inputManifest);
  if(manifest.modelId!==model.id || manifest.definitionFingerprint!==fingerprint) throw new Error('Manifest does not match the draft.');
+ const missingCases=REQUIRED_PRICING_SCENARIO_CASES.filter(required=>!manifest.scenarios.some(scenario=>scenario.id===required.id&&required.matches(scenario.answers))).map(required=>required.id);
+ if(missingCases.length) throw new Error(`Manifest lacks required scenario coverage: ${missingCases.join(', ')}`);
  const sorted=(values:readonly string[])=>[...values].sort();
  const same=(a:unknown,b:unknown)=>canonical(a)===canonical(b);
  const results=manifest.scenarios.map(scenario=>{
@@ -54,5 +84,5 @@ export async function runPricingCorpus(input: unknown, inputManifest: unknown, e
    return {id:scenario.id,passed:failures.length===0,failures};
   } catch {return {id:scenario.id,passed:false,failures:['evaluation']};}
  });
- return {modelId:model.id,modelVersion:model.version,fingerprint,manifestRevision:manifest.revision,passed:results.every(result=>result.passed),scenarios:results};
+ return {modelId:model.id,modelVersion:model.version,fingerprint,manifestRevision:manifest.revision,requiredScenarioCount:REQUIRED_PRICING_SCENARIO_CASES.length,passed:results.every(result=>result.passed),scenarios:results};
 }
