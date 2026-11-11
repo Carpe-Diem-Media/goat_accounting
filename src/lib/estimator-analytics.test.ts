@@ -28,8 +28,8 @@ test('a successful operation emits at most once for a mounted journey', () => {
   expect(events).toEqual([{ event: 'estimate_completed' }, { event: 'estimate_contact_submitted' }]);
 });
 
-test('browser relay omits credentials and referrer and sends only the validated event', async () => {
+test('disabled relay sends no network requests', async () => {
   const calls: unknown[] = [];
   await sendEstimatorRelay({ event: 'estimate_started' }, async (...args) => { calls.push(args); return new Response(null, { status: 503 }); });
-  expect(calls).toEqual([['/api/analytics/events', expect.objectContaining({ method: 'POST', credentials: 'omit', referrerPolicy: 'no-referrer', body: '{"event":"estimate_started"}' })]]);
+  expect(calls).toEqual([]);
 });

@@ -644,7 +644,7 @@ test('marketing to saved estimate navigation cannot leak references to external 
   expect(await page.evaluate(() => (window as Window & { __syntheticGtmLoaded?: boolean }).__syntheticGtmLoaded)).toBeUndefined();
   await finishDefaultBusinessAnswers(page, true);
   const ref = await submitEstimate(page);
-  await expect.poll(() => relay.length).toBeGreaterThan(0);
+  expect(relay).toEqual([]);
   expect(external.some((item) => item.url.includes(ref) || item.referer.includes(ref))).toBe(false);
   expect(relay.every((item) => !item.referer && !item.cookie)).toBe(true);
 });

@@ -21,7 +21,7 @@ jobs:
   validate:
     name: Bun 1.3.10 checks and Worker dry run
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v7
         with:
@@ -43,6 +43,17 @@ jobs:
 
       - name: Install Chromium for browser tests
         run: bunx playwright install --with-deps chromium
+
+      - name: Test estimator privacy and business browser flows
+        run: bunx playwright test --config=playwright.config.ts tests/e2e/estimate-business.spec.ts
+
+      - name: Install Supabase CLI for isolated local authentication tests
+        uses: supabase/setup-cli@v1
+        with:
+          version: 2.116.0
+
+      - name: Run authenticated dashboard browser tests
+        run: bun run test:dashboard:e2e
 
       - name: Check Svelte and TypeScript
         run: bun run check

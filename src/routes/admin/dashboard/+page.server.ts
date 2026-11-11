@@ -6,6 +6,7 @@ import type { PageServerLoad } from './$types';
 
 export const load: PageServerLoad = async (event) => {
   await requireStaff(event);
+  if (event.locals.dashboardEnabled !== true) throw error(404, 'Not found');
   event.setHeaders({ 'cache-control': 'private, no-store' });
   const period = dashboardPeriod(event.url.searchParams.get('days'));
   if (!event.locals.supabase) throw error(503, 'Dashboard is temporarily unavailable.');

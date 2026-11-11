@@ -12,6 +12,8 @@ export type EstimatorMetadata = Readonly<{
   confidence?: 'high' | 'good' | 'preliminary';
   manual_review?: boolean;
 }>;
+// Delivery stays disabled until destination and privacy approval.
+const ESTIMATOR_DELIVERY_ENABLED: boolean = false;
 type SafeEvent = { event: EstimatorEventName } & EstimatorMetadata;
 
 /** Construct a fresh payload; unknown keys and values can never reach the data layer. */
@@ -47,6 +49,7 @@ export function createEstimatorOnceTracker(send: (event: SafeEvent) => void = pu
 }
 
 export async function sendEstimatorRelay(event: SafeEvent, fetcher: (input: string, init: RequestInit) => Promise<Response> = (input, init) => fetch(input, init)): Promise<void> {
+  if (!ESTIMATOR_DELIVERY_ENABLED) return;
   try {
     const safe = createEstimatorEvent(event.event, event);
     if (!safe) return;

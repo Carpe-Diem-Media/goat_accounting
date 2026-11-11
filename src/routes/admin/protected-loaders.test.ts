@@ -85,9 +85,12 @@ function createRequest(options: {
 	assurance?: { currentLevel: string | null; nextLevel: string | null };
 	path?: string;
 	params?: Record<string, string>;
+	dashboardEnabled?: boolean;
+	rpcFailure?: boolean;
 } = {}) {
 	const privateQueries: string[] = [];
 	const client = {
+        rpc: async () => options.rpcFailure ? { data: null, error: {} } : { data: { completed: 0, today: 0, with_contact: 0, manual_review: 0, new_leads: 0, failed_notifications: null, catchup_min_cents: '0', catchup_max_cents: '0', ongoing_min_cents: '0', ongoing_max_cents: '0' }, error: null },
 		auth: {
 			getClaims: async () => ({
 				data: { claims: options.claims === undefined ? { sub: userId, aal: 'aal2' } : options.claims },
@@ -160,7 +163,8 @@ function createRequest(options: {
 	return {
 		privateQueries,
 		event: {
-			locals: { supabase: client },
+			locals: { supabase: client, dashboardEnabled: options.dashboardEnabled ?? false },
+            setHeaders: () => {},
 			url: new URL(`https://goat.test${options.path ?? '/admin/estimates'}`),
 			params: options.params ?? {}
 		} as unknown as RequestEvent
@@ -237,3 +241,37 @@ for (const loader of protectedLoaders) {
 		});
 	});
 }
+
+describe('dashboard release gate', () => {
+  it('denies an authorized viewer when the release binding is absent', async () => {
+    const { event, privateQueries } = createRequest({ path: '/admin/dashboard' });
+    const { load } = await import('./dashboard/+page.server');
+    await expectDenied(load as unknown as TestLoad, event, { status: 404 });
+    expect(privateQueries).toEqual([]);
+  });
+});
+
+
+describe('enabled dashboard access', () => {
+  it('allows an authenticated AAL2 viewer and returns aggregate metrics', async () => {
+    const { event } = createRequest({ path: '/admin/dashboard', dashboardEnabled: true });
+    const { load } = await import('./dashboard/+page.server');
+    const result = await (load as unknown as TestLoad)(event) as { metrics: { completed: number } };
+    expect(result.metrics.completed).toBe(0);
+  });
+  it('denies AAL1 and inactive staff when enabled', async () => {
+    const { load } = await import('./dashboard/+page.server');
+    for (const scenario of [
+      { claims: { sub: userId, aal: 'aal1' }, assurance: { currentLevel: 'aal1', nextLevel: 'aal1' }, denial: { status: 303, location: '/admin/login/mfa' } },
+      { staffState: 'SUSPENDED', denial: { status: 403 } }
+    ]) {
+      const { event } = createRequest({ ...scenario, path: '/admin/dashboard', dashboardEnabled: true });
+      await expectDenied(load as unknown as TestLoad, event, scenario.denial);
+    }
+  });
+  it('returns 503 when its RPC fails', async () => {
+    const { event } = createRequest({ path: '/admin/dashboard', dashboardEnabled: true, rpcFailure: true });
+    const { load } = await import('./dashboard/+page.server');
+    await expectDenied(load as unknown as TestLoad, event, { status: 503 });
+  });
+});

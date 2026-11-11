@@ -25,13 +25,15 @@
 				<a class="font-display text-lg font-semibold tracking-tight focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px" href="/admin/estimates">
 					Goat Accounting <span class="font-sans text-sm font-medium text-muted-foreground">Staff</span>
 				</a>
-				<nav aria-label="Staff navigation" class="flex items-center gap-2 text-sm sm:gap-4">
+				<nav aria-label="Staff navigation" class="flex flex-wrap items-center justify-end gap-2 text-sm sm:gap-4">
 					<span class="hidden text-sm text-muted-foreground sm:inline">Read-only access</span>
+					{#if data.dashboardEnabled}
 					<a
 						href="/admin/dashboard"
 						aria-current={page.url.pathname.startsWith('/admin/dashboard') ? 'page' : undefined}
 						class="inline-flex min-h-11 items-center rounded-md px-3 py-2 font-medium text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px aria-[current=page]:bg-muted aria-[current=page]:text-foreground"
 					>Dashboard</a>
+					{/if}
 					<a
 						href="/admin/estimates"
 						aria-current={page.url.pathname.startsWith('/admin/estimates') ? 'page' : undefined}
