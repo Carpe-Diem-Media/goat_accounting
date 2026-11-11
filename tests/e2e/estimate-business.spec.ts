@@ -642,6 +642,9 @@ test('marketing to saved estimate navigation cannot leak references to external 
   await page.getByRole('link', { name: 'Synthetic estimator link' }).click();
   await expect(page).toHaveURL(`${APP_ORIGIN}/estimate`);
   expect(await page.evaluate(() => (window as Window & { __syntheticGtmLoaded?: boolean }).__syntheticGtmLoaded)).toBeUndefined();
+  await expect.poll(() => page.evaluate(() =>
+    ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).some((event) => event.event === 'estimate_started')
+  ), { timeout: 15_000 }).toBe(true);
   await finishDefaultBusinessAnswers(page, true);
   const ref = await submitEstimate(page);
   expect(relay).toEqual([]);
