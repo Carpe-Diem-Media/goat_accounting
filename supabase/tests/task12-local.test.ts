@@ -134,11 +134,12 @@ test('requires the disposable migration copies to match repository SQL byte for 
 	}
 });
 
-test('rejects a stale identity, wrong loopback endpoint, changed migration set, or non-loopback binding', () => {
+test('accepts the assigned randomized loopback endpoints and rejects stale identity, endpoint, migration or binding', () => {
 	const fixture = targetFixture();
 	const target = parseTask12Target(fixture, `${fixture.workdir}/task12-target.json`);
 	const runtime = runtimeFixture(target);
 
+	expect(runtime.apiUrl).toBe('http://127.0.0.1:58441');
 	expect(() => assertTask12Testable(target)).not.toThrow();
 	expect(() => assertTask12RuntimeMatches(target, runtime)).not.toThrow();
 	expect(() => assertTask12RuntimeMatches(target, { ...runtime, systemIdentifier: '987654321' })).toThrow();
