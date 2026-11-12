@@ -52,6 +52,63 @@ The desktop admin shell visibly says **“Read-only access”** for the authenti
 
 The browser test's `finally` cleanup completed: a read-only check of the disposable database found **0** matching pricing fixture models and **0** synthetic browser users. `.dev.vars` was removed, the local Worker stopped, and no source, SQL, navigation or hosted state was changed. Activation remains blocked; independent manifest approval and first-model bootstrap remain owner decisions.
 
+### T12R5 follow-up — 2026-11-11
+
+The bounded browser attempt used Bun 1.3.10:
+
+```text
+mise exec bun@1.3.10 -- env GOAT_TASK12_BROWSER_TESTS=1 bun test supabase/tests/pricing_browser.test.ts
+```
+
+It failed before browser launch or fixture setup: **0 passed, 1 failed**. `task12Local()` could not read `/tmp/goat-task12-disposable-20261110/supabase/config.toml` (`ENOENT`). The expected disposable project directory and its saved cluster identity marker are absent. A read-only Docker inspection found the running containers labelled for `goat-task12-disposable-20261110`, the expected eight migration versions, and no pricing models in the browser fixture version range. The current runtime system identifier could be queried, but the missing marker prevents comparison with the identity recorded when the test target was provisioned. I did not recreate the project metadata or bypass the helper's fail-closed check.
+
+The identity recovery check found no Task 12 config or marker backup in the expected project path or the inspected repository scope. The database container mounts only its PostgreSQL data volume; it does not retain the Supabase project configuration. The repository's other pinned cluster identity is in `supabase/concurrency/task9-notifications.test.ts` and belongs to `goat-task7-contract-isolated` at API port 57321 with a different migration set. It cannot authenticate the Task 12 database. The matching Task 12 Docker labels, port mapping and current migration list corroborate the running stack but do not recover its original cluster identity.
+
+The test stopped before any auth or HTTP request. It created no synthetic user or pricing fixture. R5 therefore produced no screenshots, stale-revision browser evidence, accessibility review or Hallmark render. The tracked `pricing_browser.test.ts` contains none of the temporary R4 screenshot instrumentation, so there was no action-URL route reset in the current test to correct. The stable draft route must be captured before the invalid-save response when that evidence extension is next added. No Hallmark attempt was made because there was no authenticated local session to render.
+
+R4's failed attempt and its lost `/tmp` screenshots remain recorded above. The authenticated UI gate is still **BLOCKED — NOT VERIFIED**. The original Task 12 cluster identity could not be recovered or matched. At the time of this R5 report, the next safe option was an explicitly authorized, separate disposable-project bootstrap that records a new identity and verifies the accepted eight migrations before any fixtures run. Do not backfill the old marker from the running database or reset or substitute it. The owner later authorized a new isolated project, as recorded in T12R6 below. The shared navigation defect, unexplained prior AAL1 staff-query 401, independent manifest approval and first-model bootstrap decision remain open.
+
+### T12R6 follow-up — 2026-11-11
+
+The owner authorized a new isolated local project and cleanup of only that project. I did not change the existing `goat-task12-disposable-20261110` container, volume, database, or its missing identity marker. No hosted endpoint was contacted.
+
+The reusable create/verify/cleanup commands are in `supabase/tests/task12-disposable.ts`; `supabase/tests/task12-local.ts` now requires an explicit `GOAT_TASK12_LOCAL_TARGET`, validates the saved identity and exact migrations, and rejects unexpected Docker labels, resources, endpoints or host bindings. The helper tests in `supabase/tests/task12-local.test.ts` cover missing targets, malformed manifests, duplicate ports, changed identities, wrong bindings, stale migrations and byte-level differences in copied migration SQL.
+
+The first three newly created R6 projects were cleaned after harness preflight failures: `goat-task12-r6-20261111-57204680`, `goat-task12-r6-20261111-af754f7c` and `goat-task12-r6-20261111-a9690b17`. The first attempt did not pass its target path to its in-process verifier. The next two exposed a remaining old Docker-label filter in the verifier. The fourth attempt passed after that filter was corrected. Each failed project used a unique project ID, path, loopback port block and labelled network; its containers, volumes and network were removed. No fixtures were written to those attempts.
+
+The verified project was `goat-task12-r6-20261111-4da7c915` in `/tmp/goat-task12-r6-20261111-4da7c915`, created from repository commit `964a133905fc0a56a60195288da7f2b138870a91`. The harness saved PostgreSQL system identifier `7706931464653975589` to `cluster-id` immediately after startup, before applying migrations. The database container was `8cbe6f5e84e7dabbf86be4f11c2f4e2c81d500ee50c53451d90f74e88d7dc9b1`, created at `2026-11-11T15:10:12.960048759Z`; its Compose project and Supabase CLI project labels matched the new project ID, and its workdir label matched the new project path. Its PostgreSQL volume was created at `2026-11-11T17:10:12+02:00`; the second project volume was the matching Supabase storage volume.
+
+The project used API port **58567** and PostgreSQL port **58568**, with separate assigned ports for shadow DB, Studio, local mail, pooler, analytics and edge inspector. The custom Docker bridge `task12-r6-20261111-4da7c915` used `host_binding_ipv4=127.0.0.1`. The runtime verifier inspected all 12 project containers and accepted only unique published host ports bound to `127.0.0.1`; the API and database URLs matched their assigned ports. The target manifest, container, attached volume, network, system identifier and migration history matched during two explicit `verify` runs.
+
+All eight SQL migration files were copied byte for byte from the worktree; the aggregate SHA-256 over sorted names and contents was `c24212645fbe7a34ba8a63bca86ac4bb8f0e363fdd4e3e16642881a937fbbd7c`. `supabase migration up --local --yes --workdir /tmp/goat-task12-r6-20261111-4da7c915` applied the migrations. A direct local PostgreSQL query and the guarded verifier both returned exactly `20261103183011,20261105062524,20261105090000,20261105170000,20261105180000,20261110150000,20261110165306,20261111045053`. The database contained zero pricing models; no test fixture or pricing activation ran.
+
+Cleanup ran `supabase stop --no-backup` for the new workdir, removed its labelled bridge and verified that its 12 containers, two volumes and network no longer existed. The sanitized target manifest remains under `/tmp` with state `CLEANED`. A post-cleanup read-only check of the original Task 12 environment matched its prior container ID and creation time, PostgreSQL volume and creation time, system identifier, and eight migration versions. Its original identity remains unproven because its saved marker is still absent.
+
+Using Bun 1.3.10, the final full-suite run reported **335 passed, 12 skipped, 0 failed** (347 tests, 1,888 assertions). `bun run check` reported 0 errors and 0 warnings, and `bun run build` completed with Wrangler generated types current. A direct strict TypeScript check of the two new test helpers also passed. One intervening full-suite run reported 333 passed, 12 skipped and 2 failures in `tests/contact-worker-response.test.ts`: its first invalid-token request received 429 instead of 400, and the subsequent state assertion saw no writes. The same two tests passed when run alone (2 tests, 14 assertions), and a later complete suite passed. The interaction between repeated full-suite runs and the local Worker rate-limit test remains unexplained. No unrelated test or application code was changed. The 12 skips remain the four opt-in Task 12 database/browser tests and eight inherited Task 9 PostgREST tests listed above. Pricing activation concurrency and browser acceptance were not run because they activate a synthetic pricing model; no pricing activation was authorized.
+
+The commands used for the final code checks were:
+
+```text
+mise exec bun@1.3.10 -- bun test
+mise exec bun@1.3.10 -- bun run check
+mise exec bun@1.3.10 -- bun run build
+mise exec bun@1.3.10 -- bunx tsc --ignoreConfig --noEmit --strict --target ES2022 --module esnext --moduleResolution bundler --types bun,node --skipLibCheck supabase/tests/task12-local.ts supabase/tests/task12-disposable.ts
+GOAT_TASK12_LOCAL_TARGET=/tmp/goat-task12-r6-20261111-4da7c915/task12-target.json mise exec bun@1.3.10 -- bun supabase/tests/task12-disposable.ts verify
+GOAT_TASK12_LOCAL_TARGET=/tmp/goat-task12-r6-20261111-4da7c915/task12-target.json mise exec bun@1.3.10 -- bun supabase/tests/task12-disposable.ts cleanup
+```
+
+This verifies the R6 local environment identity and migration acceptance. It does not resolve the authenticated screenshots, accessibility review or Hallmark render gate. PR #18 remains a draft and **NOT VERIFIED FOR MERGE**. The shared navigation integration, AAL1 availability issue, commercial-manifest approval and first-model bootstrap remain open.
+
 The source keeps activation blocked. Local SQL inspection confirmed the clone and save RPCs are owned by `postgres`, are `SECURITY DEFINER`, and grant execution only to `service_role`; `anon` and `authenticated` cannot execute them. The activation RPC remains non-executable by `anon`, `authenticated` and `service_role`. No hosted migration, production pricing activation, deployment or feature-flag change occurred.
 
 Before merge, complete the visual and accessibility review above, obtain exact-head CI success and independent review. The workflow for independent commercial-manifest approval and the procedure for creating the first approved DRAFT require owner decisions. Synthetic prices must not be seeded into the hosted project.
+
+### T12R6B follow-up — 2026-11-12
+
+The focused harness review found that the prior cleanup path selected Docker resources by project labels but did not compare the complete live container and volume sets with the saved ownership record before stopping the stack. New project IDs use 128 random bits. The harness creates the project directory exclusively, records resources after startup, checks exact container IDs/names and volume names/creation times before cleanup, and requires the Supabase and Compose project-label sets to match. It also verifies the network's project and `managed-by` labels. After the initial ownership snapshot is saved, cleanup rejects any changed resource set. A stop failure prevents volume and network removal; a volume-removal failure prevents network removal and the `CLEANED` state.
+
+The focused test file covers missing-target preflight, malformed identity, copied migration mismatch, stale system identity, unexpected cleanup resources, an existing workdir, stop failure and volume-removal failure. `mise exec bun@1.3.10 -- bun test supabase/tests/task12-local.test.ts` passed **9 tests, 0 failures, 30 assertions**. The disposable target is rejected unless its configuration, eight migration files, system identifier, migration history, Docker container, volume, network and loopback bindings match the recorded identity. Cleanup refuses symlinked target paths and requires all project volumes to carry both expected ownership labels.
+
+`mise exec bun@1.3.10 -- bun run check` reported 0 errors and 0 warnings. `mise exec bun@1.3.10 -- bun run build` passed, with Wrangler generated types current. `git diff --check` passed.
+
+The successful Docker lifecycle and cleanup recorded under T12R6 used the earlier cleanup code. The R6B ownership snapshot checks have not been rerun against Docker. This follow-up uses the requested focused tests, Svelte check, build and diff check only. The report retains the intermittent contact Worker test failure and later full-suite pass recorded above.
