@@ -175,6 +175,57 @@ test('rejects cleanup snapshots containing containers or volumes the current har
 	expect(() => assertOwnedResourceSnapshot(owned, { containers: owned.containers, volumes: [] })).toThrow();
 });
 
+async function expectCleanupToRejectBeforeStop(verifyOwnership: () => void): Promise<void> {
+	const calls: string[] = [];
+	await expect(completeCleanup('TESTING', {
+		verifyOwnership: () => { calls.push('verify'); verifyOwnership(); },
+		stopProject: async () => { calls.push('stop'); return true; },
+		markStopped: async () => { calls.push('mark-stopped'); },
+		remainingContainers: () => '',
+		clearRecordedContainers: async () => {},
+		removeVolumes: () => 0,
+		removeNetwork: () => {},
+		markCleaned: async () => {}
+	})).rejects.toThrow();
+	expect(calls).toEqual(['verify']);
+}
+
+test('does not stop a project when the ownership snapshot is empty', async () => {
+	const empty = { containers: [], volumes: [] };
+	await expectCleanupToRejectBeforeStop(() => assertOwnedResourceSnapshot(empty, empty));
+});
+
+test('does not stop a project when the ownership snapshot omits its database container', async () => {
+	const projectId = 'goat-task12-r6-20261111-aabbccdd';
+	const missingDatabase = {
+		containers: [{ id: 'a'.repeat(64), name: `supabase_auth_${projectId}` }],
+		volumes: [{ name: `supabase_db_${projectId}`, createdAt: '2026-11-11T10:00:00.000Z' }]
+	};
+	await expectCleanupToRejectBeforeStop(() => assertOwnedResourceSnapshot(missingDatabase, missingDatabase));
+});
+
+test('does not stop a project when the ownership snapshot omits its PostgreSQL volume', async () => {
+	const projectId = 'goat-task12-r6-20261111-aabbccdd';
+	const missingVolume = {
+		containers: [{ id: 'a'.repeat(64), name: `supabase_db_${projectId}` }],
+		volumes: []
+	};
+	await expectCleanupToRejectBeforeStop(() => assertOwnedResourceSnapshot(missingVolume, missingVolume));
+});
+
+test('does not stop a project when the live snapshot differs from the recorded identities', async () => {
+	const projectId = 'goat-task12-r6-20261111-aabbccdd';
+	const recorded = {
+		containers: [{ id: 'a'.repeat(64), name: `supabase_db_${projectId}` }],
+		volumes: [{ name: `supabase_db_${projectId}`, createdAt: '2026-11-11T10:00:00.000Z' }]
+	};
+	const observed = {
+		containers: [{ id: 'b'.repeat(64), name: `supabase_db_${projectId}` }],
+		volumes: recorded.volumes
+	};
+	await expectCleanupToRejectBeforeStop(() => assertOwnedResourceSnapshot(recorded, observed));
+});
+
 test('does not claim or remove a project directory that already exists', async () => {
 	const projectId = `goat-task12-r6-20261112-${randomBytes(16).toString('hex')}`;
 	const path = `/tmp/${projectId}`;
@@ -192,6 +243,7 @@ test('does not claim or remove a project directory that already exists', async (
 test('does not remove volumes or the network when the Supabase stop command fails', async () => {
 	const calls: string[] = [];
 	await expect(completeCleanup('TESTING', {
+		verifyOwnership: () => { calls.push('verify'); },
 		stopProject: async () => { calls.push('stop'); return false; },
 		markStopped: async () => { calls.push('mark-stopped'); },
 		remainingContainers: () => { calls.push('check-containers'); return ''; },
@@ -200,12 +252,13 @@ test('does not remove volumes or the network when the Supabase stop command fail
 		removeNetwork: () => { calls.push('remove-network'); },
 		markCleaned: async () => { calls.push('mark-cleaned'); }
 	})).rejects.toThrow();
-	expect(calls).toEqual(['stop']);
+	expect(calls).toEqual(['verify', 'stop']);
 });
 
 test('does not remove the network or mark the project cleaned when volume removal fails', async () => {
 	const calls: string[] = [];
 	await expect(completeCleanup('TESTING', {
+		verifyOwnership: () => { calls.push('verify'); },
 		stopProject: async () => { calls.push('stop'); return true; },
 		markStopped: async () => { calls.push('mark-stopped'); },
 		remainingContainers: () => { calls.push('check-containers'); return ''; },
@@ -214,7 +267,7 @@ test('does not remove the network or mark the project cleaned when volume remova
 		removeNetwork: () => { calls.push('remove-network'); },
 		markCleaned: async () => { calls.push('mark-cleaned'); }
 	})).rejects.toThrow();
-	expect(calls).toEqual(['stop', 'mark-stopped', 'check-containers', 'clear-containers', 'remove-volumes']);
+	expect(calls).toEqual(['verify', 'stop', 'mark-stopped', 'check-containers', 'clear-containers', 'remove-volumes']);
 });
 
 test('reports safe startup failure stage, operation, exit code and classification without stderr', () => {

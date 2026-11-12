@@ -135,7 +135,12 @@ export function assertOwnedResourceSnapshot(expected: ResourceSnapshot, observed
 	const observedContainers = observed.containers.map(({ id, name }) => `${id}\0${name}`).sort();
 	const expectedVolumes = expected.volumes.map(({ name, createdAt }) => `${name}\0${createdAt}`).sort();
 	const observedVolumes = observed.volumes.map(({ name, createdAt }) => `${name}\0${createdAt}`).sort();
+	const databaseContainers = expected.containers.filter(({ name }) => name.startsWith('supabase_db_'));
 	if (
+		expected.containers.length === 0 ||
+		expected.volumes.length === 0 ||
+		databaseContainers.length !== 1 ||
+		expected.volumes.filter(({ name }) => name === databaseContainers[0]?.name).length !== 1 ||
 		new Set(expected.containers.map(({ id }) => id)).size !== expected.containers.length ||
 		new Set(expected.containers.map(({ name }) => name)).size !== expected.containers.length ||
 		new Set(expected.volumes.map(({ name }) => name)).size !== expected.volumes.length ||
@@ -145,6 +150,7 @@ export function assertOwnedResourceSnapshot(expected: ResourceSnapshot, observed
 }
 
 type CleanupActions = {
+	verifyOwnership: () => void;
 	stopProject: () => Promise<boolean>;
 	markStopped: () => Promise<void>;
 	remainingContainers: () => string;
@@ -154,12 +160,22 @@ type CleanupActions = {
 	markCleaned: () => Promise<void>;
 };
 
+async function stopProjectWithVerifiedOwnership(
+	verifyOwnership: () => void,
+	stopProject: () => Promise<boolean>
+): Promise<boolean> {
+	verifyOwnership();
+	return stopProject();
+}
+
 export async function completeCleanup(
 	state: 'TESTING' | 'STOPPED',
 	actions: CleanupActions
 ): Promise<number> {
 	if (state === 'TESTING') {
-		if (!(await actions.stopProject())) throw new Error(SAFE_FAILURE);
+		if (!(await stopProjectWithVerifiedOwnership(actions.verifyOwnership, actions.stopProject))) {
+			throw new Error(SAFE_FAILURE);
+		}
 		await actions.markStopped();
 	}
 	if (actions.remainingContainers()) throw new Error(SAFE_FAILURE);
@@ -390,7 +406,14 @@ function assertCurrentProjectResourcesMatch(
 	workdir: string,
 	expected: ResourceSnapshot
 ): void {
-	assertOwnedResourceSnapshot(expected, inspectProjectResourceSnapshot(projectId, workdir));
+	const observed = inspectProjectResourceSnapshot(projectId, workdir);
+	assertOwnedResourceSnapshot(expected, observed);
+	const database = inspectDatabaseContainer(projectId, workdir);
+	const volume = inspectDatabaseVolume(database.volumeName);
+	if (
+		!expected.containers.some(({ id, name }) => id === database.id && name === database.name) ||
+		!expected.volumes.some(({ name, createdAt }) => name === volume.name && createdAt === volume.createdAt)
+	) throw new Error(SAFE_FAILURE);
 }
 
 function remainingProjectContainers(projectId: string): string {
@@ -500,10 +523,17 @@ async function removeCreatedProject(
 ): Promise<number> {
 	activeStage = 'cleanup_identity_preflight';
 	if (await pathExists(join(workdir, 'supabase', 'config.toml'))) {
+		const stopped = await stopProjectWithVerifiedOwnership(
+			() => {
+				activeStage = 'cleanup_identity_preflight';
+				assertCurrentProjectResourcesMatch(projectId, workdir, expectedResources);
+				activeStage = 'cleanup_supabase_stop';
+			},
+			async () => runCode(['supabase', 'stop', '--no-backup', '--workdir', workdir], activeStage).code === 0
+		);
+		if (!stopped) throw new Error(SAFE_FAILURE);
+	} else {
 		assertCurrentProjectResourcesMatch(projectId, workdir, expectedResources);
-		activeStage = 'cleanup_supabase_stop';
-		const stop = runCode(['supabase', 'stop', '--no-backup', '--workdir', workdir], activeStage);
-		if (stop.code !== 0) throw new Error(SAFE_FAILURE);
 	}
 	activeStage = 'cleanup_resource_check';
 	if (remainingProjectContainers(projectId)) throw new Error(SAFE_FAILURE);
@@ -719,10 +749,14 @@ async function cleanupProject(): Promise<void> {
 	if (target.state === 'TESTING') {
 		activeStage = 'cleanup_runtime_identity_verification';
 		await task12Local();
-		assertCurrentProjectResourcesMatch(target.projectId, target.workdir, owned);
 	}
 	activeStage = 'cleanup';
 	const removedVolumeCount = await completeCleanup(target.state, {
+		verifyOwnership: () => {
+			activeStage = 'cleanup_identity_preflight';
+			assertCurrentProjectResourcesMatch(target.projectId, target.workdir, owned);
+			activeStage = 'cleanup_supabase_stop';
+		},
 		stopProject: async () => runCode(['supabase', 'stop', '--no-backup', '--workdir', target.workdir], 'cleanup_supabase_stop').code === 0,
 		markStopped: async () => {
 			await writeJsonAtomically(join(target.workdir, 'task12-target.json'), { ...target, state: 'STOPPED' });
