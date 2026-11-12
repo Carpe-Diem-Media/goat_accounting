@@ -24,8 +24,11 @@ export function createOperationalEvent(input: Record<string, unknown>): Operatio
   return event;
 }
 
+/** Keep application-level log emission off until an approved sampling policy exists. */
+const disabledOperationalWriter = (_event: OperationalEvent): void => {};
+
 /** The logger is deliberately non-blocking for the calling operation. */
-export function logOperationalEvent(input: Record<string, unknown>, write: (event: OperationalEvent) => void = (event) => console.info(JSON.stringify(event))): void {
+export function logOperationalEvent(input: Record<string, unknown>, write: (event: OperationalEvent) => void = disabledOperationalWriter): void {
   try { const event = createOperationalEvent(input); if (event) write(event); } catch { /* Do not change request outcomes. */ }
 }
 export function newCorrelationId(): string | undefined {

@@ -1,4 +1,4 @@
-import { expect, test } from 'bun:test';
+import { expect, spyOn, test } from 'bun:test';
 import { createOperationalEvent, logOperationalEvent, observeProvider, observeResponse } from './observability';
 
 test('operational logs drop unapproved fields and invalid values', () => {
@@ -7,6 +7,21 @@ test('operational logs drop unapproved fields and invalid values', () => {
 });
 test('logging failure never interrupts the request', () => {
   expect(() => logOperationalEvent({ route: 'estimate_create', outcome: 'success' }, () => { throw new Error('unavailable'); })).not.toThrow();
+});
+
+test('default operational logging stays disabled until a sampling policy is approved', async () => {
+  const logger = spyOn(console, 'info');
+
+  try {
+    logOperationalEvent({ route: 'estimate_create', outcome: 'success' });
+    logOperationalEvent({ route: 'estimate_contact', outcome: 'failure', error_code: 'unavailable' });
+    const pdfResponse = await observeResponse('estimate_pdf', Promise.resolve(new Response(null, { status: 503 })));
+
+    expect(pdfResponse.status).toBe(503);
+    expect(logger).not.toHaveBeenCalled();
+  } finally {
+    logger.mockRestore();
+  }
 });
 
 test('observation preserves the response and emits no request data', async () => {

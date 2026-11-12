@@ -18,7 +18,7 @@ On the local Supabase PostgreSQL instance, temporary synthetic tables with 200,0
 
 A separate temporary table with 200,000 notification rows and 1% exhausted records produced a sequential scan for a one-day failure count without an index. A partial index on creation time for retryable/exhausted states produced an index-only scan. The migration adds that index. Local security and aggregate assertions were run transactionally and rolled back; no hosted migration was applied.
 
-Cloudflare observability is already enabled in `wrangler.toml`. The repository does not establish an approved retention policy. Operational logs use a fixed field/value allowlist and do not write request bodies or provider responses. Contact request and Turnstile timing events share a generated correlation ID. Notification-provider timing and a sampling/retention decision remain outstanding.
+The application-level operational logger defaults to a no-op until an approved sampling policy exists. Cloudflare platform observability is enabled separately in `wrangler.toml`; its remote sampling and retention settings still require owner approval. The structured event allowlist excludes request bodies and provider responses. Contact request and Turnstile timing events share a generated correlation ID. Notification-provider timing and the application logging policy remain outstanding.
 
 ## Authenticated visual and accessibility evidence
 
