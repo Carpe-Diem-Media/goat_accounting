@@ -7,7 +7,13 @@ import {
 	parseTask12Target,
 	task12Local
 } from './task12-local';
-import { assertOwnedResourceSnapshot, completeCleanup, createExclusiveProjectDirectory } from './task12-disposable';
+import {
+	assertOwnedResourceSnapshot,
+	classifyTask12Failure,
+	completeCleanup,
+	createExclusiveProjectDirectory,
+	formatTask12FailureEvidence
+} from './task12-disposable';
 import { cp, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -209,4 +215,29 @@ test('does not remove the network or mark the project cleaned when volume remova
 		markCleaned: async () => { calls.push('mark-cleaned'); }
 	})).rejects.toThrow();
 	expect(calls).toEqual(['stop', 'mark-stopped', 'check-containers', 'clear-containers', 'remove-volumes']);
+});
+
+test('reports safe startup failure stage, operation, exit code and classification without stderr', () => {
+	const stderr = 'failed to bind 127.0.0.1:58441: address already in use; password=do-not-log';
+	const evidence = formatTask12FailureEvidence('supabase_start', ['supabase', 'start', '--password', 'do-not-log'], 1, stderr);
+
+	expect(evidence).toEqual({
+		event: 'task12_stage_failure',
+		stage: 'supabase_start',
+		operation: 'supabase start',
+		exitCode: 1,
+		classification: 'port_binding_conflict'
+	});
+	expect(JSON.stringify(evidence)).not.toContain('do-not-log');
+});
+
+test('classifies CLI compatibility and migration failures without retaining diagnostic text', () => {
+	expect(classifyTask12Failure('unknown flag: --network-id', 'supabase start'))
+		.toBe('cli_compatibility');
+	expect(classifyTask12Failure('ERROR: migration failed: permission denied for schema estimator', 'migration'))
+		.toBe('migration_failure');
+	expect(classifyTask12Failure('secret=do-not-log', 'docker_identity_inspection'))
+		.toBe('resource_identity_check');
+	expect(classifyTask12Failure('Error response from daemon: no such object', 'postgres_cluster_identity_capture'))
+		.toBe('database_container_missing');
 });
