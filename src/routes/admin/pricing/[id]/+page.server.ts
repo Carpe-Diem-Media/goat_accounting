@@ -8,6 +8,7 @@ import { DraftFieldError, parseDraftForm } from '$lib/server/pricing/draft-form'
 import { updatePricingDraft } from '$lib/server/pricing/update-pricing-draft';
 import { fingerprintDraft, runPricingCorpus } from '$lib/server/pricing/run-pricing-corpus';
 import { editableFields } from '$lib/domain/pricing/editable-fields';
+import { requirePricingAdminRelease } from '$lib/server/pricing/pricing-admin-release';
 
 async function repository(event: Pick<RequestEvent, 'platform'>) {
  const env=(event.platform?.env ?? (await import('cloudflare:workers')).env) as EstimatorServerEnv;
@@ -15,6 +16,7 @@ async function repository(event: Pick<RequestEvent, 'platform'>) {
 }
 const validId=(id:string)=>z.uuid().safeParse(id).success;
 export const load: PageServerLoad = async event => {
+ requirePricingAdminRelease(event.locals.pricingAdminEnabled);
  await requireStaff(event,['admin']);
  if(!validId(event.params.id)) throw error(404,'Pricing model not found.');
  try {
@@ -28,6 +30,7 @@ export const load: PageServerLoad = async event => {
 };
 export const actions: Actions = {
  save: async event => {
+  requirePricingAdminRelease(event.locals.pricingAdminEnabled);
   const actor=await requireStaff(event,['admin']);
   if(!validId(event.params.id)) throw error(404,'Pricing model not found.');
   let form:FormData; try {form=await event.request.formData();} catch {return fail(400,{message:'Unable to read the draft.'});}
@@ -51,6 +54,7 @@ export const actions: Actions = {
   throw redirect(303,`/admin/pricing/${event.params.id}`);
  },
  test: async event => {
+  requirePricingAdminRelease(event.locals.pricingAdminEnabled);
   await requireStaff(event,['admin']);
   if(!validId(event.params.id)) throw error(404,'Pricing model not found.');
   let form:FormData; try {form=await event.request.formData();} catch {return fail(400,{message:'Unable to read the scenario manifest.'});}

@@ -4,8 +4,10 @@ import { requireStaff } from '$lib/server/auth/staff-guard';
 import { cloneInput, clonePricingModel } from '$lib/server/pricing/clone-pricing-model';
 import { createEstimatorServiceClient, type EstimatorServerEnv } from '$lib/server/supabase/client.server';
 import { createPricingRepository, PricingVersionConflictError } from '$lib/server/supabase/repositories/pricing';
+import { requirePricingAdminRelease } from '$lib/server/pricing/pricing-admin-release';
 
 export const load: PageServerLoad = async (event) => {
+ requirePricingAdminRelease(event.locals.pricingAdminEnabled);
  await requireStaff(event, ['admin']);
  const client=event.locals.supabase;
  if(!client) throw error(503,'Pricing models are temporarily unavailable.');
@@ -21,6 +23,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
  clone: async (event) => {
+  requirePricingAdminRelease(event.locals.pricingAdminEnabled);
   const actor = await requireStaff(event, ['admin']);
   let form: FormData;
   try { form = await event.request.formData(); }

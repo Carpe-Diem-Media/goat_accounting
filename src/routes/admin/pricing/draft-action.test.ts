@@ -12,14 +12,25 @@ const rows=model.rules.map((rule,index)=>{
  return {id:`30000000-0000-4000-8000-${String(index+1).padStart(12,'0')}`,rule_type:type,scope,category,code,label,explanation,input_key:inputKey??null,conditions:when?{when}:condition?{condition}:{},parameters,enabled:true,sort_order:index};
 });
 const persisted={id,version:model.version,engine_contract_version:model.engineVersion,currency:'ZAR',state:'DRAFT',confidence_high_max_points:0,confidence_good_max_points:1,draft_revision:3,pricing_rules:rows};
-function event(role='admin',aal='aal2',revision='3') {
+function event(role='admin',aal='aal2',revision='3',pricingAdminEnabled=true) {
  const query={select:()=>query,eq:()=>query,maybeSingle:async()=>({data:{user_id:actor,role,state:'ACTIVE'},error:null})};
  const form=new FormData(); form.set('revision',revision); editableFields(model).forEach((field,index)=>form.set(`field.${index}`,String(field.value))); model.rules.forEach((_rule,index)=>form.set(`enabled.${index}`,'on'));
- return {params:{id},locals:{supabase:{auth:{getClaims:async()=>({data:{claims:{sub:actor,aal}},error:null}),mfa:{getAuthenticatorAssuranceLevel:async()=>({data:{currentLevel:aal,nextLevel:'aal2'},error:null})}},from:()=>query}},platform:{env:{SUPABASE_URL:'http://127.0.0.1:54321',SUPABASE_SECRET_KEY:'test-only-key'}},request:new Request('https://goat.test/admin/pricing/test?/save',{method:'POST',body:form})} as unknown as RequestEvent;
+ return {params:{id},locals:{pricingAdminEnabled,supabase:{auth:{getClaims:async()=>({data:{claims:{sub:actor,aal}},error:null}),mfa:{getAuthenticatorAssuranceLevel:async()=>({data:{currentLevel:aal,nextLevel:'aal2'},error:null})}},from:()=>query}},platform:{env:{SUPABASE_URL:'http://127.0.0.1:54321',SUPABASE_SECRET_KEY:'test-only-key'}},request:new Request('https://goat.test/admin/pricing/test?/save',{method:'POST',body:form})} as unknown as RequestEvent;
 }
 const save=actions.save as (event:RequestEvent)=>Promise<unknown>;
 async function outcome(value:RequestEvent) {try{return await save(value);}catch(cause){return cause as {status:number};}}
 describe('draft save action',()=>{
+ test('returns 404 for save and test actions while the release binding is disabled',async()=>{
+  let calls=0;const original=globalThis.fetch;globalThis.fetch=(async()=>{calls++;throw new Error('unexpected');}) as unknown as typeof fetch;
+  try {
+   for(const action of [actions.save,actions.test]) {
+    try { await (action as (event:RequestEvent)=>Promise<unknown>)(event('admin','aal2','3',false)); }
+    catch(cause) { expect(cause).toMatchObject({status:404}); continue; }
+    throw new Error('Expected pricing action to be unavailable.');
+   }
+   expect(calls).toBe(0);
+  } finally {globalThis.fetch=original;}
+ });
  test('denies viewer, advisor and AAL1 before using privileged client',async()=>{
   let calls=0;const original=globalThis.fetch;globalThis.fetch=(async()=>{calls++;throw new Error('unexpected');}) as unknown as typeof fetch;
   try {for(const e of [event('viewer'),event('advisor'),event('admin','aal1')]) expect([303,403]).toContain((await outcome(e) as {status:number}).status);expect(calls).toBe(0);} finally {globalThis.fetch=original;}

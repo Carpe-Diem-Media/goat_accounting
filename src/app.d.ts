@@ -2,6 +2,7 @@
 declare namespace Cloudflare {
 	interface Env {
 		DASHBOARD_RELEASE_ENABLED?: string;
+		PRICING_ADMIN_RELEASE_ENABLED?: string;
 		ESTIMATOR_ENABLED?: string;
 		ESTIMATE_READ_ENABLED?: string;
 		ESTIMATE_CONTACT_ENABLED?: string;
@@ -30,6 +31,7 @@ declare namespace Cloudflare {
 declare namespace App {
 	interface Locals {
 		dashboardEnabled: boolean;
+		pricingAdminEnabled: boolean;
 		supabase: import('$lib/server/supabase/session-client').StaffSessionClient | null;
 	}
 

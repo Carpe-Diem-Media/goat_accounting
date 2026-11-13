@@ -1,6 +1,7 @@
 import { redirect, error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
 import { getStaffAccess, requireStaff } from '$lib/server/auth/staff-guard';
+import { requirePricingAdminRelease } from '$lib/server/pricing/pricing-admin-release';
 
 export const prerender = false;
 
@@ -20,12 +21,15 @@ export const load: LayoutServerLoad = async (event) => {
 			accessLabel: null
 		};
 	}
+	if (event.url.pathname === '/admin/pricing' || event.url.pathname.startsWith('/admin/pricing/')) {
+		requirePricingAdminRelease(event.locals.pricingAdminEnabled);
+	}
 
 	const identity = await requireStaff(event);
 	return {
 		identity: { userId: identity.userId, role: identity.role },
 		dashboardEnabled: event.locals.dashboardEnabled === true,
-		pricingNavigationVisible: identity.role === 'admin',
+		pricingNavigationVisible: identity.role === 'admin' && event.locals.pricingAdminEnabled === true,
 		accessLabel:
 			identity.role === 'admin'
 				? 'Administrator access'

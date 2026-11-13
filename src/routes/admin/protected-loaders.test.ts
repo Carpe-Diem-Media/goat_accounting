@@ -87,6 +87,7 @@ function createRequest(options: {
 	path?: string;
 	params?: Record<string, string>;
 	dashboardEnabled?: boolean;
+	pricingAdminEnabled?: boolean;
 	rpcFailure?: boolean;
 } = {}) {
 	const privateQueries: string[] = [];
@@ -164,7 +165,7 @@ function createRequest(options: {
 	return {
 		privateQueries,
 		event: {
-			locals: { supabase: client, dashboardEnabled: options.dashboardEnabled ?? false },
+			locals: { supabase: client, dashboardEnabled: options.dashboardEnabled ?? false, pricingAdminEnabled: options.pricingAdminEnabled ?? false },
             setHeaders: () => {},
 			url: new URL(`https://goat.test${options.path ?? '/admin/estimates'}`),
 			params: options.params ?? {}
@@ -252,6 +253,13 @@ describe('dashboard release gate', () => {
   });
 });
 
+describe('pricing release gate', () => {
+	it('returns 404 for disabled pricing GETs before staff access is checked', async () => {
+		const { event } = createRequest({ path: '/admin/pricing', role: 'admin' });
+		await expectDenied(loadAdminLayout as unknown as TestLoad, event, { status: 404 });
+	});
+});
+
 describe('staff navigation permissions', () => {
 	for (const [role, label] of [
 		['admin', 'Administrator access'],
@@ -259,8 +267,9 @@ describe('staff navigation permissions', () => {
 		['viewer', 'Read-only access']
 	] as const) {
 		for (const dashboardEnabled of [false, true]) {
-			it(`shows the correct ${role} navigation with dashboard gate ${dashboardEnabled}`, async () => {
-				const { event } = createRequest({ role, dashboardEnabled });
+			for (const pricingAdminEnabled of [false, true]) {
+			it(`shows the correct ${role} navigation with dashboard gate ${dashboardEnabled} and pricing gate ${pricingAdminEnabled}`, async () => {
+				const { event } = createRequest({ role, dashboardEnabled, pricingAdminEnabled });
 				const data = await (loadAdminLayout as unknown as TestLoad)(event) as {
 					accessLabel: string | null;
 					dashboardEnabled: boolean;
@@ -268,9 +277,10 @@ describe('staff navigation permissions', () => {
 				};
 
 				expect(data.accessLabel).toBe(label);
-				expect(data.pricingNavigationVisible).toBe(role === 'admin');
+				expect(data.pricingNavigationVisible).toBe(role === 'admin' && pricingAdminEnabled);
 				expect(data.dashboardEnabled).toBe(dashboardEnabled);
 			});
+			}
 		}
 	}
 });
