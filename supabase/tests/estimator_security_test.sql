@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(18);
+SELECT plan(19);
 
 SELECT ok(
   has_schema_privilege('authenticated', 'estimator', 'USAGE')
@@ -212,10 +212,28 @@ SELECT ok(
         OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE')
           AND proc.proname <> 'is_current_staff')
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
-          AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead'))
+          AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead')
+          AND proc.oid NOT IN (
+            'estimator.clone_pricing_model(uuid,text,uuid)'::regprocedure,
+            'estimator.save_pricing_draft(uuid,uuid,bigint,bigint,bigint,jsonb)'::regprocedure
+          ))
       )
   ),
   'no other estimator function is executable by Data API roles'
+);
+
+SELECT ok(
+  (SELECT count(*) = 2 AND bool_and(
+    proc.prosecdef AND pg_catalog.pg_get_userbyid(proc.proowner) = 'postgres'
+    AND has_function_privilege('service_role', proc.oid, 'EXECUTE')
+    AND NOT has_function_privilege('anon', proc.oid, 'EXECUTE')
+    AND NOT has_function_privilege('authenticated', proc.oid, 'EXECUTE')
+    AND NOT EXISTS (SELECT 1 FROM pg_catalog.aclexplode(coalesce(proc.proacl, pg_catalog.acldefault('f', proc.proowner))) a WHERE a.grantee = 0 AND a.privilege_type = 'EXECUTE')
+  ) FROM pg_catalog.pg_proc proc WHERE proc.oid IN (
+    'estimator.clone_pricing_model(uuid,text,uuid)'::regprocedure,
+    'estimator.save_pricing_draft(uuid,uuid,bigint,bigint,bigint,jsonb)'::regprocedure
+  )),
+  'pricing write functions are executable only by the trusted server role'
 );
 
 SELECT ok(

@@ -4,6 +4,7 @@ import { load as loadEstimateDetail } from './estimates/[id]/+page.server';
 import { load as loadEstimateList } from './estimates/+page.server';
 import { load as loadLeadDetail } from './leads/[id]/+page.server';
 import { load as loadLeadList } from './leads/+page.server';
+import { load as loadAdminLayout } from './+layout.server';
 
 const userId = '10000000-0000-4000-8000-000000000004';
 const estimateId = '40000000-0000-4000-8000-000000000001';
@@ -86,6 +87,7 @@ function createRequest(options: {
 	path?: string;
 	params?: Record<string, string>;
 	dashboardEnabled?: boolean;
+	pricingAdminEnabled?: boolean;
 	rpcFailure?: boolean;
 } = {}) {
 	const privateQueries: string[] = [];
@@ -163,7 +165,7 @@ function createRequest(options: {
 	return {
 		privateQueries,
 		event: {
-			locals: { supabase: client, dashboardEnabled: options.dashboardEnabled ?? false },
+			locals: { supabase: client, dashboardEnabled: options.dashboardEnabled ?? false, pricingAdminEnabled: options.pricingAdminEnabled ?? false },
             setHeaders: () => {},
 			url: new URL(`https://goat.test${options.path ?? '/admin/estimates'}`),
 			params: options.params ?? {}
@@ -249,6 +251,38 @@ describe('dashboard release gate', () => {
     await expectDenied(load as unknown as TestLoad, event, { status: 404 });
     expect(privateQueries).toEqual([]);
   });
+});
+
+describe('pricing release gate', () => {
+	it('returns 404 for disabled pricing GETs before staff access is checked', async () => {
+		const { event } = createRequest({ path: '/admin/pricing', role: 'admin' });
+		await expectDenied(loadAdminLayout as unknown as TestLoad, event, { status: 404 });
+	});
+});
+
+describe('staff navigation permissions', () => {
+	for (const [role, label] of [
+		['admin', 'Administrator access'],
+		['advisor', 'Advisor access'],
+		['viewer', 'Read-only access']
+	] as const) {
+		for (const dashboardEnabled of [false, true]) {
+			for (const pricingAdminEnabled of [false, true]) {
+			it(`shows the correct ${role} navigation with dashboard gate ${dashboardEnabled} and pricing gate ${pricingAdminEnabled}`, async () => {
+				const { event } = createRequest({ role, dashboardEnabled, pricingAdminEnabled });
+				const data = await (loadAdminLayout as unknown as TestLoad)(event) as {
+					accessLabel: string | null;
+					dashboardEnabled: boolean;
+					pricingNavigationVisible: boolean;
+				};
+
+				expect(data.accessLabel).toBe(label);
+				expect(data.pricingNavigationVisible).toBe(role === 'admin' && pricingAdminEnabled);
+				expect(data.dashboardEnabled).toBe(dashboardEnabled);
+			});
+			}
+		}
+	}
 });
 
 
