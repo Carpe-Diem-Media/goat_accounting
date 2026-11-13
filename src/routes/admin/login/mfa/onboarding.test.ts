@@ -2,6 +2,7 @@ import { describe, expect, it } from 'bun:test';
 import type { Actions } from './$types';
 import { actions, load as loadMfa } from './+page.server';
 import { load as loadLogin } from '../+page.server';
+import { load as loadAdminLayout } from '../../+layout.server';
 import { load as loadEstimateList } from '../../estimates/+page.server';
 
 const userId = '10000000-0000-4000-8000-000000000006';
@@ -28,6 +29,7 @@ function makeEvent(options: {
 	initialAal?: string;
 	factors?: FactorList;
 	verificationFails?: boolean;
+	url?: string;
 }) {
 	let staffState = 'INVITED';
 	let aal = options.initialAal ?? 'aal1';
@@ -110,7 +112,7 @@ function makeEvent(options: {
 	form.set('code', '123456');
 	const event = {
 		locals: { supabase: client },
-		url: new URL('https://goat.test/admin/login/mfa'),
+		url: new URL(options.url ?? 'https://goat.test/admin/login/mfa'),
 		request: { formData: async () => form }
 	} as unknown as Parameters<NonNullable<Actions['verify']>>[0] & Parameters<NonNullable<Actions['enroll']>>[0];
 
@@ -118,6 +120,33 @@ function makeEvent(options: {
 }
 
 describe('invited staff MFA onboarding', () => {
+	it('shows a generic message for invalid, expired, or replayed email links', async () => {
+		const result = await loadLogin({
+			locals: { supabase: null },
+			url: new URL('https://goat.test/admin/login?link=invalid&token_hash=must-not-be-shown')
+		} as never);
+
+		expect(result).toEqual({
+			configured: false,
+			linkMessage: 'This password link is invalid, expired, or already used. Request a new link.'
+		});
+		expect(JSON.stringify(result)).not.toContain('must-not-be-shown');
+	});
+
+	it.each(['/admin/auth/callback', '/admin/login/set-password'])(
+		'lets the password-link route %s enforce its own session and staff checks', async (path) => {
+			const { event } = makeEvent({ refreshAalAfterVerify: false, url: `https://goat.test${path}` });
+			const result = await loadAdminLayout(event as never);
+
+			expect(result).toEqual({
+				identity: null,
+				dashboardEnabled: false,
+				pricingNavigationVisible: false,
+				accessLabel: null
+			});
+		}
+	);
+
 	it('routes an invited sign-in to the MFA setup page', async () => {
 		const { event } = makeEvent({ refreshAalAfterVerify: false });
 

@@ -17,7 +17,15 @@
 			<p role="status" class="mt-5 border-l-2 border-primary pl-3 text-sm leading-6 text-muted-foreground">
 				Staff sign-in is unavailable until the approved project connection is configured.
 			</p>
-		{:else if form?.message}
+		{/if}
+
+		{#if data.linkMessage}
+			<p role="alert" class="mt-5 border-l-2 border-destructive pl-3 text-sm leading-6 text-foreground">
+				{data.linkMessage}
+			</p>
+		{/if}
+
+		{#if form?.message}
 			<p role="alert" class="mt-5 border-l-2 border-destructive pl-3 text-sm leading-6 text-foreground">
 				{form.message}
 			</p>
@@ -56,6 +64,10 @@
 					Sign in
 				</button>
 			</form>
+			<p class="mt-5 text-center text-sm leading-6 text-muted-foreground">
+				Need a new password?
+				<a href="/admin/login/recover" class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Request a reset link</a>
+			</p>
 		{/if}
 	</section>
 </main>

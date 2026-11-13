@@ -6,20 +6,29 @@ import { requirePricingAdminRelease } from '$lib/server/pricing/pricing-admin-re
 export const prerender = false;
 
 export const load: LayoutServerLoad = async (event) => {
+	const passwordFlowRoute =
+		event.url.pathname === '/admin/auth/callback' ||
+		event.url.pathname === '/admin/login/set-password';
+	const loginLayoutData = {
+		identity: null,
+		dashboardEnabled: false,
+		pricingNavigationVisible: false,
+		accessLabel: null
+	};
+
+	if (event.url.pathname === '/admin/auth/callback') return loginLayoutData;
+
 	if (event.url.pathname.startsWith('/admin/login')) {
-		const access = await getStaffAccess(event);
-		if (access.kind === 'authorized') throw redirect(303, '/admin/estimates');
-		if (access.kind === 'setup' || access.kind === 'challenge' || access.kind === 'invited') {
-			if (!event.url.pathname.startsWith('/admin/login/mfa')) {
-				throw redirect(303, '/admin/login/mfa');
+		if (!passwordFlowRoute) {
+			const access = await getStaffAccess(event);
+			if (access.kind === 'authorized') throw redirect(303, '/admin/estimates');
+			if (access.kind === 'setup' || access.kind === 'challenge' || access.kind === 'invited') {
+				if (!event.url.pathname.startsWith('/admin/login/mfa')) {
+					throw redirect(303, '/admin/login/mfa');
+				}
 			}
 		}
-		return {
-			identity: null,
-			dashboardEnabled: false,
-			pricingNavigationVisible: false,
-			accessLabel: null
-		};
+		return loginLayoutData;
 	}
 	if (event.url.pathname === '/admin/pricing' || event.url.pathname.startsWith('/admin/pricing/')) {
 		requirePricingAdminRelease(event.locals.pricingAdminEnabled);

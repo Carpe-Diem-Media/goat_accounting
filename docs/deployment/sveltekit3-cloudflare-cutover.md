@@ -44,6 +44,17 @@ These checks are implemented in `src/hooks.server.ts` and `src/lib/server/supaba
 
 The staff guard permits INVITED users to complete MFA onboarding without granting protected admin access. Protected admin access requires ACTIVE staff, an allowed database-backed role and verified AAL2/TOTP assurance. Keep invited onboarding, inactive denial and role/MFA negative tests in the acceptance evidence.
 
+### Invitation and password recovery completion
+
+The server accepts password links only at `/admin/auth/callback`. It sends recovery requests to the exact callback URL `https://goataccounting.co.za/admin/auth/callback?flow=recovery`. Configure these exact URLs in the approved Supabase project's Auth redirect allowlist, without wildcard entries:
+
+- `https://goataccounting.co.za/admin/auth/callback`
+- `https://goataccounting.co.za/admin/auth/callback?flow=recovery`
+
+Set the Supabase Site URL to `https://goataccounting.co.za`. In the hosted Invite User email template, link to `{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&amp;type=invite`. In the hosted Reset Password email template, link to `{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=recovery`. These templates send the hashed one-time token to the server callback. The callback page waits for the user to press Continue before redeeming it, so an email link scanner does not consume the invitation or recovery link on its own.
+
+The version-controlled templates and redirect allowlist in `supabase/config.toml` apply to local Supabase only. This change does not modify hosted Auth settings. Configure and verify the hosted Site URL, exact redirect URLs and email templates as a separate activation step under the staff-auth gate above.
+
 ## Local security acceptance and hosted verification
 
 Use the existing local Supabase development environment for development and repeatable authentication, AAL2/TOTP, role, RLS and RPC negative tests. Local results establish tested behavior against the local schema and configuration; they do not certify hosted state.
