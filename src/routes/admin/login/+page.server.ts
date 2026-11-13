@@ -3,14 +3,17 @@ import type { Actions, PageServerLoad } from './$types';
 import { getStaffAccess } from '$lib/server/auth/staff-guard';
 
 export const load: PageServerLoad = async (event) => {
-	if (!event.locals.supabase) return { configured: false };
+	const linkMessage = event.url.searchParams.get('link') === 'invalid'
+		? 'This password link is invalid, expired, or already used. Request a new link.'
+		: null;
+	if (!event.locals.supabase) return { configured: false, linkMessage };
 
 	const access = await getStaffAccess(event);
 	if (access.kind === 'authorized') throw redirect(303, '/admin/estimates');
 	if (access.kind === 'setup' || access.kind === 'challenge' || access.kind === 'invited') {
 		throw redirect(303, '/admin/login/mfa');
 	}
-	return { configured: true };
+	return { configured: true, linkMessage };
 };
 
 export const actions: Actions = {
