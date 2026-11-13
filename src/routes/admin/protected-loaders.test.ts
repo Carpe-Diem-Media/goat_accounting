@@ -4,6 +4,7 @@ import { load as loadEstimateDetail } from './estimates/[id]/+page.server';
 import { load as loadEstimateList } from './estimates/+page.server';
 import { load as loadLeadDetail } from './leads/[id]/+page.server';
 import { load as loadLeadList } from './leads/+page.server';
+import { load as loadAdminLayout } from './+layout.server';
 
 const userId = '10000000-0000-4000-8000-000000000004';
 const estimateId = '40000000-0000-4000-8000-000000000001';
@@ -249,6 +250,29 @@ describe('dashboard release gate', () => {
     await expectDenied(load as unknown as TestLoad, event, { status: 404 });
     expect(privateQueries).toEqual([]);
   });
+});
+
+describe('staff navigation permissions', () => {
+	for (const [role, label] of [
+		['admin', 'Administrator access'],
+		['advisor', 'Advisor access'],
+		['viewer', 'Read-only access']
+	] as const) {
+		for (const dashboardEnabled of [false, true]) {
+			it(`shows the correct ${role} navigation with dashboard gate ${dashboardEnabled}`, async () => {
+				const { event } = createRequest({ role, dashboardEnabled });
+				const data = await (loadAdminLayout as unknown as TestLoad)(event) as {
+					accessLabel: string | null;
+					dashboardEnabled: boolean;
+					pricingNavigationVisible: boolean;
+				};
+
+				expect(data.accessLabel).toBe(label);
+				expect(data.pricingNavigationVisible).toBe(role === 'admin');
+				expect(data.dashboardEnabled).toBe(dashboardEnabled);
+			});
+		}
+	}
 });
 
 

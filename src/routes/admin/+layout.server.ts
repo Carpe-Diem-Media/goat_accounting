@@ -13,9 +13,24 @@ export const load: LayoutServerLoad = async (event) => {
 				throw redirect(303, '/admin/login/mfa');
 			}
 		}
-		return { identity: null, dashboardEnabled: false };
+		return {
+			identity: null,
+			dashboardEnabled: false,
+			pricingNavigationVisible: false,
+			accessLabel: null
+		};
 	}
 
 	const identity = await requireStaff(event);
-	return { identity: { userId: identity.userId, role: identity.role }, dashboardEnabled: event.locals.dashboardEnabled === true };
+	return {
+		identity: { userId: identity.userId, role: identity.role },
+		dashboardEnabled: event.locals.dashboardEnabled === true,
+		pricingNavigationVisible: identity.role === 'admin',
+		accessLabel:
+			identity.role === 'admin'
+				? 'Administrator access'
+				: identity.role === 'advisor'
+					? 'Advisor access'
+					: 'Read-only access'
+	};
 };
