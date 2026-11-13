@@ -501,6 +501,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      dashboard_metrics: {
+        Args: { p_start: string; p_end: string }
+        Returns: Json
+      }
       activate_pricing_model: {
         Args: {
           p_actor_user_id: string

@@ -13,9 +13,9 @@ export const load: LayoutServerLoad = async (event) => {
 				throw redirect(303, '/admin/login/mfa');
 			}
 		}
-		return { identity: null };
+		return { identity: null, dashboardEnabled: false };
 	}
 
 	const identity = await requireStaff(event);
-	return { identity: { userId: identity.userId, role: identity.role } };
+	return { identity: { userId: identity.userId, role: identity.role }, dashboardEnabled: event.locals.dashboardEnabled === true };
 };

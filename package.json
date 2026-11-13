@@ -15,6 +15,7 @@
 		"preview": "wrangler dev --env preview",
 		"check:worker-types": "wrangler types --check",
 		"cf-typegen": "wrangler types",
+		"test:dashboard:e2e": "node tests/e2e/dashboard-disposable.mjs",
 		"test": "bun test",
 		"prepare": "svelte-kit sync || echo ''",
 		"check:head": "bun scripts/check-head.mjs --base http://localhost:5173"

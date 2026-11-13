@@ -1,3 +1,4 @@
+import { logOperationalEvent, newCorrelationId, observeProvider, observeResponse } from '$lib/server/observability';
 import { env as workerEnv } from 'cloudflare:workers';
 import type { RequestHandler } from './$types';
 import { createEstimatorServiceClient } from '$lib/server/supabase/client.server';
@@ -14,21 +15,24 @@ export const prerender = false;
 export const POST: RequestHandler = async ({ request, params, platform }) => {
  const bindings = platform?.env ?? workerEnv;
  if (bindings?.ESTIMATE_CONTACT_ENABLED !== 'true' || !bindings.TURNSTILE_SECRET_KEY || !bindings.TURNSTILE_HOSTNAME) return contactUnavailable();
+ const requestId = newCorrelationId();
  try {
   const repository = createLeadsRepository(createEstimatorServiceClient(bindings));
-  return await handleContactPost(request, (body) => createLeadFromEstimate(params.publicRef, body, {
+  return await observeResponse('estimate_contact', handleContactPost(request, (body) => createLeadFromEstimate(params.publicRef, body, {
    ...repository,
    afterCommit: async (saved) => {
     try {
      const notificationRepository = createNotificationsRepository(createEstimatorServiceClient(bindings));
      await deliverContactNotifications(saved, bindings, { repository: notificationRepository,
-      report: (item) => console.error('Estimator notification outcome', { deliveryId: item.deliveryId, code: item.code })
+      report: (item) => logOperationalEvent({ route: 'estimate_contact', request_id: requestId,
+       outcome: item.state === 'SENT' ? 'success' : 'failure',
+       ...(item.state === 'SENT' ? {} : { error_code: 'provider_failed' }) })
      });
-    } catch { console.error('Estimator notification phase outcome', { code: 'notification_setup_failed' }); }
+    } catch { logOperationalEvent({ route: 'estimate_contact', request_id: requestId, outcome: 'failure', error_code: 'unavailable' }); }
    },
-   verify: (token) => verifyTurnstile(token, {
+   verify: (token) => observeProvider('estimate_contact', requestId, () => verifyTurnstile(token, {
     secret: bindings.TURNSTILE_SECRET_KEY!, hostname: bindings.TURNSTILE_HOSTNAME!
-   })
-  }), () => checkContactRateLimit(bindings.CONTACT_RATE_LIMITER, params.publicRef, request.headers.get('cf-connecting-ip')));
+   }))
+  }), () => checkContactRateLimit(bindings.CONTACT_RATE_LIMITER, params.publicRef, request.headers.get('cf-connecting-ip'))), undefined, requestId);
  } catch { return contactUnavailable(); }
 };

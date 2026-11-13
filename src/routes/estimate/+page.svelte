@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { onMount, tick } from 'svelte';
+	import { createEstimatorOnceTracker, trackEstimatorEvent } from '$lib/estimator-analytics';
 	import { goto } from '$app/navigation';
 	import ChoiceOptions from '$lib/components/estimator/ChoiceOptions.svelte';
 	import {
@@ -17,6 +18,7 @@
 		type PersonalAnswers
 	} from '$lib/domain/estimator/answer-schema';
 
+	const trackOnce = createEstimatorOnceTracker();
 	const DRAFT_KEY = 'goat-accounting:business-estimator:v1';
 	const DRAFT_VERSION = 1;
 	const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
@@ -407,6 +409,7 @@
 	async function advanceStep(): Promise<void> {
 		if (!validateCurrentStep()) return;
 		if (stepIndex < STEP_COUNT - 1) {
+			trackEstimatorEvent('estimate_step_completed', { calculator_type: calculatorType });
 			stepIndex += 1;
 			saveDraft();
 			await tick();
@@ -482,6 +485,7 @@
 			return;
 		}
 
+		trackOnce('estimate_step_completed', { calculator_type: calculatorType });
 		const note = freeText.trim();
 		const payload = {
 			calculatorType,
@@ -510,6 +514,7 @@
 			if (!isRecord(result) || !isRecord(result.estimate) || typeof result.estimate.publicRef !== 'string' || !/^[a-f0-9]{32}$/.test(result.estimate.publicRef)) {
 				throw new Error('The saved estimate reference was invalid.');
 			}
+			trackOnce('estimate_completed', { calculator_type: calculatorType });
 			await goto(`/estimate/${result.estimate.publicRef}`);
 		} catch {
 			errorMessage = 'The estimate could not be saved right now. Your answers are saved in this tab. Please try again.';
@@ -519,6 +524,7 @@
 	}
 
 	onMount(() => {
+		trackOnce('estimate_started');
 		try {
 			restoreDraft();
 			saveDraft();

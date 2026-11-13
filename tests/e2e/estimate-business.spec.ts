@@ -180,8 +180,8 @@ async function advance(page: Page): Promise<void> {
 	await page.getByRole('button', { name: 'Continue', exact: true }).click();
 }
 
-async function finishDefaultBusinessAnswers(page: Page): Promise<void> {
-	await page.goto(`${APP_ORIGIN}/estimate`);
+async function finishDefaultBusinessAnswers(page: Page, alreadyStarted = false): Promise<void> {
+	if (!alreadyStarted) await page.goto(`${APP_ORIGIN}/estimate`);
 	await choose(page, 'Business accounting');
 	await advance(page);
 	await choose(page, 'Sole proprietor');
@@ -527,6 +527,8 @@ test('reuses the completion idempotency key on retry after an unavailable API re
 	await page.getByRole('button', { name: 'View estimate', exact: true }).click();
 	await expect(page.getByRole('alert')).toContainText('could not be saved');
 	await expect(page.getByRole('button', { name: 'View estimate', exact: true })).toBeEnabled();
+	const failedEvents = await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []);
+	expect(failedEvents.some((event) => event.event === 'estimate_completed')).toBe(false);
 	await page.unroute('**/api/estimates');
 	const responsePromise = page.waitForResponse((response) => response.url().endsWith('/api/estimates'));
 	await page.getByRole('button', { name: 'View estimate', exact: true }).click();
@@ -535,6 +537,7 @@ test('reuses the completion idempotency key on retry after an unavailable API re
 	expect(idempotencyKeys).toHaveLength(2);
 	expect(idempotencyKeys[0]).toMatch(/^[A-Za-z0-9_-]{43}$/);
 	expect(idempotencyKeys[1]).toBe(idempotencyKeys[0]);
+	await expect.poll(() => page.evaluate(() => ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).filter((event) => event.event === 'estimate_completed').length)).toBe(1);
 });
 
 test('submits only once when the completion button receives a rapid double click', async ({ page }) => {
@@ -567,5 +570,94 @@ test('does not claim completion when the estimate API is unavailable', async ({ 
 	expect(draft.idempotencyKey).toMatch(/^[A-Za-z0-9_-]{43}$/);
 	expect(draft.status).toBe('IN_PROGRESS');
 	expect(savedEstimates).toHaveLength(0);
+});
+
+test('estimator pages isolate GTM and emit only coarse in-memory events', async ({ page }) => {
+  const tagRequests: string[] = [];
+  page.on('request', (request) => { if (request.url().includes('googletagmanager.com')) tagRequests.push(request.url()); });
+  await page.goto('/estimate?email=private%40example.invalid');
+  await expect(page.getByRole('heading', { name: 'Estimate your accounting and tax support' })).toBeVisible();
+  await choose(page, 'Business accounting');
+  await advance(page);
+  const events = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
+  expect(events).toContainEqual({ event: 'estimate_started' });
+  expect(events).toContainEqual({ event: 'estimate_step_completed', calculator_type: 'business' });
+  expect(JSON.stringify(events)).not.toContain('private');
+  expect(tagRequests).toEqual([]);
+});
+
+test('saved-result events do not contain the estimate reference or answer values', async ({ page }) => {
+  const tagRequests: string[] = [];
+  page.on('request', (request) => { if (request.url().includes('googletagmanager.com')) tagRequests.push(request.url()); });
+  await finishDefaultBusinessAnswers(page);
+  const ref = await submitEstimate(page);
+  await expect.poll(() => page.evaluate(() => ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).some((event) => event.event === 'estimate_result_viewed'))).toBe(true);
+  const events = await page.evaluate(() => (window as Window & { dataLayer?: unknown[] }).dataLayer ?? []);
+  expect(events).toContainEqual({ event: 'estimate_completed', calculator_type: 'business' });
+  expect(events).toContainEqual(expect.objectContaining({ event: 'estimate_result_viewed', calculator_type: 'business' }));
+  expect(JSON.stringify(events)).not.toContain(ref);
+  expect(JSON.stringify(events)).not.toContain('Sole proprietor');
+  const pdf = page.getByRole('link', { name: 'Download PDF' });
+  await page.route(`**/api/estimates/${ref}/pdf`, (route) => route.fulfill({ status: 503, body: '' }));
+  await pdf.click();
+  await expect(page.getByRole('status').filter({ hasText: 'PDF could not be downloaded' })).toBeVisible();
+  const failed = await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []);
+  expect(failed.filter((event) => event.event === 'estimate_pdf_downloaded')).toHaveLength(0);
+  await page.unroute(`**/api/estimates/${ref}/pdf`);
+  await page.route(`**/api/estimates/${ref}/pdf`, (route) => route.fulfill({ status: 200, contentType: 'application/pdf', body: 'not-a-pdf' }));
+  await pdf.click();
+  await expect(page.getByRole('status').filter({ hasText: 'PDF could not be downloaded' })).toBeVisible();
+  expect((await page.evaluate(() => (window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? [])).filter((event) => event.event === 'estimate_pdf_downloaded')).toHaveLength(0);
+  await page.unroute(`**/api/estimates/${ref}/pdf`);
+  for (let count = 1; count <= 2; count++) {
+    const download = page.waitForEvent('download');
+    await pdf.click();
+    expect((await download).suggestedFilename()).toBe(`estimate-${ref}.pdf`);
+    await expect.poll(() => page.evaluate(() => ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).filter((event) => event.event === 'estimate_pdf_downloaded').length)).toBe(count);
+  }
+  await page.setViewportSize({ width: 375, height: 844 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
+  expect(tagRequests).toEqual([]);
+});
+
+test('marketing to saved estimate navigation cannot leak references to external requests', async ({ page }) => {
+  const external: Array<{ url: string; referer: string }> = [];
+  const relay: Array<{ referer: string; cookie: string }> = [];
+  await page.route('**/*', async (route) => {
+    const request = route.request();
+    const url = new URL(request.url());
+    if (url.pathname === '/api/analytics/events') relay.push({ referer: request.headers().referer ?? '', cookie: request.headers().cookie ?? '' });
+    if (url.origin !== APP_ORIGIN) {
+      external.push({ url: request.url(), referer: request.headers().referer ?? '' });
+      if (url.hostname === 'www.googletagmanager.com' && url.pathname.endsWith('/gtm.js')) {
+        await route.fulfill({ status: 200, contentType: 'application/javascript', body: 'window.__syntheticGtmLoaded = true;' });
+      } else await route.abort();
+      return;
+    }
+    await route.continue();
+  });
+  await page.goto('/');
+  await expect.poll(() => page.evaluate(() => (window as Window & { __syntheticGtmLoaded?: boolean }).__syntheticGtmLoaded)).toBe(true);
+  await page.evaluate(() => { const link = document.createElement('a'); link.href = '/estimate'; link.textContent = 'Synthetic estimator link'; document.body.append(link); });
+  await page.getByRole('link', { name: 'Synthetic estimator link' }).click();
+  await expect(page).toHaveURL(`${APP_ORIGIN}/estimate`);
+  expect(await page.evaluate(() => (window as Window & { __syntheticGtmLoaded?: boolean }).__syntheticGtmLoaded)).toBeUndefined();
+  await expect.poll(() => page.evaluate(() =>
+    ((window as Window & { dataLayer?: { event?: string }[] }).dataLayer ?? []).some((event) => event.event === 'estimate_started')
+  ), { timeout: 15_000 }).toBe(true);
+  await finishDefaultBusinessAnswers(page, true);
+  const ref = await submitEstimate(page);
+  expect(relay).toEqual([]);
+  expect(external.some((item) => item.url.includes(ref) || item.referer.includes(ref))).toBe(false);
+  expect(relay.every((item) => !item.referer && !item.cookie)).toBe(true);
+});
+
+test('direct unauthenticated dashboard access never returns metrics', async ({ request }) => {
+  const response = await request.get('/admin/dashboard', { maxRedirects: 0 });
+  expect([303, 403, 503]).toContain(response.status());
+  expect(await response.text()).not.toContain('Catch-up opportunity');
+  const relay = await request.post('/api/analytics/events', { headers: { origin: APP_ORIGIN, 'content-type': 'application/json' }, data: { event: 'estimate_started' } });
+  expect(relay.status()).toBe(503);
+  expect(relay.headers()['cache-control']).toContain('no-store');
 });
 }

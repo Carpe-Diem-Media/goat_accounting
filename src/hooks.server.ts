@@ -1,6 +1,7 @@
 import { env as workerEnv } from 'cloudflare:workers';
 import type { Handle } from '@sveltejs/kit/hooks';
 import { building } from '$app/env';
+import { dashboardReleaseEnabled } from '$lib/server/analytics/dashboard-release';
 import { createSessionClient } from '$lib/server/supabase/session-client';
 
 export const handle: Handle = async ({ event, resolve }) => {
@@ -10,6 +11,7 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// between Worker requests or use a service key for staff reads. Local URLs
 	// work for isolated development; remote access requires an explicit enable
 	// flag and an exact Supabase project ref match.
+	event.locals.dashboardEnabled = dashboardReleaseEnabled(bindings);
 	event.locals.supabase = createSessionClient(event, {
 		supabaseUrl: bindings?.SUPABASE_URL,
 		publishableKey: bindings?.SUPABASE_PUBLISHABLE_KEY,

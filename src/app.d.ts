@@ -1,6 +1,7 @@
 // Secret names for existing integrations. Values remain outside source control.
 declare namespace Cloudflare {
 	interface Env {
+		DASHBOARD_RELEASE_ENABLED?: string;
 		ESTIMATOR_ENABLED?: string;
 		ESTIMATE_READ_ENABLED?: string;
 		ESTIMATE_CONTACT_ENABLED?: string;
@@ -28,6 +29,7 @@ declare namespace Cloudflare {
 
 declare namespace App {
 	interface Locals {
+		dashboardEnabled: boolean;
 		supabase: import('$lib/server/supabase/session-client').StaffSessionClient | null;
 	}
 

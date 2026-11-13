@@ -1,7 +1,9 @@
 <script lang="ts">
  import { onDestroy } from 'svelte';
+ import { createEstimatorOnceTracker } from '$lib/estimator-analytics';
  import { contactInputSchema } from '$lib/domain/leads/contact';
 
+ const trackOnce = createEstimatorOnceTracker();
  let { publicRef, siteKey, showBusinessName = false }: { publicRef: string; siteKey: string; showBusinessName?: boolean } = $props();
  type WidgetApi = {
   render: (container: HTMLElement, options: Record<string, unknown>) => string;
@@ -96,6 +98,7 @@
    const result: unknown = await response.json();
    if (response.ok && result && typeof result === 'object' && 'saved' in result && result.saved === true) {
     saved = true;
+    trackOnce('estimate_contact_submitted');
     fullName = ''; email = ''; phone = ''; businessName = '';
    } else if (response.status === 409) {
     error = 'A different request has already been saved for this estimate. Its original selections cannot be changed.';
@@ -121,7 +124,7 @@
 
 <!-- Hallmark · component: contact panel · theme: existing Goat estimator · states: 8 · v2.0.0 -->
 <section aria-label="Optional contact" class="border-t border-border pt-6">
- <details ontoggle={(event) => { if (event.currentTarget.open) loadWidget(); }}>
+ <details ontoggle={(event) => { if (event.currentTarget.open) { trackOnce('estimate_contact_started'); loadWidget(); } }}>
   <summary class="min-h-12 cursor-pointer rounded-md py-3 font-semibold text-foreground hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Email estimate or request contact</summary>
   <p class="mt-2 max-w-prose text-sm leading-6 text-muted-foreground">Your estimate is already available. Choose what you would like us to do next.</p>
   {#if saved}
