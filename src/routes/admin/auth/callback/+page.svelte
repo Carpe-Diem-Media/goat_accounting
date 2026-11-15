@@ -4,7 +4,7 @@
 
 <svelte:head>
 	<title>Continue to password setup | Goat Accounting</title>
-	<meta name="referrer" content="no-referrer" />
+	<meta name="referrer" content="strict-origin" />
 </svelte:head>
 
 <main class="flex min-h-screen items-center justify-center bg-background px-4 py-12">

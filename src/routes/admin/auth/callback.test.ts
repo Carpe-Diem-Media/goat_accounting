@@ -119,7 +119,7 @@ describe('staff auth callback', () => {
 
 		expect(await load(event as never)).toEqual({ kind: 'invite' });
 		expect(event.calls.some((call) => call.name === 'verifyOtp' || call.name === 'exchangeCodeForSession')).toBe(false);
-		expect(event.headers['Referrer-Policy']).toBe('no-referrer');
+		expect(event.headers['Referrer-Policy']).toBe('strict-origin');
 	});
 
 	it('verifies an invited user token hash and redirects only to password setup', async () => {
@@ -216,6 +216,7 @@ describe('staff auth callback', () => {
 		const invalid = await outcome(() => load(openRedirect as never));
 
 		expect(result).toMatchObject({ status: 403 });
+		expect(badOrigin.headers['Referrer-Policy']).toBe('strict-origin');
 		expect(badOrigin.calls.some((call) => call.name === 'verifyOtp' || call.name === 'exchangeCodeForSession')).toBe(false);
 		expect(invalid).toMatchObject({ status: 303, location: invalidLinkPath });
 		expect(openRedirect.calls.some((call) => call.name === 'verifyOtp' || call.name === 'exchangeCodeForSession')).toBe(false);

@@ -21,7 +21,7 @@ function rejectLink(event: Parameters<Actions['default']>[0]): never {
 }
 
 export const load: PageServerLoad = async (event) => {
-	event.setHeaders({ 'Referrer-Policy': 'no-referrer' });
+	event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 	clearSetupCookie(event);
 
 	const callback = parseStaffAuthCallback(event.url);
@@ -32,7 +32,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	default: async (event) => {
-		event.setHeaders({ 'Referrer-Policy': 'no-referrer' });
+		event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 		clearSetupCookie(event);
 		if (!hasTrustedRequestOrigin(event)) return fail(403, { message: 'This request could not be verified.' });
 

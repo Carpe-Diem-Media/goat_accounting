@@ -25,7 +25,7 @@ async function rejectIneligible(event: Parameters<Actions['default']>[0]): Promi
 }
 
 export const load: PageServerLoad = async (event) => {
-	event.setHeaders({ 'Referrer-Policy': 'no-referrer' });
+	event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 	if (!event.locals.supabase || event.cookies.get(PASSWORD_SETUP_COOKIE) !== '1') {
 		clearSetupCookie(event);
 		throw redirect(303, INVALID_LINK_PATH);
@@ -40,7 +40,7 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	default: async (event) => {
-		event.setHeaders({ 'Referrer-Policy': 'no-referrer' });
+		event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 		if (!hasTrustedRequestOrigin(event)) return fail(403, { message: 'This request could not be verified.' });
 
 		const client = event.locals.supabase;

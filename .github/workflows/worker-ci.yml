@@ -47,6 +47,9 @@ jobs:
       - name: Test estimator privacy and business browser flows
         run: bunx playwright test --config=playwright.config.ts tests/e2e/estimate-business.spec.ts
 
+      - name: Test staff auth callback browser origin security
+        run: bunx playwright test --config=playwright.auth-origin.config.ts
+
       - name: Install Supabase CLI for isolated local authentication tests
         uses: supabase/setup-cli@v1
         with:

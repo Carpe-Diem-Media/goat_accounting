@@ -25,6 +25,7 @@ function makeEvent(options: {
 	const cookies = new Map<string, string>();
 	if (options.marker ?? true) cookies.set('goat-password-link', '1');
 	const calls: Array<{ name: string; args?: unknown }> = [];
+	const headers: Record<string, string> = {};
 	const query = {
 		select: (columns: string) => {
 			calls.push({ name: 'select', args: columns });
@@ -75,15 +76,20 @@ function makeEvent(options: {
 		url,
 		request,
 		locals: { supabase: client },
-		setHeaders: () => undefined,
+		setHeaders: (value: Record<string, string>) => Object.assign(headers, value),
 		cookies: {
 			get: (name: string) => cookies.get(name),
 			set: (name: string, value: string) => cookies.set(name, value),
 			delete: (name: string) => cookies.delete(name)
 		},
 		calls,
-		cookieValues: cookies
-	} as unknown as RequestEvent & { calls: typeof calls; cookieValues: typeof cookies };
+		cookieValues: cookies,
+		headers
+	} as unknown as RequestEvent & {
+		calls: typeof calls;
+		cookieValues: typeof cookies;
+		headers: typeof headers;
+	};
 }
 
 async function outcome(operation: () => unknown) {
@@ -98,6 +104,7 @@ describe('staff password setup', () => {
 	it('requires the short-lived link marker and a verified invited staff record', async () => {
 		const event = makeEvent({ method: 'GET', staffState: 'INVITED' });
 		expect(await load(event as never)).toEqual({ state: 'invited' });
+		expect(event.headers['Referrer-Policy']).toBe('strict-origin');
 		expect(event.calls).toContainEqual({ name: 'from', args: 'staff_users' });
 	});
 
@@ -132,6 +139,7 @@ describe('staff password setup', () => {
 		const event = makeEvent({ origin: 'https://attacker.invalid' });
 		const result = await actions.default!(event as never);
 		expect(result).toMatchObject({ status: 403 });
+		expect(event.headers['Referrer-Policy']).toBe('strict-origin');
 		expect(event.calls.map((call) => call.name)).not.toContain('updateUser');
 	});
 
