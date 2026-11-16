@@ -27,16 +27,6 @@ function makeEvent(options: {
 	const hasStaff = options.access !== 'non-staff';
 	const client = {
 		auth: {
-			exchangeCodeForSession: async (code: string) => {
-				calls.push({ name: 'exchangeCodeForSession', args: code });
-				if (options.callbackError || (options.singleUse && redeemed.has(code))) {
-					return { data: { session: null, user: null }, error: { message: 'expired' } };
-				}
-				redeemed.add(code);
-				return options.callbackError
-					? { data: { session: null, user: null }, error: { message: 'expired' } }
-					: { data: { session: { access_token: 'synthetic-access', refresh_token: 'synthetic-refresh' }, user: { id: userId } }, error: null };
-			},
 			verifyOtp: async (args: unknown) => {
 				calls.push({ name: 'verifyOtp', args });
 				const tokenHash = (args as { token_hash?: string }).token_hash ?? '';
@@ -118,8 +108,8 @@ describe('staff auth callback', () => {
 		});
 
 		expect(await load(event as never)).toEqual({ kind: 'invite' });
-		expect(event.calls.some((call) => call.name === 'verifyOtp' || call.name === 'exchangeCodeForSession')).toBe(false);
-		expect(event.headers['Referrer-Policy']).toBe('strict-origin');
+		expect(event.calls.some((call) => call.name === 'verifyOtp')).toBe(false);
+		expect(event.headers).toEqual({});
 	});
 
 	it('verifies an invited user token hash and redirects only to password setup', async () => {
@@ -137,36 +127,22 @@ describe('staff auth callback', () => {
 		expect(event.calls.filter((call) => call.name === 'from')).toEqual([{ name: 'from', args: 'staff_users' }]);
 	});
 
-	it('exchanges a same-browser recovery PKCE code on POST', async () => {
-		const event = makeEvent({
-			url: 'https://goataccounting.co.za/admin/auth/callback?flow=recovery&code=synthetic-recovery-code',
-			method: 'POST',
-			origin: 'https://goataccounting.co.za',
-			access: 'active'
-		});
+	it('rejects recovery callbacks without contacting Supabase', async () => {
+		for (const search of [
+			'?flow=recovery&code=synthetic-pkce-code',
+			'?flow=recovery&token_hash=synthetic-recovery-hash&type=recovery'
+		]) {
+			const event = makeEvent({
+				url: `https://goataccounting.co.za/admin/auth/callback${search}`,
+				method: 'POST',
+				origin: 'https://goataccounting.co.za'
+			});
+			const result = await outcome(() => actions.default!(event as never));
 
-		const result = await outcome(() => actions.default!(event as never));
-
-		expect(result).toMatchObject({ status: 303, location: '/admin/login/set-password' });
-		expect(event.calls).toContainEqual({ name: 'exchangeCodeForSession', args: 'synthetic-recovery-code' });
-		expect(event.cookiesSet.get('goat-password-link')).toBe('1');
-	});
-
-	it('verifies a recovery token hash on POST', async () => {
-		const event = makeEvent({
-			url: 'https://goataccounting.co.za/admin/auth/callback?flow=recovery&token_hash=synthetic-recovery-hash&type=recovery',
-			method: 'POST',
-			origin: 'https://goataccounting.co.za',
-			access: 'active'
-		});
-
-		const result = await outcome(() => actions.default!(event as never));
-
-		expect(result).toMatchObject({ status: 303, location: '/admin/login/set-password' });
-		expect(event.calls).toContainEqual({
-			name: 'verifyOtp',
-			args: { token_hash: 'synthetic-recovery-hash', type: 'recovery' }
-		});
+			expect(result).toMatchObject({ status: 303, location: invalidLinkPath });
+			expect(event.calls.map((call) => call.name)).not.toContain('verifyOtp');
+			expect(event.cookiesSet.has('goat-password-link')).toBe(false);
+		}
 	});
 
 	it('shows the same safe result for an expired invite link', async () => {
@@ -184,13 +160,12 @@ describe('staff auth callback', () => {
 		expect(JSON.stringify(result)).not.toContain('synthetic-single-use-hash');
 	});
 
-	it('rejects the second use of a previously redeemed recovery code', async () => {
+	it('rejects the second use of a previously redeemed invitation token', async () => {
 		const event = makeEvent({
-			url: 'https://goataccounting.co.za/admin/auth/callback?flow=recovery&code=synthetic-single-use-code',
+			url: 'https://goataccounting.co.za/admin/auth/callback?token_hash=synthetic-single-use-hash&type=invite',
 			method: 'POST',
 			origin: 'https://goataccounting.co.za',
-			singleUse: true,
-			access: 'active'
+			singleUse: true
 		});
 
 		const first = await outcome(() => actions.default!(event as never));
@@ -199,7 +174,7 @@ describe('staff auth callback', () => {
 		expect(first).toMatchObject({ status: 303, location: '/admin/login/set-password' });
 		expect(replay).toMatchObject({ status: 303, location: invalidLinkPath });
 		expect(event.cookiesSet.has('goat-password-link')).toBe(false);
-		expect(event.calls.filter((call) => call.name === 'exchangeCodeForSession')).toHaveLength(2);
+		expect(event.calls.filter((call) => call.name === 'verifyOtp')).toHaveLength(2);
 	});
 
 	it('rejects untrusted origins and open redirects before redeeming a link', async () => {
@@ -216,10 +191,10 @@ describe('staff auth callback', () => {
 		const invalid = await outcome(() => load(openRedirect as never));
 
 		expect(result).toMatchObject({ status: 403 });
-		expect(badOrigin.headers['Referrer-Policy']).toBe('strict-origin');
-		expect(badOrigin.calls.some((call) => call.name === 'verifyOtp' || call.name === 'exchangeCodeForSession')).toBe(false);
+		expect(badOrigin.headers).toEqual({});
+		expect(badOrigin.calls.some((call) => call.name === 'verifyOtp')).toBe(false);
 		expect(invalid).toMatchObject({ status: 303, location: invalidLinkPath });
-		expect(openRedirect.calls.some((call) => call.name === 'verifyOtp' || call.name === 'exchangeCodeForSession')).toBe(false);
+		expect(openRedirect.calls.some((call) => call.name === 'verifyOtp')).toBe(false);
 	});
 
 	it('rejects authenticated non-staff users and does not change invitation state', async () => {

@@ -44,16 +44,21 @@ These checks are implemented in `src/hooks.server.ts` and `src/lib/server/supaba
 
 The staff guard permits INVITED users to complete MFA onboarding without granting protected admin access. Protected admin access requires ACTIVE staff, an allowed database-backed role and verified AAL2/TOTP assurance. Keep invited onboarding, inactive denial and role/MFA negative tests in the acceptance evidence.
 
-### Invitation and password recovery completion
+### Staff invitations and manual password recovery
 
-The server accepts password links only at `/admin/auth/callback`. It sends recovery requests to the exact callback URL `https://goataccounting.co.za/admin/auth/callback?flow=recovery`. Configure these exact URLs in the approved Supabase project's Auth redirect allowlist, without wildcard entries:
+This release accepts only one-time invitation links at `/admin/auth/callback`. The invite callback requires a same-origin POST before it redeems the token, then grants a short-lived password-setup cookie only to a verified staff account. The local invitation template links to `{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&amp;type=invite`. The app rejects recovery tokens and PKCE recovery codes. Self-service recovery and recovery email delivery are deferred.
 
-- `https://goataccounting.co.za/admin/auth/callback`
-- `https://goataccounting.co.za/admin/auth/callback?flow=recovery`
+For hosted activation, set the approved Supabase Site URL to `https://goataccounting.co.za`, add only the exact invitation callback URL to the Auth redirect allowlist, and configure the hosted Invite User template to use the invitation link above. The template and redirect list in this repository configure local Supabase only. This PR makes no hosted Auth changes.
 
-Set the Supabase Site URL to `https://goataccounting.co.za`. In the hosted Invite User email template, link to `{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&amp;type=invite`. In the hosted Reset Password email template, link to `{{ .RedirectTo }}&amp;token_hash={{ .TokenHash }}&amp;type=recovery`. These templates send the hashed one-time token to the server callback. The callback page waits for the user to press Continue before redeeming it, so an email link scanner does not consume the invitation or recovery link on its own.
+When an existing staff member loses access, the owner handles recovery manually:
 
-The version-controlled templates and redirect allowlist in `supabase/config.toml` apply to local Supabase only. This change does not modify hosted Auth settings. Configure and verify the hosted Site URL, exact redirect URLs and email templates as a separate activation step under the staff-auth gate above.
+1. Receive the request through an established support channel. Verify the staff member through a separate, previously verified contact method.
+2. In the approved Goat Supabase project, confirm the user's identity and `staff_users` role and state. Use this password reset procedure only for `ACTIVE` staff. For every other state, follow its separately approved lifecycle procedure. Do not change staff state as part of password recovery.
+3. In a trusted server-side administrative environment, set a freshly generated password with Supabase Auth's [`auth.admin.updateUserById`](https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid). Keep the privileged Auth credential out of browser code, shell history and logs. Never send the password through email or this repository.
+4. Deliver the new password once through the separately verified channel. The staff member signs in at `/admin/login` and completes the existing TOTP challenge. A password reset does not remove MFA or grant staff access. If the staff member also lost their TOTP factor, stop and follow a separately approved factor-recovery procedure.
+5. Record the operator, account, time and outcome without recording the password. If delivery is uncertain, set a different password before providing access.
+
+Do not use public signup or automatic staff activation to recover an account. Self-service password reset, email delivery and browser completion remain deferred until their full Auth and MFA journey has separate acceptance.
 
 ## Local security acceptance and hosted verification
 

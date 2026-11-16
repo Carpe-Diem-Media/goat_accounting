@@ -4,7 +4,7 @@ import { getStaffAccess } from '$lib/server/auth/staff-guard';
 
 export const load: PageServerLoad = async (event) => {
 	const linkMessage = event.url.searchParams.get('link') === 'invalid'
-		? 'This password link is invalid, expired, or already used. Request a new link.'
+		? 'This invitation is invalid, expired, or already used. Contact the administrator.'
 		: null;
 	if (!event.locals.supabase) return { configured: false, linkMessage };
 

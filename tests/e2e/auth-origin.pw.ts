@@ -67,4 +67,33 @@ test('staff callback native forms keep the trusted origin and hide callback quer
 	await crossOriginPage.getByRole('button', { name: 'Continue', exact: true }).click();
 	const crossResponse = await crossResponsePromise;
 	expect(crossResponse.status()).toBe(403);
+
+	const passwordSetupResponsePromise = page.waitForResponse((response) => {
+		try {
+			return response.request().method() === 'GET' && new URL(response.url()).pathname === '/admin/login/set-password';
+		} catch {
+			return false;
+		}
+	});
+	await page.goto('/admin/login/set-password');
+	const passwordSetupResponse = await passwordSetupResponsePromise;
+	expect(passwordSetupResponse.status()).toBe(303);
+	expect(passwordSetupResponse.headers()['referrer-policy']).toBe('strict-origin');
+
+	await page.goto('/admin/login');
+	await expect(page.getByRole('link', { name: /reset link/i })).toHaveCount(0);
+
+	const recoveryCallbackResponsePromise = page.waitForResponse((response) => {
+		try {
+			return response.request().method() === 'GET' && new URL(response.url()).pathname === '/admin/auth/callback';
+		} catch {
+			return false;
+		}
+	});
+	await page.goto(`${callbackUrl.origin}/admin/auth/callback?token_hash=synthetic-recovery-hash&type=recovery`);
+	const recoveryCallbackResponse = await recoveryCallbackResponsePromise;
+	expect(recoveryCallbackResponse.status()).toBe(303);
+	const recoveryLocation = new URL(recoveryCallbackResponse.headers()['location'] ?? '', trustedOrigin);
+	expect(recoveryLocation.pathname).toBe('/admin/login');
+	expect(recoveryLocation.searchParams.get('link')).toBe('invalid');
 });

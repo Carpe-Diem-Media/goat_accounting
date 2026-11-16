@@ -128,7 +128,7 @@ describe('invited staff MFA onboarding', () => {
 
 		expect(result).toEqual({
 			configured: false,
-			linkMessage: 'This password link is invalid, expired, or already used. Request a new link.'
+			linkMessage: 'This invitation is invalid, expired, or already used. Contact the administrator.'
 		});
 		expect(JSON.stringify(result)).not.toContain('must-not-be-shown');
 	});

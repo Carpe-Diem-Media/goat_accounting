@@ -14,6 +14,14 @@ const eligibleAccess = (access: StaffAccess) =>
 	access.kind === 'challenge' ||
 	access.kind === 'authorized';
 
+function passwordUpdateErrorCategory(status: number | undefined): string {
+	if (status === 401) return 'provider_unauthorized';
+	if (status === 403) return 'provider_forbidden';
+	if (status === 429) return 'provider_rate_limited';
+	if (typeof status === 'number' && status >= 500) return 'provider_unavailable';
+	return 'provider_rejected';
+}
+
 function clearSetupCookie(event: Parameters<Actions['default']>[0]) {
 	event.cookies.delete(PASSWORD_SETUP_COOKIE, { path: SET_PASSWORD_PATH });
 }
@@ -25,7 +33,6 @@ async function rejectIneligible(event: Parameters<Actions['default']>[0]): Promi
 }
 
 export const load: PageServerLoad = async (event) => {
-	event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 	if (!event.locals.supabase || event.cookies.get(PASSWORD_SETUP_COOKIE) !== '1') {
 		clearSetupCookie(event);
 		throw redirect(303, INVALID_LINK_PATH);
@@ -40,7 +47,6 @@ export const load: PageServerLoad = async (event) => {
 
 export const actions: Actions = {
 	default: async (event) => {
-		event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 		if (!hasTrustedRequestOrigin(event)) return fail(403, { message: 'This request could not be verified.' });
 
 		const client = event.locals.supabase;
@@ -63,9 +69,13 @@ export const actions: Actions = {
 
 		try {
 			const { error: updateError } = await client.auth.updateUser({ password });
-			if (updateError) return fail(400, { message: 'The password was not accepted. Check it and try again.' });
+			if (updateError) {
+				console.error(`STAFF_PASSWORD_UPDATE category=${passwordUpdateErrorCategory(updateError.status)}`);
+				return fail(400, { message: 'The password was not accepted. Check it and try again.' });
+			}
 		} catch {
-			return fail(400, { message: 'The password could not be changed. Try again or request a new link.' });
+			console.error('STAFF_PASSWORD_UPDATE category=provider_exception');
+			return fail(400, { message: 'The password could not be changed. Try again or contact the administrator.' });
 		}
 
 		clearSetupCookie(event);

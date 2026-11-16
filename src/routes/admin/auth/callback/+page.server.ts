@@ -3,6 +3,7 @@ import type { Actions, PageServerLoad } from './$types';
 import { getStaffAccess } from '$lib/server/auth/staff-guard';
 import {
 	parseStaffAuthCallback,
+	PASSWORD_LINK_MAX_AGE_SECONDS,
 	PASSWORD_SETUP_COOKIE,
 	SET_PASSWORD_PATH,
 	hasTrustedRequestOrigin
@@ -21,18 +22,16 @@ function rejectLink(event: Parameters<Actions['default']>[0]): never {
 }
 
 export const load: PageServerLoad = async (event) => {
-	event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 	clearSetupCookie(event);
 
 	const callback = parseStaffAuthCallback(event.url);
 	if (!callback) throw redirect(303, INVALID_LINK_PATH);
 
-	return { kind: callback.kind === 'pkce' ? 'recovery' : callback.type };
+	return { kind: callback.type };
 };
 
 export const actions: Actions = {
 	default: async (event) => {
-		event.setHeaders({ 'Referrer-Policy': 'strict-origin' });
 		clearSetupCookie(event);
 		if (!hasTrustedRequestOrigin(event)) return fail(403, { message: 'This request could not be verified.' });
 
@@ -44,9 +43,7 @@ export const actions: Actions = {
 
 		let verified = false;
 		try {
-			const result = callback.kind === 'pkce'
-				? await client.auth.exchangeCodeForSession(callback.code)
-				: await client.auth.verifyOtp({ token_hash: callback.tokenHash, type: callback.type });
+			const result = await client.auth.verifyOtp({ token_hash: callback.tokenHash, type: callback.type });
 			verified = !result.error && Boolean(result.data.session);
 		} catch {
 			return rejectLink(event);
@@ -55,7 +52,7 @@ export const actions: Actions = {
 
 		const access = await getStaffAccess(event);
 		if (access.kind === 'unavailable') {
-			return fail(503, { message: 'Staff access is temporarily unavailable. Request a new link and try again.' });
+			return fail(503, { message: 'Staff access is temporarily unavailable. Try again later.' });
 		}
 		if (!['invited', 'setup', 'challenge', 'authorized'].includes(access.kind)) {
 			await client.auth.signOut({ scope: 'local' });
@@ -67,7 +64,7 @@ export const actions: Actions = {
 			httpOnly: true,
 			sameSite: 'lax',
 			secure: event.url.protocol === 'https:',
-			maxAge: 10 * 60
+			maxAge: PASSWORD_LINK_MAX_AGE_SECONDS
 		});
 		throw redirect(303, SET_PASSWORD_PATH);
 	}

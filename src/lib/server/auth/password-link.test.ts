@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'bun:test';
 import {
-	buildPasswordRecoveryRedirect,
 	getTrustedStaffOrigin,
 	parseStaffAuthCallback,
 	hasTrustedRequestOrigin
 } from './password-link';
 
 describe('staff password link handling', () => {
-	it('builds the recovery redirect from the approved origin and fixed callback path', () => {
-		expect(buildPasswordRecoveryRedirect(new URL('https://goataccounting.co.za/admin/login/recover')))
-			.toBe('https://goataccounting.co.za/admin/auth/callback?flow=recovery');
-	});
-
 	it('allows only the canonical site and exact local development origins', () => {
 		expect(getTrustedStaffOrigin(new URL('https://goataccounting.co.za/admin/auth/callback')))
 			.toBe('https://goataccounting.co.za');
@@ -45,13 +39,20 @@ describe('staff password link handling', () => {
 		})).toBe(false);
 	});
 
-	it('parses one recovery PKCE code or one supported token hash', () => {
-		expect(parseStaffAuthCallback(new URL('https://goataccounting.co.za/admin/auth/callback?flow=recovery&code=pkce-code')))
-			.toEqual({ kind: 'pkce', code: 'pkce-code' });
+	it('parses only one invitation token hash', () => {
 		expect(parseStaffAuthCallback(new URL('https://goataccounting.co.za/admin/auth/callback?token_hash=invite-hash&type=invite')))
 			.toEqual({ kind: 'token_hash', tokenHash: 'invite-hash', type: 'invite' });
-		expect(parseStaffAuthCallback(new URL('https://goataccounting.co.za/admin/auth/callback?flow=recovery&token_hash=recovery-hash&type=recovery')))
-			.toEqual({ kind: 'token_hash', tokenHash: 'recovery-hash', type: 'recovery' });
+	});
+
+	it('rejects recovery callbacks while self-service password recovery is deferred', () => {
+		for (const search of [
+			'?flow=recovery&code=pkce-code',
+			'?flow=recovery&token_hash=recovery-hash&type=recovery',
+			'?token_hash=recovery-hash&type=recovery'
+		]) {
+			expect(parseStaffAuthCallback(new URL(`https://goataccounting.co.za/admin/auth/callback${search}`)))
+				.toBeNull();
+		}
 	});
 
 	it('rejects missing, mixed, unsupported, duplicate, and redirect-bearing callback parameters', () => {

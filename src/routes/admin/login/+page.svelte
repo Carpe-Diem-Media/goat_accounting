@@ -64,10 +64,6 @@
 					Sign in
 				</button>
 			</form>
-			<p class="mt-5 text-center text-sm leading-6 text-muted-foreground">
-				Need a new password?
-				<a href="/admin/login/recover" class="font-medium text-foreground underline decoration-border underline-offset-4 hover:decoration-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring">Request a reset link</a>
-			</p>
 		{/if}
 	</section>
 </main>

@@ -4,7 +4,7 @@
 
 <svelte:head>
 	<title>Set your staff password | Goat Accounting</title>
-	<meta name="description" content="Set or reset the password for your Goat Accounting staff account." />
+	<meta name="description" content="Set the password for your Goat Accounting staff invitation." />
 </svelte:head>
 
 <main class="flex min-h-screen items-center justify-center bg-background px-4 py-12">

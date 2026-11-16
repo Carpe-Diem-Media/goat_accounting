@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'bun:test';
+import { describe, expect, it, spyOn } from 'bun:test';
 import type { RequestEvent } from '@sveltejs/kit';
 import { actions, load } from './set-password/+page.server';
 
@@ -11,8 +11,6 @@ function makeEvent(options: {
 	marker?: boolean;
 	staffState?: string | null;
 	role?: string;
-	currentLevel?: string;
-	nextLevel?: string;
 	claimsError?: boolean;
 	updateError?: boolean;
 	password?: string;
@@ -49,13 +47,13 @@ function makeEvent(options: {
 				: { data: { claims: { sub: userId, aal: 'aal1' } }, error: null },
 			mfa: {
 				getAuthenticatorAssuranceLevel: async () => ({
-					data: { currentLevel: options.currentLevel ?? 'aal1', nextLevel: options.nextLevel ?? 'aal1' },
+					data: { currentLevel: 'aal1', nextLevel: 'aal1' },
 					error: null
 				})
 			},
 			updateUser: async (args: unknown) => {
 				calls.push({ name: 'updateUser', args });
-				return options.updateError ? { error: { message: 'provider detail' } } : { error: null };
+				return options.updateError ? { error: { status: 401, message: 'provider detail' } } : { error: null };
 			},
 			signOut: async () => {
 				calls.push({ name: 'signOut' });
@@ -104,7 +102,7 @@ describe('staff password setup', () => {
 	it('requires the short-lived link marker and a verified invited staff record', async () => {
 		const event = makeEvent({ method: 'GET', staffState: 'INVITED' });
 		expect(await load(event as never)).toEqual({ state: 'invited' });
-		expect(event.headers['Referrer-Policy']).toBe('strict-origin');
+		expect(event.headers).toEqual({});
 		expect(event.calls).toContainEqual({ name: 'from', args: 'staff_users' });
 	});
 
@@ -135,11 +133,29 @@ describe('staff password setup', () => {
 		expect(event.calls.map((call) => call.name)).not.toContain('updateUser');
 	});
 
+	it('returns a controlled response when Supabase rejects the password update', async () => {
+		const event = makeEvent({ origin: 'https://goataccounting.co.za', updateError: true });
+		const updateLog = spyOn(console, 'error').mockImplementation(() => {});
+		try {
+			const result = await actions.default!(event as never);
+
+			expect(result).toMatchObject({ status: 400 });
+			expect(JSON.stringify(result)).not.toContain('provider detail');
+			expect(updateLog).toHaveBeenCalledWith('STAFF_PASSWORD_UPDATE category=provider_unauthorized');
+			expect(JSON.stringify(updateLog.mock.calls)).not.toContain('provider detail');
+			expect(event.cookieValues.get('goat-password-link')).toBe('1');
+			expect(event.calls.map((call) => call.name)).toContain('updateUser');
+			expect(event.headers).toEqual({});
+		} finally {
+			updateLog.mockRestore();
+		}
+	});
+
 	it('rejects cross-origin posts before changing a password', async () => {
 		const event = makeEvent({ origin: 'https://attacker.invalid' });
 		const result = await actions.default!(event as never);
 		expect(result).toMatchObject({ status: 403 });
-		expect(event.headers['Referrer-Policy']).toBe('strict-origin');
+		expect(event.headers).toEqual({});
 		expect(event.calls.map((call) => call.name)).not.toContain('updateUser');
 	});
 
@@ -154,7 +170,7 @@ describe('staff password setup', () => {
 		expect(suspended.calls.map((call) => call.name)).not.toContain('updateUser');
 	});
 
-	it('routes active recovery sessions back through MFA', async () => {
+	it('routes active staff to MFA after password setup', async () => {
 		const event = makeEvent({ origin: 'https://goataccounting.co.za', staffState: 'ACTIVE' });
 		const result = await outcome(() => actions.default!(event as never));
 		expect(result).toMatchObject({ status: 303, location: '/admin/login/mfa' });
