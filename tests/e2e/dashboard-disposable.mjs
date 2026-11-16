@@ -99,6 +99,19 @@ function copyMigrations() {
 	}
 }
 
+function copyAuthEmailTemplates(config) {
+	const templatePaths = [...config.matchAll(/^[\t ]*content_path\s*=\s*"([^"]+)"\s*$/gm)]
+		.map(([, templatePath]) => templatePath);
+	for (const templatePath of templatePaths) {
+		const match = /^\.\/supabase\/templates\/([^/]+)$/.exec(templatePath);
+		if (!match) throw new Error('Configured Auth email templates must be under supabase/templates.');
+		const fileName = match[1];
+		const destination = join(supabaseDir, 'templates');
+		mkdirSync(destination, { recursive: true });
+		copyFileSync(join(root, 'supabase/templates', fileName), join(destination, fileName));
+	}
+}
+
 function makeWorkerConfig(lane, port, apiUrl, publishableKey) {
 	const directory = join(workerDir, lane);
 	mkdirSync(directory, { recursive: true });
@@ -140,6 +153,7 @@ try {
 	for (const section of ['realtime', 'studio', 'local_smtp', 'storage', 'storage.s3_protocol', 'storage.vector', 'analytics', 'edge_runtime']) {
 		config = updateSection(config, section, { enabled: 'false' });
 	}
+	copyAuthEmailTemplates(config);
 	writeFileSync(join(supabaseDir, 'config.toml'), config, { mode: 0o600 });
 
 	phase = 'starting disposable Supabase';

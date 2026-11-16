@@ -28,6 +28,12 @@ export const handle: Handle = async ({ event, resolve }) => {
 	headers.set('Cache-Control', 'private, no-store, max-age=0');
 	headers.set('Pragma', 'no-cache');
 	headers.set('X-Robots-Tag', 'noindex, nofollow');
+	if (
+		event.url.pathname === '/admin/login/set-password' ||
+		event.url.pathname === '/admin/auth/callback'
+	) {
+		headers.set('Referrer-Policy', 'strict-origin');
+	}
 	return new Response(response.body, {
 		status: response.status,
 		statusText: response.statusText,

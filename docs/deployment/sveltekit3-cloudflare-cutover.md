@@ -44,6 +44,22 @@ These checks are implemented in `src/hooks.server.ts` and `src/lib/server/supaba
 
 The staff guard permits INVITED users to complete MFA onboarding without granting protected admin access. Protected admin access requires ACTIVE staff, an allowed database-backed role and verified AAL2/TOTP assurance. Keep invited onboarding, inactive denial and role/MFA negative tests in the acceptance evidence.
 
+### Staff invitations and manual password recovery
+
+This release accepts only one-time invitation links at `/admin/auth/callback`. The invite callback requires a same-origin POST before it redeems the token, then grants a short-lived password-setup cookie only to a verified staff account. The local invitation template links to `{{ .SiteURL }}/admin/auth/callback?token_hash={{ .TokenHash }}&amp;type=invite`. The app rejects recovery tokens and PKCE recovery codes. Self-service recovery and recovery email delivery are deferred.
+
+For hosted activation, set the approved Supabase Site URL to `https://goataccounting.co.za`, add only the exact invitation callback URL to the Auth redirect allowlist, and configure the hosted Invite User template to use the invitation link above. The template and redirect list in this repository configure local Supabase only. This PR makes no hosted Auth changes.
+
+When an existing staff member loses access, the owner handles recovery manually:
+
+1. Receive the request through an established support channel. Verify the staff member through a separate, previously verified contact method.
+2. In the approved Goat Supabase project, confirm the user's identity and `staff_users` role and state. Use this password reset procedure only for `ACTIVE` staff. For every other state, follow its separately approved lifecycle procedure. Do not change staff state as part of password recovery.
+3. In a trusted server-side administrative environment, set a freshly generated password with Supabase Auth's [`auth.admin.updateUserById`](https://supabase.com/docs/reference/javascript/auth-admin-updateuserbyid). Keep the privileged Auth credential out of browser code, shell history and logs. Never send the password through email or this repository.
+4. Deliver the new password once through the separately verified channel. The staff member signs in at `/admin/login` and completes the existing TOTP challenge. A password reset does not remove MFA or grant staff access. If the staff member also lost their TOTP factor, stop and follow a separately approved factor-recovery procedure.
+5. Record the operator, account, time and outcome without recording the password. If delivery is uncertain, set a different password before providing access.
+
+Do not use public signup or automatic staff activation to recover an account. Self-service password reset, email delivery and browser completion remain deferred until their full Auth and MFA journey has separate acceptance.
+
 ## Local security acceptance and hosted verification
 
 Use the existing local Supabase development environment for development and repeatable authentication, AAL2/TOTP, role, RLS and RPC negative tests. Local results establish tested behavior against the local schema and configuration; they do not certify hosted state.

@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { navigating, page } from '$app/state';
 	let { children, data } = $props();
-	const onLoginPage = $derived(page.url.pathname.startsWith('/admin/login'));
+	const onLoginPage = $derived(
+		page.url.pathname.startsWith('/admin/login') || page.url.pathname === '/admin/auth/callback'
+	);
 	const isLoading = $derived(navigating.to?.url.pathname.startsWith('/admin') ?? false);
 </script>
 
