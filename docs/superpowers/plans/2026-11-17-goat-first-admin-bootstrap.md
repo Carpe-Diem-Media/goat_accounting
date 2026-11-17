@@ -103,7 +103,7 @@
   Run: `DEVCORE_PROJECT_CONF=/home/jcschoeman96/projects/current/goat_accounting/.devcore/project.conf devcore-project run test -- supabase test db supabase/tests/first_admin_bootstrap_test.sql supabase/tests/estimator_security_test.sql supabase/tests/estimator_behavior_test.sql --local`
 
 - [x] **Step 3: Review the complete diff and safety boundary.** Confirm the migration chain is the only schema change; all new functions are service-role-only; RLS and the existing last-admin guard remain; no hosted Auth identity, invitation, email, database write, secret, flag, or deployment operation occurred; `.devcore` remains untracked and unstaged.
-- [ ] **Step 4: Commit the implementation and open a reviewable PR.** Include the plan and implementation files, target the current `main`, and report exact test outcomes. Do not merge or run hosted operations. Link the PR in T3 after it exists.
+- [x] **Step 4: Commit the implementation and open a reviewable PR.** Include the plan and implementation files, target the current `main`, and report exact test outcomes. Do not merge or run hosted operations. Link the PR in T3 after it exists.
 
 ## Spec coverage review
 
