@@ -21,7 +21,7 @@ SELECT is(
       AND rel.relrowsecurity
       AND rel.relforcerowsecurity
   ),
-  8,
+  10,
   'all estimator tables enforce row-level security'
 );
 
@@ -36,7 +36,7 @@ SELECT ok(
 
 SELECT ok(
   (
-    SELECT count(*) = 8 AND bool_and(
+    SELECT count(*) = 10 AND bool_and(
       NOT has_table_privilege('anon', rel.oid, 'SELECT')
       AND NOT has_table_privilege('anon', rel.oid, 'INSERT')
       AND NOT has_table_privilege('anon', rel.oid, 'UPDATE')
@@ -51,7 +51,7 @@ SELECT ok(
 
 SELECT ok(
   (
-    SELECT count(*) = 8 AND bool_and(
+    SELECT count(*) = 10 AND bool_and(
       NOT has_table_privilege('authenticated', rel.oid, 'INSERT')
       AND NOT has_table_privilege('authenticated', rel.oid, 'UPDATE')
       AND NOT has_table_privilege('authenticated', rel.oid, 'DELETE')
@@ -305,7 +305,10 @@ SELECT ok(
         OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE')
           AND proc.proname NOT IN ('is_current_staff', 'dashboard_metrics'))
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
-          AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead')
+          AND proc.proname NOT IN (
+            'is_current_staff', 'transition_lead', 'create_contact_lead',
+            'provision_first_admin', 'activate_first_admin'
+          )
           AND proc.oid NOT IN (
             'estimator.clone_pricing_model(uuid,text,uuid)'::regprocedure,
             'estimator.save_pricing_draft(uuid,uuid,bigint,bigint,bigint,jsonb)'::regprocedure

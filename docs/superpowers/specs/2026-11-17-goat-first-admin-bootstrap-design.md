@@ -29,11 +29,13 @@ The operator must independently verify that the Auth identity is the intended pe
 
 The shared advisory lock serializes concurrent provision and activation attempts with each other and with the existing last-administrator guard. Any failed check or audit write aborts the whole transaction. A retry after an ambiguous result must inspect the audit row and current staff state; the command does not automatically retry or create a second candidate.
 
+The activation authorization reference must differ from the provision authorization reference. Activation locks the invited staff row, confirmed Auth user row, and verified TOTP factor until the transaction commits so those checks cannot become stale during activation.
+
 ## Database changes
 
 - Add an append-only staff audit table containing the target user ID, operation, previous and resulting state, owner authorization reference, identity-verification reference, and timestamp. Do not store the user's email or Auth tokens.
 - Add narrowly scoped `SECURITY DEFINER` procedures for initial invitation-row provisioning and first-admin activation. Pin each search path, revoke execution from `PUBLIC`, `anon`, and `authenticated`, and grant execution only to `service_role`.
-- Add a trigger guard so direct service-role table writes cannot insert an `ACTIVE` staff row or change a staff state without the approved procedure context. Keep the existing last-admin lock/check and terminal `DEACTIVATED` behavior. No table write grants are broadened.
+- Add a trigger guard so direct Data API writes cannot assign the `admin` role, insert an `ACTIVE` staff row, or change a staff state without the private procedure context. The first-admin procedures authorize only the initial invitation and its activation; other state transitions remain unavailable through the server role until a separate audited lifecycle operation is approved. Keep the existing last-admin lock/check and terminal `DEACTIVATED` behavior. No table write grants are broadened.
 - The provision procedure is a one-time bootstrap: it refuses to run if an active administrator exists, any administrator staff row already exists, or a prior first-admin audit event exists. The activation procedure is also fail-closed and accepts only that same `INVITED` administrator while no active administrator exists.
 
 ## CLI and operational safety
