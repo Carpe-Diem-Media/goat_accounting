@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(39);
+SELECT plan(43);
 
 SELECT ok(to_regclass('estimator.staff_admin_audit') IS NOT NULL, 'the first-admin audit table exists');
 SELECT ok(to_regclass('estimator.staff_admin_bootstrap_context') IS NOT NULL, 'the private transaction context table exists');
@@ -103,6 +103,20 @@ SELECT ok(
 );
 SET LOCAL ROLE service_role;
 SELECT throws_ok(
+  $sql$UPDATE estimator.staff_users SET role = 'viewer' WHERE user_id = '71000000-0000-4000-8000-000000000001'$sql$,
+  '42501', NULL, 'direct service-role role changes cannot invalidate the invited administrator'
+);
+RESET ROLE;
+SELECT is(
+  (SELECT role::text || ':' || state::text FROM estimator.staff_users WHERE user_id = '71000000-0000-4000-8000-000000000001'),
+  'admin:INVITED',
+  'rejected role change preserves the invited administrator candidate'
+);
+UPDATE estimator.staff_users
+SET role = 'admin'
+WHERE user_id = '71000000-0000-4000-8000-000000000001';
+SET LOCAL ROLE service_role;
+SELECT throws_ok(
   $sql$SELECT estimator.provision_first_admin('71000000-0000-4000-8000-000000000099', 'owner-approval-test-1', 'identity-check-test-1', false)$sql$,
   '55000', NULL, 'provision rejects an Auth identity that does not exist'
 );
@@ -177,10 +191,22 @@ SELECT throws_ok(
   '42501', NULL, 'direct service-role state changes require an authorized procedure'
 );
 SELECT throws_ok(
+  $sql$UPDATE estimator.staff_users SET role = 'advisor' WHERE user_id = '71000000-0000-4000-8000-000000000004'$sql$,
+  '42501', NULL, 'direct service-role changes between non-admin roles are rejected'
+);
+SELECT is(
+  (SELECT role::text FROM estimator.staff_users WHERE user_id = '71000000-0000-4000-8000-000000000004'),
+  'viewer',
+  'rejected non-admin role change preserves the staff role'
+);
+SELECT throws_ok(
   $sql$INSERT INTO estimator.staff_admin_bootstrap_context (transaction_id, backend_pid, target_user_id, operation) VALUES (pg_catalog.txid_current(), pg_catalog.pg_backend_pid(), '71000000-0000-4000-8000-000000000001', 'activate')$sql$,
   '42501', NULL, 'service_role cannot forge private transaction context'
 );
 RESET ROLE;
+UPDATE estimator.staff_users
+SET role = 'viewer'
+WHERE user_id = '71000000-0000-4000-8000-000000000004';
 
 CREATE FUNCTION pg_temp.reject_bootstrap_audit_insert()
 RETURNS trigger
