@@ -504,8 +504,21 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_first_admin: {
+        Args: { p_execute: boolean; p_owner_authorization_ref: string; p_user_id: string }
+        Returns: Json
+      }
       dashboard_metrics: {
         Args: { p_start: string; p_end: string }
+        Returns: Json
+      }
+      provision_first_admin: {
+        Args: {
+          p_execute: boolean
+          p_identity_verification_ref: string
+          p_owner_authorization_ref: string
+          p_user_id: string
+        }
         Returns: Json
       }
       save_pricing_draft: {
