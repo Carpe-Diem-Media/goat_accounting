@@ -79,6 +79,47 @@ async function localDatabaseTarget() {
 	};
 }
 
+async function assertCleanBaseline(psql: (sql: string) => Promise<CommandResult>) {
+	const result = await psql(`
+		SELECT
+			(SELECT count(*) FROM estimator.staff_users WHERE role = 'admin')::text || '|' ||
+			(SELECT count(*) FROM estimator.staff_admin_audit)::text || '|' ||
+			(SELECT count(*) FROM estimator.staff_admin_bootstrap_context)::text;
+	`);
+	expect(result.code, 'baseline query should succeed').toBe(0);
+	expect(result.stdout, 'race test requires a clean first-admin baseline').toBe('0|0|0');
+}
+
+async function cleanSyntheticFixtures(psql: (sql: string) => Promise<CommandResult>, userIds: string[]) {
+	const targetIds = userIds.map((userId) => `'${userId}'::uuid`).join(', ');
+	const cleanup = await psql(`
+		BEGIN;
+		ALTER TABLE estimator.staff_admin_audit DISABLE TRIGGER staff_admin_audit_append_only;
+		ALTER TABLE estimator.staff_users DISABLE TRIGGER staff_users_guard;
+		DELETE FROM estimator.staff_admin_audit WHERE target_user_id IN (${targetIds});
+		DELETE FROM estimator.staff_users WHERE user_id IN (${targetIds});
+		DELETE FROM estimator.staff_admin_bootstrap_context WHERE target_user_id IN (${targetIds});
+		DELETE FROM auth.mfa_factors WHERE user_id IN (${targetIds});
+		DELETE FROM auth.users WHERE id IN (${targetIds});
+		ALTER TABLE estimator.staff_users ENABLE TRIGGER staff_users_guard;
+		ALTER TABLE estimator.staff_admin_audit ENABLE TRIGGER staff_admin_audit_append_only;
+		COMMIT;
+	`);
+	if (cleanup.code !== 0) throw new Error('Synthetic first-admin fixtures could not be cleaned up.');
+
+	const remainingFixtures = await psql(`
+		SELECT
+			(SELECT count(*) FROM auth.users WHERE id IN (${targetIds}))::text || '|' ||
+			(SELECT count(*) FROM estimator.staff_users WHERE user_id IN (${targetIds}))::text || '|' ||
+			(SELECT count(*) FROM estimator.staff_admin_audit WHERE target_user_id IN (${targetIds}))::text || '|' ||
+			(SELECT count(*) FROM estimator.staff_admin_bootstrap_context WHERE target_user_id IN (${targetIds}))::text || '|' ||
+			(SELECT count(*) FROM auth.mfa_factors WHERE user_id IN (${targetIds}))::text;
+	`);
+	expect(remainingFixtures.code).toBe(0);
+	expect(remainingFixtures.stdout).toBe('0|0|0|0|0');
+	await assertCleanBaseline(psql);
+}
+
 describe.skipIf(!enabled)('first-admin lifecycle concurrency in local Goat Supabase', () => {
 	test('serializes competing provision and activation requests to one lifecycle', async () => {
 		const { psql } = await localDatabaseTarget();
@@ -88,14 +129,7 @@ describe.skipIf(!enabled)('first-admin lifecycle concurrency in local Goat Supab
 		const firstIdentityRef = `race-identity-${crypto.randomUUID().replaceAll('-', '')}`;
 		const secondIdentityRef = `race-identity-${crypto.randomUUID().replaceAll('-', '')}`;
 
-		const baseline = await psql(`
-			SELECT
-				(SELECT count(*) FROM estimator.staff_users WHERE role = 'admin')::text || '|' ||
-				(SELECT count(*) FROM estimator.staff_admin_audit)::text || '|' ||
-				(SELECT count(*) FROM estimator.staff_admin_bootstrap_context)::text;
-		`);
-		expect(baseline.code, 'baseline query should succeed').toBe(0);
-		expect(baseline.stdout, 'race test requires a clean first-admin baseline').toBe('0|0|0');
+		await assertCleanBaseline(psql);
 
 		let fixturesCreated = false;
 		try {
@@ -178,33 +212,69 @@ describe.skipIf(!enabled)('first-admin lifecycle concurrency in local Goat Supab
 			expect(finalState.code).toBe(0);
 			expect(finalState.stdout).toBe('1|1|1');
 		} finally {
-			if (fixturesCreated) {
-				const cleanup = await psql(`
-					BEGIN;
-					SET LOCAL session_replication_role = replica;
-					DELETE FROM estimator.staff_admin_audit
-					WHERE target_user_id IN ('${firstUserId}', '${secondUserId}');
-					DELETE FROM estimator.staff_users
-					WHERE user_id IN ('${firstUserId}', '${secondUserId}');
-					DELETE FROM estimator.staff_admin_bootstrap_context
-					WHERE target_user_id IN ('${firstUserId}', '${secondUserId}');
-					DELETE FROM auth.mfa_factors
-					WHERE user_id IN ('${firstUserId}', '${secondUserId}');
-					DELETE FROM auth.users
-					WHERE id IN ('${firstUserId}', '${secondUserId}');
-					COMMIT;
-				`);
-				if (cleanup.code !== 0) throw new Error('Synthetic first-admin fixtures could not be cleaned up.');
+			if (fixturesCreated) await cleanSyntheticFixtures(psql, [firstUserId, secondUserId]);
+		}
+	});
 
-				const cleanedBaseline = await psql(`
-					SELECT
-						(SELECT count(*) FROM estimator.staff_users WHERE role = 'admin')::text || '|' ||
-						(SELECT count(*) FROM estimator.staff_admin_audit)::text || '|' ||
-						(SELECT count(*) FROM estimator.staff_admin_bootstrap_context)::text;
-				`);
-				expect(cleanedBaseline.code).toBe(0);
-				expect(cleanedBaseline.stdout).toBe('0|0|0');
+	test('serializes an activation request against concurrent initial provisioning', async () => {
+		const { psql } = await localDatabaseTarget();
+		const userId = crypto.randomUUID();
+		const provisionRef = `cross-provision-${crypto.randomUUID().replaceAll('-', '')}`;
+		const identityRef = `cross-identity-${crypto.randomUUID().replaceAll('-', '')}`;
+		const activationRef = `cross-activation-${crypto.randomUUID().replaceAll('-', '')}`;
+		await assertCleanBaseline(psql);
+
+		let fixturesCreated = false;
+		try {
+			const setup = await psql(`
+				BEGIN;
+				INSERT INTO auth.users (
+					id, aud, role, email, email_confirmed_at,
+					raw_app_meta_data, raw_user_meta_data, created_at, updated_at
+				) VALUES (
+					'${userId}', 'authenticated', 'authenticated', 'cross-${userId}@example.invalid', now(), '{}', '{}', now(), now()
+				);
+				INSERT INTO auth.mfa_factors (id, user_id, factor_type, status, created_at, updated_at, secret)
+				VALUES ('${crypto.randomUUID()}', '${userId}', 'totp', 'verified', now(), now(), 'race-test-fixture-only');
+				COMMIT;
+			`);
+			if (setup.code !== 0) throw new Error('Synthetic Auth and MFA fixture setup failed.');
+			fixturesCreated = true;
+
+			const provision = `
+				BEGIN;
+				SET LOCAL ROLE service_role;
+				SELECT pg_catalog.pg_sleep(0.15);
+				SELECT estimator.provision_first_admin('${userId}'::uuid, '${provisionRef}', '${identityRef}', true);
+				SELECT pg_catalog.pg_sleep(0.25);
+				COMMIT;
+			`;
+			const activate = `
+				BEGIN;
+				SET LOCAL ROLE service_role;
+				SELECT pg_catalog.pg_sleep(0.15);
+				SELECT estimator.activate_first_admin('${userId}'::uuid, '${activationRef}', true);
+				SELECT pg_catalog.pg_sleep(0.25);
+				COMMIT;
+			`;
+			const [provisionResult, activationResult] = await Promise.all([psql(provision), psql(activate)]);
+			expect(provisionResult.code, 'provision should succeed in the cross-operation race').toBe(0);
+			if (activationResult.code !== 0) expect(activationResult.stderr).toContain('55000');
+
+			const finalState = await psql(`
+				SELECT
+					(SELECT state::text FROM estimator.staff_users WHERE user_id = '${userId}') || '|' ||
+					(SELECT count(*) FROM estimator.staff_admin_audit WHERE operation = 'first_admin_provision')::text || '|' ||
+					(SELECT count(*) FROM estimator.staff_admin_audit WHERE operation = 'first_admin_activate')::text;
+			`);
+			expect(finalState.code).toBe(0);
+			if (activationResult.code === 0) {
+				expect(finalState.stdout).toBe('ACTIVE|1|1');
+			} else {
+				expect(finalState.stdout).toBe('INVITED|1|0');
 			}
+		} finally {
+			if (fixturesCreated) await cleanSyntheticFixtures(psql, [userId]);
 		}
 	});
 });
