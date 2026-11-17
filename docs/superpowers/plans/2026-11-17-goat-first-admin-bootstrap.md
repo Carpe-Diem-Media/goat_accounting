@@ -17,6 +17,7 @@
 - Create `supabase/migrations/20261117140000_first_admin_write_guard.sql` to preserve trusted direct fixture setup by the local database owner while continuing to reject Data API role writes without procedure context.
 - Create `supabase/migrations/20261117150000_first_admin_state_guard.sql` to require procedure context for every staff-state change by Data API roles.
 - Create `supabase/tests/first_admin_bootstrap_test.sql` for positive, negative, rollback, privilege, and lifecycle coverage.
+- Create `supabase/tests/first_admin_bootstrap_race.test.ts` for opt-in concurrent provision and activation coverage against the verified local Goat Supabase project.
 - Modify `supabase/tests/estimator_security_test.sql` to include the two new protected tables in existing all-table RLS and grant assertions.
 - Create `scripts/bootstrap-first-admin.ts` for argument parsing, exact target validation, safe preflight output, explicit execution gates, and RPC calls.
 - Create `scripts/bootstrap-first-admin.test.ts` for CLI argument, target, and injected-RPC behavior tests.
@@ -43,7 +44,7 @@
 
 ## Task 2: Add the private database lifecycle and prove its guards
 
-**Files:** Create `supabase/tests/first_admin_bootstrap_test.sql`; create `supabase/migrations/20261117120000_first_admin_bootstrap.sql`, `supabase/migrations/20261117130000_first_admin_activation_guards.sql`, `supabase/migrations/20261117140000_first_admin_write_guard.sql`, and `supabase/migrations/20261117150000_first_admin_state_guard.sql`; modify `supabase/tests/estimator_security_test.sql`.
+**Files:** Create `supabase/tests/first_admin_bootstrap_test.sql` and `supabase/tests/first_admin_bootstrap_race.test.ts`; create `supabase/migrations/20261117120000_first_admin_bootstrap.sql`, `supabase/migrations/20261117130000_first_admin_activation_guards.sql`, `supabase/migrations/20261117140000_first_admin_write_guard.sql`, and `supabase/migrations/20261117150000_first_admin_state_guard.sql`; modify `supabase/tests/estimator_security_test.sql`.
 
 - [x] **Step 1: Write SQL assertions before the migration.** The pgTAP suite must cover: provision of one existing Auth identity into exactly one `admin/INVITED` row; preflight without writes; activation denied before TOTP; activation succeeds only after `email_confirmed_at` and a verified `totp` factor; duplicate/prior-event/existing-admin rejection; direct `service_role` admin insert and `INVITED → ACTIVE` update rejection; `anon` and `authenticated` RPC denial; audit update/delete denial and no audit/context table privileges for API roles; rollback when audit insertion fails; preservation of the terminal `DEACTIVATED` guard and last-active-admin guard. Use only synthetic `.invalid` identities and fixed test UUIDs.
 - [x] **Step 2: Run the new pgTAP file before implementation and confirm it fails because the target objects are absent.**
@@ -65,6 +66,8 @@
   Run: `DEVCORE_PROJECT_CONF=/home/jcschoeman96/projects/current/goat_accounting/.devcore/project.conf devcore-project run test -- supabase test db supabase/tests/first_admin_bootstrap_test.sql --local`
 
   Run: `DEVCORE_PROJECT_CONF=/home/jcschoeman96/projects/current/goat_accounting/.devcore/project.conf devcore-project run test -- supabase test db supabase/tests/first_admin_bootstrap_test.sql supabase/tests/estimator_security_test.sql supabase/tests/estimator_behavior_test.sql --local`
+
+  Run: `DEVCORE_PROJECT_CONF=/home/jcschoeman96/projects/current/goat_accounting/.devcore/project.conf devcore-project run test -- env GOAT_FIRST_ADMIN_RACE_TESTS=1 mise exec bun@1.3.10 -- bun test supabase/tests/first_admin_bootstrap_race.test.ts`
 
   Expected: PASS with no test errors. If the local DB is not already available, stop and report that local environment blocker; do not create a replacement stack or reset data.
 
