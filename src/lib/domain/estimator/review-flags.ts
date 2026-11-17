@@ -89,6 +89,20 @@ function matchesCondition(condition: ReviewCondition, answers: CanonicalEstimato
 		);
 	}
 	if (condition.type === 'PERSONAL_HIGH_RISK_SELECTED') return isPersonalHighRisk(answers);
+	if (condition.type === 'STANDALONE_BANK_RECONCILIATIONS') {
+		return (
+			hasBusiness(answers) &&
+			answers.business.ongoingServices.includes('bank_reconciliations') &&
+			!answers.business.ongoingServices.includes('monthly_bookkeeping')
+		);
+	}
+	if (condition.type === 'OWNER_PERSONAL_TAX_NOT_COVERED') {
+		if (!hasBusiness(answers) || !answers.business.ongoingServices.includes('owner_personal_tax')) return false;
+		return !hasPersonal(answers) || !answers.personal.ongoingRequirements.includes('annual_tax_return');
+	}
+	if (condition.type === 'UNKNOWN_PERSONAL_TAX_YEAR_COUNT') {
+		return hasPersonal(answers) && answers.personal.currentStatus === 'multiple_years_outstanding' && answers.personal.outstandingYears === undefined;
+	}
 	if (condition.type === 'INCOMPLETE_RECORDS_WITHOUT_FULL_STATEMENTS') {
 		return (
 			hasBusiness(answers) &&
