@@ -42,7 +42,10 @@ const reviewConditionSchema = z.discriminatedUnion('type', [
 	z.object({ type: z.literal('UNKNOWN_VOLUME_WITH_MAJOR_BACKLOG') }).strict(),
 	z.object({ type: z.literal('MULTI_YEAR_INCOMPLETE_RECORDS') }).strict(),
 	z.object({ type: z.literal('PERSONAL_HIGH_RISK_SELECTED') }).strict(),
-	z.object({ type: z.literal('INCOMPLETE_RECORDS_WITHOUT_FULL_STATEMENTS') }).strict()
+	z.object({ type: z.literal('INCOMPLETE_RECORDS_WITHOUT_FULL_STATEMENTS') }).strict(),
+	z.object({ type: z.literal('STANDALONE_BANK_RECONCILIATIONS') }).strict(),
+	z.object({ type: z.literal('OWNER_PERSONAL_TAX_NOT_COVERED') }).strict(),
+	z.object({ type: z.literal('UNKNOWN_PERSONAL_TAX_YEAR_COUNT') }).strict()
 ]);
 
 const fixedRangeRuleSchema = z

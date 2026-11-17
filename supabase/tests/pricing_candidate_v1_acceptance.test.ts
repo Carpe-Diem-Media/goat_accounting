@@ -33,87 +33,87 @@ const expected = (
 const expectedById: Record<string, ExpectedCandidateResult> = {
 	'simple-current-sole-proprietor': expected(
 		[0, 0], [110000, 170000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'high'
 	),
 	'current-pty-ltd-with-vat': expected(
 		[0, 0], [245000, 395000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping', 'BIZ-ONGOING-SERVICE.vat'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.vat'],
 		'high'
 	),
 	'current-sme-ten-employees': expected(
 		[0, 400000], [725000, 1160000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-PAYROLL-MONTHLY', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping', 'BIZ-ONGOING-SERVICE.payroll', 'BIZ-ONGOING-SERVICE.vat'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_payroll_monthly', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.payroll', 'biz_ongoing_service.vat'],
 		'high'
 	),
 	'six-months-behind-clean-records': expected(
 		[240000, 840000], [110000, 170000],
-		['BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_books_periods', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'high'
 	),
 	'unknown-business-backlog-duration': expected(
 		[0, 14000000], [110000, 170000],
-		['BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_books_periods', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'preliminary', ['unknown_bookkeeping_backlog_needs_review']
 	),
 	'eighteen-months-incomplete-records': expected(
 		[1485000, 3005000], [385000, 585000],
-		['BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-COMPLIANCE-AREA.vat', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping', 'BIZ-ONGOING-SERVICE.vat'],
+		['biz_entity_type', 'biz_books_periods', 'biz_record_cleanup', 'biz_tax_position', 'biz_compliance_area.vat', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.vat'],
 		'preliminary', ['multi_year_incomplete_records', 'incomplete_records_without_full_statements', 'large_bookkeeping_backlog_needs_review', 'record_cleanup_needs_review']
 	),
 	'eighteen-months-incomplete-records-statements-available': expected(
 		[1440000, 2920000], [200000, 310000],
-		['BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_books_periods', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'preliminary', ['multi_year_incomplete_records', 'large_bookkeeping_backlog_needs_review', 'record_cleanup_needs_review']
 	),
 	'ecommerce-multiple-gateways': expected(
 		[0, 0], [340000, 500000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping', 'BIZ-ONGOING-SERVICE.bank_reconciliations'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.bank_reconciliations'],
 		'high'
 	),
 	'multiple-entities': expected(
 		[0, 0], [200000, 310000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-ENTITY-COUNT', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_entity_count', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'preliminary', ['multiple_entities_require_review']
 	),
 	'multiple-entities-unknown-count': expected(
 		[0, 0], [200000, 310000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-ENTITY-COUNT', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_entity_count', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'preliminary', ['multiple_entities_require_review', 'multiple_entities_without_count']
 	),
 	'personal-salaried-taxpayer': expected(
 		[75000, 140000], [6250, 11667],
-		['PERSONAL-STATUS-BASE', 'PERSONAL-INCOME-SOURCE.salary', 'PERSONAL-SARS-POSITION', 'PERSONAL-ONGOING-SERVICE.annual_tax_return'],
+		['personal_status_base', 'personal_income_source.salary', 'personal_sars_position', 'personal_ongoing_service.annual_tax_return'],
 		'high'
 	),
 	'rental-and-provisional-tax': expected(
 		[140000, 270000], [29583, 56667],
-		['PERSONAL-STATUS-BASE', 'PERSONAL-INCOME-SOURCE.rental_property', 'PERSONAL-INCOME-SOURCE.provisional_tax', 'PERSONAL-RENTAL-COUNT', 'PERSONAL-SARS-POSITION', 'PERSONAL-ONGOING-SERVICE.annual_tax_return', 'PERSONAL-ONGOING-SERVICE.provisional_tax'],
+		['personal_status_base', 'personal_income_source.rental_property', 'personal_income_source.provisional_tax', 'personal_rental_count', 'personal_sars_position', 'personal_ongoing_service.annual_tax_return', 'personal_ongoing_service.provisional_tax'],
 		'high'
 	),
 	'high-risk-sars-dispute': expected(
 		[0, 0], [6250, 11667],
-		['PERSONAL-STATUS-BASE', 'PERSONAL-INCOME-SOURCE.salary', 'PERSONAL-INCOME-SOURCE.business_income', 'PERSONAL-SARS-POSITION', 'PERSONAL-ONGOING-SERVICE.annual_tax_return', 'PERSONAL-ONGOING-SERVICE.dispute_support'],
+		['personal_status_base', 'personal_income_source.salary', 'personal_income_source.business_income', 'personal_sars_position', 'personal_ongoing_service.annual_tax_return', 'personal_ongoing_service.dispute_support'],
 		'preliminary', ['personal_high_risk_sars_position', 'personal_business_income_needs_review', 'urgent_deadline', 'dispute_support_needs_review']
 	),
 	'unknown-transaction-volume': expected(
 		[0, 0], [110000, 1500000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'preliminary', ['unknown_monthly_volume']
 	),
 	'unknown-volume-with-major-backlog': expected(
 		[560000, 1680000], [110000, 1500000],
-		['BIZ-ENTITY-TYPE', 'BIZ-BOOKS-PERIODS', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_books_periods', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'preliminary', ['unknown_volume_with_major_backlog', 'unknown_monthly_volume', 'large_bookkeeping_backlog_needs_review']
 	),
 	'moderate-uncertainty-good-confidence': expected(
 		[0, 0], [110000, 170000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping'],
 		'good'
 	),
 	'high-volume-boundary': expected(
 		[0, 0], [950000, 1500000],
-		['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping', 'BIZ-ONGOING-SERVICE.bank_reconciliations'],
+		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.bank_reconciliations'],
 		'preliminary', ['high_transaction_volume']
 	)
 };
@@ -138,7 +138,7 @@ describe('GOAT starter pricing acceptance expectations', () => {
 				answers: combinedAnswers,
 				expected: expected(
 					[75000, 140000], [116250, 181667],
-					['BIZ-ENTITY-TYPE', 'BIZ-RECORD-CLEANUP', 'BIZ-TAX-POSITION', 'PERSONAL-STATUS-BASE', 'PERSONAL-INCOME-SOURCE.salary', 'PERSONAL-SARS-POSITION', 'BIZ-VOLUME-REQUIRED', 'BIZ-BOOKKEEPING-MONTHLY', 'BIZ-ACCOUNTS-REQUIRED', 'BIZ-EMPLOYEE-REQUIRED', 'BIZ-ONGOING-SERVICE.monthly_bookkeeping', 'PERSONAL-ONGOING-SERVICE.annual_tax_return'],
+					['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'personal_status_base', 'personal_income_source.salary', 'personal_sars_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'personal_ongoing_service.annual_tax_return'],
 					'high'
 				)
 			}

@@ -17,7 +17,7 @@ All amounts are provisional South African rand values. The candidate stores inte
 | Payroll, 1–5 employees | R450–R850/month | Only when payroll is selected |
 | Payroll, 6–15 employees | R900–R1,750/month | Only when payroll is selected |
 | Payroll, 16–30 employees | R1,900–R3,500/month | Only when payroll is selected |
-| Payroll, more than 30 employees | R1,900–R3,500/month | Temporary top-band display to satisfy the current monotone-band validator; manual quote required. Owner review must confirm whether to show this placeholder or change the model contract to support an unpriced band. |
+| Payroll, more than 30 employees | R3,800–R6,500/month | Provisional higher band; manual quote required. |
 | VAT201 preparation | R450–R850/return | Ongoing amount assumes one return per month. Catch-up applies the range once per selected return type. Multiple outstanding periods require review because the questionnaire does not collect a return count. |
 | Historical bookkeeping | R800–R1,400/outstanding month | Unknown duration spans 0–100 months and requires review. |
 | Record cleanup | R0–R4,000 once | Applies once for non-clean records, not once per backlog month. |
@@ -28,15 +28,20 @@ All amounts are provisional South African rand values. The candidate stores inte
 | Standard personal tax return | R750–R1,400/return | Once-off return amount. Ongoing annual-return support is shown separately as a monthly equivalent over 12 months. |
 | Rental/provisional tax complexity | R1,400–R2,700 when both source options are selected | The candidate divides the increment above the standard personal tier between `rental_property` and `provisional_tax` to avoid charging the full range twice. A single selected source adds R325–R650 to the base tier. This split is a provisional interpretation for owner review. |
 | Foreign income/capital gains complexity | R2,500–R4,800 when both source options are selected | The candidate divides the increment above the standard personal tier between `foreign_income` and `capital_gains`. A single selected source adds R875–R1,700 to the base tier. Both cases require manual review. This split is a provisional interpretation for owner review. |
-| Additional outstanding personal tax years | R750–R1,500/year | Unknown count spans the schema limit of 2–100 years and requires review. |
+| Additional outstanding personal tax years | R750–R1,500/year | Unknown count spans the schema limit of 2–100 years and requires manual review. |
 | CIPC assistance | R600–R1,200/engagement | Official statutory fees are excluded. No monthly equivalent is used; recurring CIPC scope requires manual review. |
 
-No automatic amount is added for unsupported or unpriced selections. Review flags cover high-volume payroll, unknown values, multiple entities, incomplete records, SARS issues, and services that need a manual quotation. The existing confidence thresholds remain `highMaxPoints: 0` and `goodMaxPoints: 1`.
+No automatic amount is added for unsupported or unpriced selections. Review flags cover high-volume payroll, unknown values, multiple entities, incomplete records, SARS issues, and services that need a manual quotation. Standalone bank reconciliations and owner personal tax not covered by a selected personal annual-return service require manual review; multiple outstanding personal tax years without a count also require review. These flags make the estimate preliminary. The existing confidence thresholds remain `highMaxPoints: 0` and `goodMaxPoints: 1`.
+
+Every persisted pricing rule code uses the lowercase `snake_case` format enforced by the committed PostgreSQL constraint. The focused candidate test reads that constraint from the migration and checks all candidate rule codes against it; the database constraint itself is unchanged.
 
 ## Interpretation notes
 
 - Monthly bookkeeping prices apply once, through the selected bookkeeping service. Financial account count, bank reconciliations, payroll and other selected services do not repeat that fee.
-- The top payroll band is visible for 31+ employees only because the current schema requires workload bands to be monotone. The estimate also requires a manual quote. This assumption needs owner review before activation.
+- Payroll for 31+ employees uses the provisional R3,800–R6,500 band and requires a manual quote. The estimate remains indicative.
+- Standalone bank reconciliations have no approved standalone price. They are included only when monthly bookkeeping is selected; selecting them by themselves yields no automatic fee and adds a manual-review warning.
+- Owner personal tax in a business estimate is treated as covered only when a personal branch includes the ongoing annual tax return. Otherwise, it yields no automatic fee and adds a manual-review warning.
+- A multiple-year personal tax backlog without an entered year count has a wide estimate range and an explicit manual-review warning.
 - VAT ongoing pricing assumes one VAT201 return each month. Annual financial statements and company income tax are divided by 12. Personal annual returns use one return per year; provisional tax uses two returns per year. Divided amounts round to the nearest cent.
 - A selected outstanding compliance type adds one return range. The model flags `multiple_periods_outstanding` for review because it lacks the return count needed to multiply VAT or company tax fees safely.
 - Personal complexity surcharges are additive to the standard return tier. Rental/provisional and foreign/capital-gains source splits match the proposed upper tiers when both named source options are selected, without charging the whole tier twice. Single-source results are lower and remain subject to review where specified.

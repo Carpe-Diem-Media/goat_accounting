@@ -64,19 +64,19 @@ const businessRulePrices = {
 		'1_to_5': money(45000, 85000),
 		'6_to_15': money(90000, 175000),
 		'16_to_30': money(190000, 350000),
-		'31_plus': money(190000, 350000),
-		not_sure: money(45000, 350000)
+		'31_plus': money(380000, 650000),
+		not_sure: money(45000, 650000)
 	}
 } as const;
 
 const rules: PricingRuleInput[] = [
 	{
-		type: 'BAND_RANGE', code: 'BIZ-ENTITY-TYPE', label: 'Entity structure',
+		type: 'BAND_RANGE', code: 'biz_entity_type', label: 'Entity structure',
 		explanation: 'No separate entity-type fee is included in this starter model.',
 		scope: 'business', category: 'catchup', inputKey: 'business.entityType', bands: bands('business.entityType')
 	},
 	{
-		type: 'PER_PERIOD_RANGE', code: 'BIZ-BOOKS-PERIODS', label: 'Historical bookkeeping catch-up',
+		type: 'PER_PERIOD_RANGE', code: 'biz_books_periods', label: 'Historical bookkeeping catch-up',
 		explanation: 'R800–R1,400 per outstanding month. An unknown duration spans zero to the schema limit of 100 months and requires review.',
 		scope: 'business', category: 'catchup', inputKey: 'business.booksStatus', periodCountInputKey: 'business.outstandingMonths',
 		periodLabel: 'month', unitRange: money(80000, 140000), unknownRange: money(0, 14000000),
@@ -91,7 +91,7 @@ const rules: PricingRuleInput[] = [
 		]
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-RECORD-CLEANUP', label: 'One-off record cleanup',
+		type: 'BAND_RANGE', code: 'biz_record_cleanup', label: 'One-off record cleanup',
 		explanation: 'Separate one-off cleanup allowance of R0–R4,000 for records that are not clean. It does not repeat per backlog month.',
 		scope: 'business', category: 'catchup', inputKey: 'business.recordCondition',
 		bands: bands('business.recordCondition', { clean_software: free(),
@@ -100,41 +100,41 @@ const rules: PricingRuleInput[] = [
 			incomplete_or_messy: money(0, 400000), not_sure: money(0, 400000) })
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-VOLUME-REQUIRED', label: 'Bookkeeping volume price gate',
+		type: 'BAND_RANGE', code: 'biz_volume_required', label: 'Bookkeeping volume price gate',
 		explanation: 'The mandatory workload band is zero-priced; the selected bookkeeping service applies the transaction-volume fee once.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.monthlyTransactionVolume', bands: bands('business.monthlyTransactionVolume')
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-BOOKKEEPING-MONTHLY', label: 'Monthly bookkeeping',
+		type: 'BAND_RANGE', code: 'biz_bookkeeping_monthly', label: 'Monthly bookkeeping',
 		explanation: 'Monthly bookkeeping price by transaction volume. Unknown volume uses the full approved low-to-high range and requires manual review.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.monthlyTransactionVolume',
 		when: { type: 'ARRAY_CONTAINS', inputKey: 'business.ongoingServices', value: 'monthly_bookkeeping' },
 		bands: bands('business.monthlyTransactionVolume', businessRulePrices.bookkeeping)
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-ACCOUNTS-REQUIRED', label: 'Financial accounts price gate',
+		type: 'BAND_RANGE', code: 'biz_accounts_required', label: 'Financial accounts price gate',
 		explanation: 'The transaction-volume fee covers the starter bookkeeping estimate. No separate account-count fee is added.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.financialAccounts', bands: bands('business.financialAccounts')
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-EMPLOYEE-REQUIRED', label: 'Payroll price gate',
+		type: 'BAND_RANGE', code: 'biz_employee_required', label: 'Payroll price gate',
 		explanation: 'Employee count adds no fee unless payroll is selected.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.employeeCount', bands: bands('business.employeeCount')
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-PAYROLL-MONTHLY', label: 'Monthly payroll',
-		explanation: 'Monthly payroll price applies only when payroll is selected. More than 30 employees uses the highest published band pending a bespoke manual quote.',
+		type: 'BAND_RANGE', code: 'biz_payroll_monthly', label: 'Monthly payroll',
+		explanation: 'Monthly payroll price applies only when payroll is selected. The provisional 31+ employee range requires a bespoke manual quote.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.employeeCount',
 		when: { type: 'ARRAY_CONTAINS', inputKey: 'business.ongoingServices', value: 'payroll' },
 		bands: bands('business.employeeCount', businessRulePrices.payroll)
 	},
 	{
-		type: 'BAND_RANGE', code: 'BIZ-TAX-POSITION', label: 'Compliance status price gate',
+		type: 'BAND_RANGE', code: 'biz_tax_position', label: 'Compliance status price gate',
 		explanation: 'Tax-position bands add no fee. Selected outstanding return types are priced once below.',
 		scope: 'business', category: 'catchup', inputKey: 'business.taxPosition', bands: bands('business.taxPosition')
 	},
 	{
-		type: 'SERVICE_ADDON_RANGE', code: 'BIZ-COMPLIANCE-AREA', label: 'Outstanding compliance return',
+		type: 'SERVICE_ADDON_RANGE', code: 'biz_compliance_area', label: 'Outstanding compliance return',
 		explanation: 'Catch-up prices are per selected return or CIPC engagement. Official filing and CIPC fees are excluded.',
 		scope: 'business', category: 'catchup', inputKey: 'business.outstandingComplianceAreas',
 		addOns: addOns('business.outstandingComplianceAreas', {
@@ -147,7 +147,7 @@ const rules: PricingRuleInput[] = [
 		})
 	},
 	{
-		type: 'SERVICE_ADDON_RANGE', code: 'BIZ-ONGOING-SERVICE', label: 'Selected ongoing business services',
+		type: 'SERVICE_ADDON_RANGE', code: 'biz_ongoing_service', label: 'Selected ongoing business services',
 		explanation: 'Annual services are shown as monthly equivalents billed evenly over 12 months. VAT assumes one return per month. The monthly bookkeeping and payroll fees are added by their selected-service bands.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.ongoingServices',
 		addOns: addOns('business.ongoingServices', {
@@ -166,29 +166,29 @@ const rules: PricingRuleInput[] = [
 		})
 	},
 	{
-		type: 'PER_UNIT_RANGE', code: 'BIZ-ENTITY-COUNT', label: 'Additional entity count',
+		type: 'PER_UNIT_RANGE', code: 'biz_entity_count', label: 'Additional entity count',
 		explanation: 'No automatic multiple-entity surcharge is included. Multiple entities require manual review before a final fee is confirmed.',
 		scope: 'business', category: 'catchup', inputKey: 'business.entityCount', unitLabel: 'entity',
 		unitRange: free(), unknownRange: free(), when: { inputKey: 'business.entityType', value: 'multiple_entities' }
 	},
 	{
-		type: 'COMPLEXITY_SCORE', code: 'BIZ-COMPLEXITY-SCORE', label: 'Business complexity score',
+		type: 'COMPLEXITY_SCORE', code: 'biz_complexity_score', label: 'Business complexity score',
 		explanation: 'Complexity points do not alter the provisional fee schedule.',
 		scope: 'business', category: 'score', inputKey: 'business.complexityFactors',
 		pointsByValue: valuesFor('business.complexityFactors').map((value) => ({ value, points: 0 }))
 	},
-	confidenceRule('BIZ-BOOKS-UNCERTAINTY', 'Books-status uncertainty', 'Unknown books status reduces confidence.', 'business', 'business.booksStatus'),
-	confidenceRule('BIZ-RECORD-UNCERTAINTY', 'Record-condition uncertainty', 'Unknown record condition reduces confidence.', 'business', 'business.recordCondition'),
-	confidenceRule('BIZ-VOLUME-UNCERTAINTY', 'Transaction-volume uncertainty', 'Unknown transaction volume reduces confidence.', 'business', 'business.monthlyTransactionVolume'),
-	confidenceRule('BIZ-ACCOUNT-UNCERTAINTY', 'Account-count uncertainty', 'Unknown account count reduces confidence.', 'business', 'business.financialAccounts'),
-	confidenceRule('BIZ-EMPLOYEE-UNCERTAINTY', 'Employee-count uncertainty', 'Unknown employee count reduces confidence.', 'business', 'business.employeeCount'),
-	confidenceRule('BIZ-TAX-UNCERTAINTY', 'Tax-status uncertainty', 'Unknown tax status reduces confidence.', 'business', 'business.taxPosition'),
-	confidenceRule('BIZ-ENTITY-COUNT-UNCERTAINTY', 'Entity-count uncertainty', 'Unknown entity count reduces confidence.', 'business', 'business.entityCount', { when: { inputKey: 'business.entityType', value: 'multiple_entities' } }),
-	confidenceRule('BIZ-BACKLOG-COUNT-UNCERTAINTY', 'Backlog-count uncertainty', 'Unknown backlog count reduces confidence.', 'business', 'business.outstandingMonths', { when: { inputKey: 'business.booksStatus', value: '1_to_2_years' } }),
-	confidenceRule('BIZ-OLDER-BACKLOG-COUNT-UNCERTAINTY', 'Older backlog-count uncertainty', 'Unknown backlog count reduces confidence.', 'business', 'business.outstandingMonths', { when: { inputKey: 'business.booksStatus', value: 'over_2_years' } }),
-	confidenceRule('BIZ-UNKNOWN-BACKLOG-UNCERTAINTY', 'Unknown backlog-duration uncertainty', 'Unknown backlog duration reduces confidence.', 'business', 'business.outstandingMonths', { when: { inputKey: 'business.booksStatus', value: 'not_sure' } }),
+	confidenceRule('biz_books_uncertainty', 'Books-status uncertainty', 'Unknown books status reduces confidence.', 'business', 'business.booksStatus'),
+	confidenceRule('biz_record_uncertainty', 'Record-condition uncertainty', 'Unknown record condition reduces confidence.', 'business', 'business.recordCondition'),
+	confidenceRule('biz_volume_uncertainty', 'Transaction-volume uncertainty', 'Unknown transaction volume reduces confidence.', 'business', 'business.monthlyTransactionVolume'),
+	confidenceRule('biz_account_uncertainty', 'Account-count uncertainty', 'Unknown account count reduces confidence.', 'business', 'business.financialAccounts'),
+	confidenceRule('biz_employee_uncertainty', 'Employee-count uncertainty', 'Unknown employee count reduces confidence.', 'business', 'business.employeeCount'),
+	confidenceRule('biz_tax_uncertainty', 'Tax-status uncertainty', 'Unknown tax status reduces confidence.', 'business', 'business.taxPosition'),
+	confidenceRule('biz_entity_count_uncertainty', 'Entity-count uncertainty', 'Unknown entity count reduces confidence.', 'business', 'business.entityCount', { when: { inputKey: 'business.entityType', value: 'multiple_entities' } }),
+	confidenceRule('biz_backlog_count_uncertainty', 'Backlog-count uncertainty', 'Unknown backlog count reduces confidence.', 'business', 'business.outstandingMonths', { when: { inputKey: 'business.booksStatus', value: '1_to_2_years' } }),
+	confidenceRule('biz_older_backlog_count_uncertainty', 'Older backlog-count uncertainty', 'Unknown backlog count reduces confidence.', 'business', 'business.outstandingMonths', { when: { inputKey: 'business.booksStatus', value: 'over_2_years' } }),
+	confidenceRule('biz_unknown_backlog_uncertainty', 'Unknown backlog-duration uncertainty', 'Unknown backlog duration reduces confidence.', 'business', 'business.outstandingMonths', { when: { inputKey: 'business.booksStatus', value: 'not_sure' } }),
 	{
-		type: 'BAND_RANGE', code: 'PERSONAL-STATUS-BASE', label: 'Personal tax return',
+		type: 'BAND_RANGE', code: 'personal_status_base', label: 'Personal tax return',
 		explanation: 'One current or one-year-outstanding return costs R750–R1,400. Multiple outstanding years are priced per year. SARS issues and unknown status require manual review.',
 		scope: 'personal', category: 'catchup', inputKey: 'personal.currentStatus',
 		bands: bands('personal.currentStatus', {
@@ -197,7 +197,7 @@ const rules: PricingRuleInput[] = [
 		})
 	},
 	{
-		type: 'SERVICE_ADDON_RANGE', code: 'PERSONAL-INCOME-SOURCE', label: 'Personal return income sources',
+		type: 'SERVICE_ADDON_RANGE', code: 'personal_income_source', label: 'Personal return income sources',
 		explanation: 'Ranges are per return. The rental/provisional and foreign/capital-gains ranges are split across their two selected source types so the combined cases equal the owner-proposed tier without charging that tier twice.',
 		scope: 'personal', category: 'catchup', inputKey: 'personal.incomeSources',
 		addOns: addOns('personal.incomeSources', {
@@ -213,24 +213,24 @@ const rules: PricingRuleInput[] = [
 		})
 	},
 	{
-		type: 'BAND_RANGE', code: 'PERSONAL-RENTAL-COUNT', label: 'Rental-property count price gate',
+		type: 'BAND_RANGE', code: 'personal_rental_count', label: 'Rental-property count price gate',
 		explanation: 'The starter rental/provisional tier does not add a separate property-count fee.',
 		scope: 'personal', category: 'catchup', inputKey: 'personal.rentalPropertyCount', bands: bands('personal.rentalPropertyCount')
 	},
 	{
-		type: 'BAND_RANGE', code: 'PERSONAL-SARS-POSITION', label: 'SARS position price gate',
+		type: 'BAND_RANGE', code: 'personal_sars_position', label: 'SARS position price gate',
 		explanation: 'SARS disputes and complications require manual quotation; this band does not add an automatic fee.',
 		scope: 'personal', category: 'catchup', inputKey: 'personal.sarsPosition', bands: bands('personal.sarsPosition')
 	},
 	{
-		type: 'PER_UNIT_RANGE', code: 'PERSONAL-OUTSTANDING-YEARS', label: 'Additional outstanding tax years',
+		type: 'PER_UNIT_RANGE', code: 'personal_outstanding_years', label: 'Additional outstanding tax years',
 		explanation: 'Additional outstanding years cost R750–R1,500 per year. An unknown count covers the schema range of 2–100 years and requires review.',
 		scope: 'personal', category: 'catchup', inputKey: 'personal.outstandingYears', unitLabel: 'tax year',
 		unitRange: money(75000, 150000), unknownRange: money(150000, 15000000),
 		when: { inputKey: 'personal.currentStatus', value: 'multiple_years_outstanding' }
 	},
 	{
-		type: 'SERVICE_ADDON_RANGE', code: 'PERSONAL-ONGOING-SERVICE', label: 'Ongoing personal tax services',
+		type: 'SERVICE_ADDON_RANGE', code: 'personal_ongoing_service', label: 'Ongoing personal tax services',
 		explanation: 'Annual personal returns are shown as monthly equivalents, assuming one return per year. Provisional tax assumes two returns per year. Other unpriced ongoing support requires manual review.',
 		scope: 'personal', category: 'ongoing', inputKey: 'personal.ongoingRequirements',
 		addOns: addOns('personal.ongoingRequirements', {
@@ -244,17 +244,17 @@ const rules: PricingRuleInput[] = [
 		})
 	},
 	{
-		type: 'COMPLEXITY_SCORE', code: 'PERSONAL-COMPLEXITY-SCORE', label: 'Personal complexity score',
+		type: 'COMPLEXITY_SCORE', code: 'personal_complexity_score', label: 'Personal complexity score',
 		explanation: 'Complexity points do not alter the provisional fee schedule.',
 		scope: 'personal', category: 'score', inputKey: 'personal.incomeSources',
 		pointsByValue: valuesFor('personal.incomeSources').map((value) => ({ value, points: 0 }))
 	},
-	confidenceRule('PERSONAL-STATUS-UNCERTAINTY', 'Personal-status uncertainty', 'Unknown personal tax status reduces confidence.', 'personal', 'personal.currentStatus'),
-	confidenceRule('PERSONAL-SARS-UNCERTAINTY', 'SARS-position uncertainty', 'Unknown SARS position reduces confidence.', 'personal', 'personal.sarsPosition'),
-	confidenceRule('PERSONAL-RENTAL-COUNT-UNCERTAINTY', 'Rental-count uncertainty', 'Unknown rental-property count reduces confidence.', 'personal', 'personal.rentalPropertyCount'),
-	confidenceRule('PERSONAL-FOREIGN-UNCERTAINTY', 'Foreign-income uncertainty', 'Unknown foreign-income status reduces confidence.', 'personal', 'personal.foreignIncomePresent'),
-	confidenceRule('PERSONAL-CAPITAL-GAINS-UNCERTAINTY', 'Capital-gains uncertainty', 'Unknown capital-gains status reduces confidence.', 'personal', 'personal.capitalGainsOccurred'),
-	confidenceRule('PERSONAL-YEAR-COUNT-UNCERTAINTY', 'Outstanding-year-count uncertainty', 'Unknown number of outstanding years reduces confidence.', 'personal', 'personal.outstandingYears', { when: { inputKey: 'personal.currentStatus', value: 'multiple_years_outstanding' } }),
+	confidenceRule('personal_status_uncertainty', 'Personal-status uncertainty', 'Unknown personal tax status reduces confidence.', 'personal', 'personal.currentStatus'),
+	confidenceRule('personal_sars_uncertainty', 'SARS-position uncertainty', 'Unknown SARS position reduces confidence.', 'personal', 'personal.sarsPosition'),
+	confidenceRule('personal_rental_count_uncertainty', 'Rental-count uncertainty', 'Unknown rental-property count reduces confidence.', 'personal', 'personal.rentalPropertyCount'),
+	confidenceRule('personal_foreign_uncertainty', 'Foreign-income uncertainty', 'Unknown foreign-income status reduces confidence.', 'personal', 'personal.foreignIncomePresent'),
+	confidenceRule('personal_capital_gains_uncertainty', 'Capital-gains uncertainty', 'Unknown capital-gains status reduces confidence.', 'personal', 'personal.capitalGainsOccurred'),
+	confidenceRule('personal_year_count_uncertainty', 'Outstanding-year-count uncertainty', 'Unknown number of outstanding years reduces confidence.', 'personal', 'personal.outstandingYears', { when: { inputKey: 'personal.currentStatus', value: 'multiple_years_outstanding' } }),
 	reviewRule('other_business_entity_needs_review', 'Other business entity needs review', 'This entity type has no approved automatic price.', 'business', { type: 'ANSWER_EQUALS', inputKey: 'business.entityType', value: 'other_not_sure' }),
 	reviewRule('multiple_entities_require_review', 'Multiple entities require review', 'Multiple entities are not automatically priced in this starter schedule.', 'business', { type: 'ANSWER_EQUALS', inputKey: 'business.entityType', value: 'multiple_entities' }),
 	reviewRule('multiple_entities_without_count', 'Entity count needs review', 'The number of entities is missing.', 'business', { type: 'MULTIPLE_ENTITIES_WITHOUT_COUNT' }),
@@ -268,6 +268,8 @@ const rules: PricingRuleInput[] = [
 	reviewRule('unknown_monthly_volume', 'Unknown monthly volume needs review', 'The wide transaction-volume range requires manual review.', 'business', { type: 'ANSWER_EQUALS', inputKey: 'business.monthlyTransactionVolume', value: 'not_sure' }),
 	reviewRule('unpriceable_complexity', 'Unpriceable complexity needs review', 'Unspecified business complexity requires manual review.', 'business', { type: 'UNPRICEABLE_COMPLEXITY_SELECTED' }),
 	reviewRule('payroll_over_30_needs_quote', 'Payroll over 30 employees needs a quote', 'The displayed top-band amount is indicative only; a bespoke payroll quote is required.', 'business', { type: 'ANSWER_EQUALS', inputKey: 'business.employeeCount', value: '31_plus' }),
+	reviewRule('standalone_bank_reconciliations_needs_review', 'Standalone bank reconciliations need review', 'Bank reconciliations have no standalone V1 price and are included only with monthly bookkeeping.', 'business', { type: 'STANDALONE_BANK_RECONCILIATIONS' }),
+	reviewRule('uncovered_owner_personal_tax_needs_review', 'Owner personal tax needs review', 'Owner personal tax is covered only when the personal branch includes the ongoing annual tax return; otherwise it needs a manual quote.', 'business', { type: 'OWNER_PERSONAL_TAX_NOT_COVERED' }),
 	reviewRule('unknown_employee_count_needs_review', 'Unknown employee count needs review', 'Payroll cannot be priced confidently without an employee count.', 'business', { type: 'ANSWER_EQUALS', inputKey: 'business.employeeCount', value: 'not_sure' }),
 	reviewRule('trust_structures_need_review', 'Trust structures need review', 'Trust structures require professional review.', 'business', { type: 'ARRAY_CONTAINS', inputKey: 'business.complexityFactors', value: 'trust_structures' }),
 	reviewRule('five_or_more_entities_need_review', 'Five or more entities need review', 'Five or more entities require manual review.', 'business', { type: 'NUMERIC_AT_LEAST', inputKey: 'business.entityCount', value: 5 }),
@@ -288,6 +290,7 @@ const rules: PricingRuleInput[] = [
 	reviewRule('personal_foreign_income_needs_review', 'Foreign income needs review', 'Foreign income is priced indicatively and requires professional review.', 'personal', { type: 'ARRAY_CONTAINS', inputKey: 'personal.incomeSources', value: 'foreign_income' }),
 	reviewRule('personal_capital_gains_needs_review', 'Capital gains need review', 'Capital-gains pricing is indicative and requires professional review.', 'personal', { type: 'ARRAY_CONTAINS', inputKey: 'personal.incomeSources', value: 'capital_gains' }),
 	reviewRule('unknown_personal_status_needs_review', 'Unknown personal status needs review', 'No automatic fee is applied when personal tax status is unknown.', 'personal', { type: 'ANSWER_EQUALS', inputKey: 'personal.currentStatus', value: 'not_sure' }),
+	reviewRule('unknown_personal_tax_year_count_needs_review', 'Outstanding personal tax-year count needs review', 'Multiple outstanding personal tax years require a count before the final fee can be confirmed.', 'personal', { type: 'UNKNOWN_PERSONAL_TAX_YEAR_COUNT' }),
 	reviewRule('unknown_personal_sars_position_needs_review', 'Unknown SARS position needs review', 'No automatic fee is applied when SARS status is unknown.', 'personal', { type: 'ANSWER_EQUALS', inputKey: 'personal.sarsPosition', value: 'not_sure' }),
 	reviewRule('complex_rental_count_needs_review', 'Rental-property count needs review', 'Four or more rental properties or an unknown count need review.', 'personal', { type: 'ANSWER_IN', inputKey: 'personal.rentalPropertyCount', values: ['4_plus', 'not_sure'] }),
 	reviewRule('unpriced_personal_ongoing_support_needs_review', 'Personal ongoing support needs review', 'Tax planning, SARS correspondence and dispute support have no automatic monthly price.', 'personal', { type: 'ARRAY_CONTAINS', inputKey: 'personal.ongoingRequirements', value: 'tax_planning' }),
