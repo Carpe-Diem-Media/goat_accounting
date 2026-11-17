@@ -1,5 +1,5 @@
 BEGIN;
-SELECT plan(19);
+SELECT plan(22);
 
 SELECT ok(
   has_schema_privilege('authenticated', 'estimator', 'USAGE')
@@ -61,6 +61,99 @@ SELECT ok(
     WHERE ns.nspname = 'estimator' AND rel.relkind = 'r'
   ),
   'authenticated browser clients have no direct write privileges'
+);
+
+SELECT ok(
+  NOT has_table_privilege('anon', 'estimator.staff_users', 'SELECT')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'INSERT')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'UPDATE')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'DELETE')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'TRUNCATE')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'REFERENCES')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'TRIGGER')
+    AND NOT has_table_privilege('anon', 'estimator.staff_users', 'MAINTAIN')
+    AND has_table_privilege('authenticated', 'estimator.staff_users', 'SELECT')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'INSERT')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'UPDATE')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'DELETE')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'TRUNCATE')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'REFERENCES')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'TRIGGER')
+    AND NOT has_table_privilege('authenticated', 'estimator.staff_users', 'MAINTAIN')
+    AND has_table_privilege('service_role', 'estimator.staff_users', 'SELECT')
+    AND has_table_privilege('service_role', 'estimator.staff_users', 'INSERT')
+    AND NOT has_table_privilege('service_role', 'estimator.staff_users', 'UPDATE')
+    AND NOT has_table_privilege('service_role', 'estimator.staff_users', 'DELETE')
+    AND NOT has_table_privilege('service_role', 'estimator.staff_users', 'TRUNCATE')
+    AND NOT has_table_privilege('service_role', 'estimator.staff_users', 'REFERENCES')
+    AND NOT has_table_privilege('service_role', 'estimator.staff_users', 'TRIGGER')
+    AND NOT has_table_privilege('service_role', 'estimator.staff_users', 'MAINTAIN')
+    AND has_column_privilege('service_role', 'estimator.staff_users', 'role', 'UPDATE')
+    AND has_column_privilege('service_role', 'estimator.staff_users', 'state', 'UPDATE')
+    AND NOT has_column_privilege('service_role', 'estimator.staff_users', 'user_id', 'UPDATE')
+    AND NOT has_column_privilege('service_role', 'estimator.staff_users', 'created_at', 'UPDATE')
+    AND NOT has_column_privilege('service_role', 'estimator.staff_users', 'updated_at', 'UPDATE')
+    AND NOT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_attribute AS att
+      WHERE att.attrelid = 'estimator.staff_users'::regclass
+        AND att.attnum > 0
+        AND NOT att.attisdropped
+        AND (
+          has_column_privilege('anon', att.attrelid, att.attnum, 'SELECT')
+          OR has_column_privilege('anon', att.attrelid, att.attnum, 'INSERT')
+          OR has_column_privilege('anon', att.attrelid, att.attnum, 'UPDATE')
+          OR has_column_privilege('anon', att.attrelid, att.attnum, 'REFERENCES')
+          OR has_column_privilege('authenticated', att.attrelid, att.attnum, 'INSERT')
+          OR has_column_privilege('authenticated', att.attrelid, att.attnum, 'UPDATE')
+          OR has_column_privilege('authenticated', att.attrelid, att.attnum, 'REFERENCES')
+          OR has_column_privilege('service_role', att.attrelid, att.attnum, 'REFERENCES')
+        )
+    ),
+  'staff_users effective privileges match the authenticated and service-role contract'
+);
+
+SELECT is(
+  (
+    SELECT COALESCE(string_agg(
+      COALESCE(grantee.rolname, 'PUBLIC') || ':' || acl.privilege_type || ':' || acl.is_grantable::text,
+      ',' ORDER BY COALESCE(grantee.rolname, 'PUBLIC'), acl.privilege_type
+    ), '')
+    FROM pg_catalog.pg_class AS rel
+    JOIN pg_catalog.pg_namespace AS ns ON ns.oid = rel.relnamespace
+    CROSS JOIN LATERAL pg_catalog.aclexplode(
+      COALESCE(rel.relacl, pg_catalog.acldefault('r', rel.relowner))
+    ) AS acl
+    LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = acl.grantee
+    WHERE ns.nspname = 'estimator'
+      AND rel.relname = 'staff_users'
+      AND (acl.grantee = 0 OR grantee.rolname = ANY (
+        ARRAY['anon', 'authenticated', 'service_role']::name[]
+      ))
+  ),
+  'authenticated:SELECT:false,service_role:INSERT:false,service_role:SELECT:false',
+  'staff_users table ACL contains only approved direct grants without grant options'
+);
+
+SELECT is(
+  (
+    SELECT COALESCE(string_agg(
+      att.attname || ':' || COALESCE(grantee.rolname, 'PUBLIC') || ':'
+        || acl.privilege_type || ':' || acl.is_grantable::text,
+      ',' ORDER BY att.attname, COALESCE(grantee.rolname, 'PUBLIC'), acl.privilege_type
+    ), '')
+    FROM pg_catalog.pg_attribute AS att
+    CROSS JOIN LATERAL pg_catalog.aclexplode(att.attacl) AS acl
+    LEFT JOIN pg_catalog.pg_roles AS grantee ON grantee.oid = acl.grantee
+    WHERE att.attrelid = 'estimator.staff_users'::regclass
+      AND att.attnum > 0
+      AND NOT att.attisdropped
+      AND (acl.grantee = 0 OR grantee.rolname = ANY (
+        ARRAY['anon', 'authenticated', 'service_role']::name[]
+      ))
+  ),
+  'role:service_role:UPDATE:false,state:service_role:UPDATE:false',
+  'staff_users column ACL permits service-role updates only to role and state'
 );
 
 SELECT ok(
@@ -210,7 +303,7 @@ SELECT ok(
       AND (
         has_function_privilege('anon', proc.oid, 'EXECUTE')
         OR (has_function_privilege('authenticated', proc.oid, 'EXECUTE')
-          AND proc.proname <> 'is_current_staff')
+          AND proc.proname NOT IN ('is_current_staff', 'dashboard_metrics'))
         OR (has_function_privilege('service_role', proc.oid, 'EXECUTE')
           AND proc.proname NOT IN ('is_current_staff', 'transition_lead', 'create_contact_lead')
           AND proc.oid NOT IN (
