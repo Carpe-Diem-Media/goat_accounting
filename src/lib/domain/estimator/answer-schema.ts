@@ -27,6 +27,7 @@ export const BusinessAnswersSchema = z
 		employeeCount: answerEnum('business.employeeCount'),
 		taxPosition: answerEnum('business.taxPosition'),
 		outstandingComplianceAreas: answerSelection('business.outstandingComplianceAreas').optional(),
+		vatFilingFrequency: answerEnum('business.vatFilingFrequency').optional(),
 		ongoingServices: answerSelection('business.ongoingServices'),
 		complexityFactors: answerSelection('business.complexityFactors')
 	})

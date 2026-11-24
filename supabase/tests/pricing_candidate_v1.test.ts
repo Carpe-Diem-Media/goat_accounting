@@ -85,7 +85,7 @@ describe('GOAT starter pricing candidate', () => {
 			return rule.addOns.find((entry) => entry.value === value)?.range;
 		};
 
-		expect(addon('biz_ongoing_service', 'vat')).toEqual({ minCents: 45000, maxCents: 85000 });
+		expect(addon('biz_ongoing_service', 'vat')).toEqual({ minCents: 0, maxCents: 0 });
 		expect(addon('biz_ongoing_service', 'annual_financial_statements')).toEqual({ minCents: 29167, maxCents: 54167 });
 		expect(addon('biz_ongoing_service', 'company_income_tax')).toEqual({ minCents: 14167, maxCents: 25000 });
 		expect(addon('biz_ongoing_service', 'management_reporting')).toEqual({ minCents: 70000, maxCents: 150000 });

@@ -130,7 +130,7 @@
 			<p class="mt-2 text-sm leading-6 text-muted-foreground">Once-off work to bring records and compliance up to date.</p>
 		</div>
 		<div class="rounded-xl border border-border bg-card p-5 sm:p-6">
-			<p class="text-sm font-medium text-muted-foreground">Ongoing monthly support</p>
+			<p class="text-sm font-medium text-muted-foreground">Illustrative monthly equivalent</p>
 			<p class="mt-3 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground sm:text-4xl">
 				{formatRange(estimate.ongoing)}
 			</p>
@@ -199,7 +199,7 @@
 			</section>
 
 			<section class="rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="ongoing-items-heading">
-				<h3 id="ongoing-items-heading" class="font-semibold text-foreground">Ongoing monthly services</h3>
+				<h3 id="ongoing-items-heading" class="font-semibold text-foreground">Ongoing services and monthly equivalents</h3>
 				{#if estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing').length > 0}
 					<ul class="mt-3 divide-y divide-border">
 						{#each estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing') as item}

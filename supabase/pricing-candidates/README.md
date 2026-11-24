@@ -18,7 +18,7 @@ All amounts are provisional South African rand values. The candidate stores inte
 | Payroll, 6–15 employees | R900–R1,750/month | Only when payroll is selected |
 | Payroll, 16–30 employees | R1,900–R3,500/month | Only when payroll is selected |
 | Payroll, more than 30 employees | R3,800–R6,500/month | Provisional higher band; manual quote required. |
-| VAT201 preparation | R450–R850/return | Ongoing amount assumes one return per month. Catch-up applies the range once per selected return type. Multiple outstanding periods require review because the questionnaire does not collect a return count. |
+| VAT201 preparation | R450–R850/return | Ongoing amounts are illustrative monthly equivalents based on filing frequency. An unknown frequency excludes recurring VAT and requires manual review. Catch-up applies the range once per selected return type. Multiple outstanding periods require review because the questionnaire does not collect a return count. |
 | Historical bookkeeping | R800–R1,400/outstanding month | Unknown duration spans 0–100 months and requires review. |
 | Record cleanup | R0–R4,000 once | Applies once for non-clean records, not once per backlog month. |
 | Annual financial statements | R3,500–R6,500/year | Ongoing amount is divided by 12 and rounded to cents. |
@@ -42,7 +42,7 @@ Every persisted pricing rule code uses the lowercase `snake_case` format enforce
 - Standalone bank reconciliations have no approved standalone price. They are included only when monthly bookkeeping is selected; selecting them by themselves yields no automatic fee and adds a manual-review warning.
 - Owner personal tax in a business estimate is treated as covered only when a personal branch includes the ongoing annual tax return. Otherwise, it yields no automatic fee and adds a manual-review warning.
 - A multiple-year personal tax backlog without an entered year count has a wide estimate range and an explicit manual-review warning.
-- VAT ongoing pricing assumes one VAT201 return each month. Annual financial statements and company income tax are divided by 12. Personal annual returns use one return per year; provisional tax uses two returns per year. Divided amounts round to the nearest cent.
+- Monthly VAT filing uses the per-return range; filing every two months uses half that range. Annual financial statements and company income tax are divided by 12. Personal annual returns use one return per year; provisional tax uses two returns per year. Divided amounts round to the nearest cent.
 - A selected outstanding compliance type adds one return range. The model flags `multiple_periods_outstanding` for review because it lacks the return count needed to multiply VAT or company tax fees safely.
 - Personal complexity surcharges are additive to the standard return tier. Rental/provisional and foreign/capital-gains source splits match the proposed upper tiers when both named source options are selected, without charging the whole tier twice. Single-source results are lower and remain subject to review where specified.
 - Business and personal current-return preparation appears in once-off catch-up. Any selected ongoing annual return support appears as a separate future monthly run rate. The public result keeps those totals separate.

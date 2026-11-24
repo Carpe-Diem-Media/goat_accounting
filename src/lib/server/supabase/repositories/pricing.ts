@@ -15,6 +15,14 @@ function fields(value: Json): Record<string, unknown> {
 
 export function createPricingRepository(client: EstimatorServiceClient) {
  return {
+  async importFirstDraft(actorId: string, model: Json, fingerprint: string): Promise<string> {
+   const { data, error } = await client.rpc('import_first_pricing_draft', {
+    p_actor_user_id: actorId, p_model: model, p_fingerprint: fingerprint
+   });
+   if (error?.code === '23505') throw new PricingVersionConflictError();
+   if (error) throw new Error('Unable to import starter pricing draft.');
+   return z.uuid().parse(data);
+  },
   async readDraft(id: string) {
    const { data, error } = await client.from('pricing_models').select('*, pricing_rules(*)').eq('id',id).maybeSingle();
    if (error) throw new Error('Unable to load pricing model.');

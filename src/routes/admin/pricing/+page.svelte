@@ -9,6 +9,13 @@
  {#if form?.message}<p role="alert" class="mt-4 rounded-md border border-border p-3 text-sm">{form.message}</p>{/if}
  {#if data.models.length === 0}
   <p class="mt-6 rounded-lg border border-border bg-card p-5">No pricing models are available.</p>
+  {#if data.page === 1}
+   <form method="POST" action="?/importStarter" class="mt-4">
+    <button class="min-h-11 rounded border border-border px-3 hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring">
+     Import starter pricing V1 as draft
+    </button>
+   </form>
+  {/if}
  {:else}
   <div class="mt-6 overflow-x-auto rounded-lg border border-border bg-card">
    <table class="w-full min-w-[600px] text-left text-sm"><caption class="sr-only">Pricing models</caption>

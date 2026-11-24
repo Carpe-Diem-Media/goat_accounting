@@ -449,7 +449,8 @@
 			'entityCount',
 			'outstandingMonths',
 			'bankStatementsAvailableForFullPeriod',
-			'outstandingComplianceAreas'
+			'outstandingComplianceAreas',
+			'vatFilingFrequency'
 		] as const) {
 			if (answers[key] !== undefined) business[key] = answers[key];
 		}
@@ -701,6 +702,18 @@
 							selected={readStringArray('outstandingComplianceAreas')}
 							onSelect={toggleComplianceArea}
 						/>
+					</div>
+				{/if}
+
+				{#if activeQuestion.id === 'B8' && readStringArray('ongoingServices').includes('vat')}
+					<div class="space-y-3 border-t border-border pt-5">
+						<label for="vat-frequency" class="block text-sm font-medium text-foreground">How often do you file VAT201?</label>
+						<select id="vat-frequency" class="w-full rounded-md border border-border bg-background p-2 text-foreground" bind:value={answers.vatFilingFrequency}>
+							<option value={undefined}>Select filing frequency</option>
+							<option value="monthly">Monthly</option>
+							<option value="two_monthly">Every two months</option>
+							<option value="unknown">Other or not sure</option>
+						</select>
 					</div>
 				{/if}
 
