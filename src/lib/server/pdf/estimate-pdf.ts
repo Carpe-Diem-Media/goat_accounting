@@ -1,3 +1,4 @@
+import { VAT_FEES_EXCLUDED_NOTICE } from '../estimator/estimate-disclosures';
 import {
 	PDFDocument,
 	StandardFonts,
@@ -31,6 +32,7 @@ export type EstimateDocumentModel = Readonly<{
 	ongoing: EstimateDocumentRange;
 	confidence: 'high' | 'good' | 'preliminary';
 	manualReviewRequired: boolean;
+	vatFeesExcluded?: boolean;
 	assumptions: readonly Readonly<{ label: string; value: string }>[];
 }>;
 
@@ -289,7 +291,7 @@ function drawEstimateItems(
 	const overflow: OverflowEstimateLineItem[] = [];
 	const groups = [
 		{ title: 'Catch-up services', items: model.catchup.lineItems },
-		{ title: 'Monthly services', items: model.ongoing.lineItems }
+		{ title: 'Ongoing services and monthly equivalents', items: model.ongoing.lineItems }
 	];
 
 	page.drawText('Included and likely services', { x, y: 575, size: 11, font: fonts.bodyBold, color: COLORS.ink });
@@ -347,6 +349,11 @@ function drawFirstPageNotes(
 	page.drawText(`Confidence: ${model.confidence}`, { x: PAGE_MARGIN, y: 255, size: 9, font: fonts.bodyBold, color: COLORS.brand });
 	if (model.manualReviewRequired) {
 		page.drawText('Manual review required', { x: PAGE_MARGIN, y: 237, size: 9, font: fonts.bodyBold, color: COLORS.alert });
+	}
+	if (model.vatFeesExcluded) {
+		page.drawText(VAT_FEES_EXCLUDED_NOTICE, {
+			x: PAGE_MARGIN, y: 224, size: 8.5, font: fonts.body, color: COLORS.alert
+		});
 	}
 	page.drawText('Indicative, not a final quote.', { x: PAGE_MARGIN, y: 211, size: 8.5, font: fonts.body, color: COLORS.muted });
 	if (contactEmail) {

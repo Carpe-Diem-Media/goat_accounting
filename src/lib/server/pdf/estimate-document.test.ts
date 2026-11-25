@@ -123,6 +123,19 @@ describe('estimate PDF document projection', () => {
 		}
 	});
 
+	it('uses the saved VAT exclusion flag and keeps the saved range', async () => {
+		const { toEstimateDocumentModel } = await import('./estimate-document');
+		const record = savedRecord();
+		const calculation = { ...record.calculation_snapshot, manualReviewRequired: true,
+			reviewFlags: [{ code: 'vat_filing_frequency_needs_review', label: 'VAT review', reason: 'Filing frequency unknown.' }],
+			reviewReasons: ['Filing frequency unknown.'] };
+		const flagged = toEstimateDocumentModel({ ...record, calculation_snapshot: calculation });
+		const legacy = toEstimateDocumentModel(record);
+		expect(flagged.vatFeesExcluded).toBe(true);
+		expect(legacy.vatFeesExcluded).toBe(false);
+		expect(flagged.ongoing).toEqual(legacy.ongoing);
+	});
+
 	it('preserves the saved voided state without exposing its internal reason', async () => {
 		const module = await loadDocumentModule();
 		expect(module).not.toBeNull();

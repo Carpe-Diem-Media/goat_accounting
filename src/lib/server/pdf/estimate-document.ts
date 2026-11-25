@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
 	CanonicalEstimatorAnswersSchema,
 	type CanonicalEstimatorAnswers
@@ -164,6 +165,10 @@ function documentRange(range: ReturnType<typeof toPublicEstimateView>['catchup']
 	};
 }
 
+const SavedReviewFlags = z.object({
+	reviewFlags: z.array(z.object({ code: z.unknown() }))
+});
+
 export function toEstimateDocumentModel(record: EstimateDocumentRecord): EstimateDocumentModel {
 	const estimate = toPublicEstimateView(record);
 	const parsedAnswers = CanonicalEstimatorAnswersSchema.safeParse(record.answers_snapshot);
@@ -182,6 +187,8 @@ export function toEstimateDocumentModel(record: EstimateDocumentRecord): Estimat
 		ongoing: documentRange(estimate.ongoing),
 		confidence: estimate.confidence,
 		manualReviewRequired: estimate.manualReviewRequired,
+		vatFeesExcluded: SavedReviewFlags.safeParse(record.calculation_snapshot).data?.reviewFlags
+			.some(({ code }) => code === 'vat_filing_frequency_needs_review') ?? false,
 		assumptions: mapAnswers(parsedAnswers.data)
 	};
 }

@@ -29,6 +29,16 @@ describe('renderCustomerEstimate', () => {
 		expect(rendered.html).not.toContain('private answer');
 	});
 
+	test('discloses saved VAT exclusion in both email formats', () => {
+		const notice = 'The monthly equivalent excludes VAT201 preparation fees because the filing frequency is unknown.';
+		const rendered = renderCustomerEstimateEmail({ ...model, vatFeesExcluded: true }, content);
+		for (const body of [rendered.html, rendered.text]) {
+			expect(body).toContain(notice);
+			expect(body).toContain('Illustrative monthly equivalent: R 50 - R 90');
+		}
+		expect(renderCustomerEstimateEmail(model, content).text).not.toContain(notice);
+	});
+
 	test('escapes configured values in HTML text and mail links', () => {
 		const rendered = renderCustomerEstimateEmail(model, {
 			...content,
