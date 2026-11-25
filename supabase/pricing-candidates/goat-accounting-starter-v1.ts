@@ -11,12 +11,12 @@ function valuesFor(inputKey: string): readonly string[] {
 	return values;
 }
 
-function bands(inputKey: string, prices: Readonly<Record<string, ReturnType<typeof money>>> = {}) {
+function bands(inputKey: Extract<PricingRuleInput, { type: 'CONFIDENCE_WEIGHT' }>['inputKey'], prices: Readonly<Record<string, ReturnType<typeof money>>> = {}) {
 	return valuesFor(inputKey).map((value) => ({ value, range: prices[value] ?? free() }));
 }
 
 function addOns(
-	inputKey: string,
+	inputKey: Extract<PricingRuleInput, { type: 'CONFIDENCE_WEIGHT' }>['inputKey'],
 	prices: Readonly<Record<string, ReturnType<typeof money>>>,
 	labels: Readonly<Record<string, string>>
 ) {
@@ -32,8 +32,8 @@ function confidenceRule(
 	label: string,
 	explanation: string,
 	scope: 'business' | 'personal',
-	inputKey: string,
-	options: { missingPoints?: number; when?: { inputKey: string; value: string } } = {}
+	inputKey: Extract<PricingRuleInput, { type: 'CONFIDENCE_WEIGHT' }>['inputKey'],
+	options: { missingPoints?: number; when?: Extract<PricingRuleInput, { type: 'CONFIDENCE_WEIGHT' }>['when'] } = {}
 ): PricingRuleInput {
 	const numeric = inputKey.endsWith('entityCount') || inputKey.endsWith('outstandingMonths') || inputKey.endsWith('outstandingYears');
 	return {
@@ -148,16 +148,16 @@ const rules: PricingRuleInput[] = [
 	},
 	{
 		type: 'SERVICE_ADDON_RANGE', code: 'biz_ongoing_service', label: 'Selected ongoing business services',
-		explanation: 'Annual services are shown as monthly equivalents billed evenly over 12 months. VAT assumes one return per month. The monthly bookkeeping and payroll fees are added by their selected-service bands.',
+		explanation: 'Annual fees are divided by 12 for comparison. Actual billing may differ. VAT uses the selected filing frequency.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.ongoingServices',
 		addOns: addOns('business.ongoingServices', {
-			monthly_bookkeeping: free(), bank_reconciliations: free(), payroll: free(), vat: money(45000, 85000),
+			monthly_bookkeeping: free(), bank_reconciliations: free(), payroll: free(), vat: free(),
 			annual_financial_statements: money(29167, 54167), company_income_tax: money(14167, 25000),
 			owner_personal_tax: free(), cipc_compliance: free(), management_reporting: money(70000, 150000),
 			financial_advisory: money(120000, 260000)
 		}, {
 			monthly_bookkeeping: 'Monthly bookkeeping, priced by transaction volume', bank_reconciliations: 'Bank reconciliations included in bookkeeping',
-			payroll: 'Payroll, priced by employee count', vat: 'VAT201 preparation, one return per month assumption',
+			payroll: 'Payroll, priced by employee count', vat: 'VAT201 preparation, priced separately by filing frequency',
 			annual_financial_statements: 'Annual financial statements, monthly equivalent over 12 months',
 			company_income_tax: 'Company income tax return, monthly equivalent over 12 months',
 			owner_personal_tax: 'Owner personal tax is priced in the personal branch',
@@ -165,6 +165,20 @@ const rules: PricingRuleInput[] = [
 			management_reporting: 'Monthly management reporting', financial_advisory: 'Monthly financial advisory'
 		})
 	},
+	{
+		type: 'BAND_RANGE', code: 'biz_vat_monthly_equivalent', label: 'VAT201 illustrative monthly equivalent',
+		explanation: 'VAT201 costs R450–R850 per return. This monthly equivalent uses the selected filing frequency.',
+		scope: 'business', category: 'ongoing', inputKey: 'business.vatFilingFrequency',
+		when: { type: 'ARRAY_CONTAINS', inputKey: 'business.ongoingServices', value: 'vat' },
+		bands: [
+			{ value: 'monthly', range: money(45000, 85000) },
+			{ value: 'two_monthly', range: money(22500, 42500) },
+			{ value: 'unknown', range: free() }
+		]
+	},
+	reviewRule('vat_filing_frequency_needs_review', 'VAT filing frequency needs review',
+		'Recurring totals exclude VAT201 fees until the filing frequency is confirmed.', 'business',
+		{ type: 'UNKNOWN_VAT_FILING_FREQUENCY' }),
 	{
 		type: 'PER_UNIT_RANGE', code: 'biz_entity_count', label: 'Additional entity count',
 		explanation: 'No automatic multiple-entity surcharge is included. Multiple entities require manual review before a final fee is confirmed.',

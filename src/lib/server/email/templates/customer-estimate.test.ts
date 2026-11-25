@@ -14,8 +14,8 @@ describe('renderCustomerEstimate', () => {
 	test('uses the saved result and public page and PDF links only', () => {
 		const rendered = renderCustomerEstimateEmail(model, content);
 		expect(rendered.html).toContain('Catch-up estimate: R 100 - R 200');
-		expect(rendered.html).toContain('Ongoing estimate: R 50 - R 90/month');
-		expect(rendered.text).toContain('Ongoing estimate: R 50 - R 90/month');
+		expect(rendered.html).toContain('Illustrative monthly equivalent: R 50 - R 90');
+		expect(rendered.text).toContain('Illustrative monthly equivalent: R 50 - R 90');
 		expect(rendered.html).toContain('https://example.test/estimate/' + 'a'.repeat(32));
 		expect(rendered.html).toContain('https://example.test/api/estimates/' + 'a'.repeat(32) + '/pdf');
 		expect(rendered.text).toContain('Catch-up estimate: R 100 - R 200');
@@ -27,6 +27,16 @@ describe('renderCustomerEstimate', () => {
 		expect(rendered.html).not.toContain('old-price-v1');
 		expect(rendered.html).not.toContain('manualReviewRequired');
 		expect(rendered.html).not.toContain('private answer');
+	});
+
+	test('discloses saved VAT exclusion in both email formats', () => {
+		const notice = 'The monthly equivalent excludes VAT201 preparation fees because the filing frequency is unknown.';
+		const rendered = renderCustomerEstimateEmail({ ...model, vatFeesExcluded: true }, content);
+		for (const body of [rendered.html, rendered.text]) {
+			expect(body).toContain(notice);
+			expect(body).toContain('Illustrative monthly equivalent: R 50 - R 90');
+		}
+		expect(renderCustomerEstimateEmail(model, content).text).not.toContain(notice);
 	});
 
 	test('escapes configured values in HTML text and mail links', () => {

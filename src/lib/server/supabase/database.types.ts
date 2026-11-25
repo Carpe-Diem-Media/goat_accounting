@@ -521,6 +521,10 @@ export type Database = {
         }
         Returns: Json
       }
+      import_first_pricing_draft: {
+        Args: { p_actor_user_id: string; p_definition: string; p_fingerprint: string; p_owner_authorization_ref: string }
+        Returns: string
+      }
       save_pricing_draft: {
         Args: { p_model_id: string; p_actor_user_id: string; p_expected_revision: number; p_high_max_points: number; p_good_max_points: number; p_rules: Json }
         Returns: number

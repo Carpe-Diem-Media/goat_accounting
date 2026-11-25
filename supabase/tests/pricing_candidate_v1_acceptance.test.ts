@@ -37,14 +37,14 @@ const expectedById: Record<string, ExpectedCandidateResult> = {
 		'high'
 	),
 	'current-pty-ltd-with-vat': expected(
-		[0, 0], [245000, 395000],
+		[0, 0], [200000, 310000],
 		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.vat'],
-		'high'
+		'preliminary', ['vat_filing_frequency_needs_review']
 	),
 	'current-sme-ten-employees': expected(
-		[0, 400000], [725000, 1160000],
+		[0, 400000], [680000, 1075000],
 		['biz_entity_type', 'biz_record_cleanup', 'biz_tax_position', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_payroll_monthly', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.payroll', 'biz_ongoing_service.vat'],
-		'high'
+		'preliminary', ['vat_filing_frequency_needs_review']
 	),
 	'six-months-behind-clean-records': expected(
 		[240000, 840000], [110000, 170000],
@@ -57,9 +57,9 @@ const expectedById: Record<string, ExpectedCandidateResult> = {
 		'preliminary', ['unknown_bookkeeping_backlog_needs_review']
 	),
 	'eighteen-months-incomplete-records': expected(
-		[1485000, 3005000], [385000, 585000],
+		[1485000, 3005000], [340000, 500000],
 		['biz_entity_type', 'biz_books_periods', 'biz_record_cleanup', 'biz_tax_position', 'biz_compliance_area.vat', 'biz_volume_required', 'biz_bookkeeping_monthly', 'biz_accounts_required', 'biz_employee_required', 'biz_ongoing_service.monthly_bookkeeping', 'biz_ongoing_service.vat'],
-		'preliminary', ['multi_year_incomplete_records', 'incomplete_records_without_full_statements', 'large_bookkeeping_backlog_needs_review', 'record_cleanup_needs_review']
+		'preliminary', ['multi_year_incomplete_records', 'incomplete_records_without_full_statements', 'large_bookkeeping_backlog_needs_review', 'record_cleanup_needs_review', 'vat_filing_frequency_needs_review']
 	),
 	'eighteen-months-incomplete-records-statements-available': expected(
 		[1440000, 2920000], [200000, 310000],
@@ -133,6 +133,21 @@ describe('GOAT starter pricing acceptance expectations', () => {
 	test('passes all 17 required named scenarios plus combined estimate coverage', async () => {
 		const scenarios = [
 			...CANONICAL_PRICING_TEST_CORPUS.map(({ id, answers }) => ({ id, answers, expected: expectedById[id] })),
+			...([
+				['monthly', 245000, 395000],
+				['two_monthly', 222500, 352500],
+				['unknown', 200000, 310000]
+			] as const).map(([frequency, minCents, maxCents]) => {
+				const source = CANONICAL_PRICING_TEST_CORPUS.find(({ id }) => id === 'current-pty-ltd-with-vat')!.answers;
+				if (source.calculatorType !== 'business') throw new Error('Expected business fixture');
+				const baseline = expectedById['current-pty-ltd-with-vat'];
+				return {
+					id: `vat-filing-${frequency}`,
+					answers: { ...source, business: { ...source.business, vatFilingFrequency: frequency } },
+					expected: expected([0, 0], [minCents, maxCents], [...baseline.ruleCodes, 'biz_vat_monthly_equivalent'], frequency === 'unknown' ? 'preliminary' : 'high',
+						frequency === 'unknown' ? ['vat_filing_frequency_needs_review'] : [])
+				};
+			}),
 			{
 				id: 'combined-business-and-personal',
 				answers: combinedAnswers,
@@ -144,7 +159,7 @@ describe('GOAT starter pricing acceptance expectations', () => {
 			}
 		];
 		expect(CANONICAL_PRICING_TEST_CORPUS).toHaveLength(17);
-		expect(scenarios).toHaveLength(18);
+		expect(scenarios).toHaveLength(21);
 		expect(scenarios.every((scenario) => scenario.expected !== undefined)).toBe(true);
 
 		const definitionFingerprint = await fingerprintDraft(GOAT_ACCOUNTING_STARTER_V1_DRAFT);

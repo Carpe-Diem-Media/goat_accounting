@@ -85,7 +85,7 @@ describe('GOAT starter pricing candidate', () => {
 			return rule.addOns.find((entry) => entry.value === value)?.range;
 		};
 
-		expect(addon('biz_ongoing_service', 'vat')).toEqual({ minCents: 45000, maxCents: 85000 });
+		expect(addon('biz_ongoing_service', 'vat')).toEqual({ minCents: 0, maxCents: 0 });
 		expect(addon('biz_ongoing_service', 'annual_financial_statements')).toEqual({ minCents: 29167, maxCents: 54167 });
 		expect(addon('biz_ongoing_service', 'company_income_tax')).toEqual({ minCents: 14167, maxCents: 25000 });
 		expect(addon('biz_ongoing_service', 'management_reporting')).toEqual({ minCents: 70000, maxCents: 150000 });
@@ -106,8 +106,9 @@ describe('GOAT starter pricing candidate', () => {
 
 		const businessCompliance = model.rules.find((candidate) => candidate.code === 'biz_ongoing_service');
 		if (businessCompliance?.type !== 'SERVICE_ADDON_RANGE') throw new Error('Business service rule is missing.');
-		expect(businessCompliance.explanation).toContain('one return per month');
-		expect(businessCompliance.explanation).toContain('over 12 months');
+		expect(businessCompliance.explanation).toContain('selected filing frequency');
+		expect(businessCompliance.explanation).not.toContain('one return per month');
+		expect(businessCompliance.explanation).toContain('Actual billing may differ');
 	});
 
 	test('urgency changes review flags but never changes the estimate amount', () => {

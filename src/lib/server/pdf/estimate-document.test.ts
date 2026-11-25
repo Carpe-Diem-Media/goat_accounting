@@ -104,6 +104,38 @@ describe('estimate PDF document projection', () => {
 		expect(services!.value.endsWith('...')).toBe(true);
 	});
 
+	it('labels VAT filing frequency from the snapshot and preserves the saved total', async () => {
+		const module = await loadDocumentModule();
+		if (!module) throw new Error('Document module unavailable');
+		const baseline = module.toEstimateDocumentModel(savedRecord());
+		for (const [frequency, label] of [
+			['monthly', 'Monthly'], ['two_monthly', 'Every two months'],
+			['unknown', 'Not specified'], [undefined, 'Not specified']
+		] as const) {
+			const answers = {
+				...businessAnswers,
+				business: { ...businessAnswers.business, ongoingServices: ['vat'],
+					...(frequency ? { vatFilingFrequency: frequency } : {}) }
+			};
+			const document = module.toEstimateDocumentModel({ ...savedRecord(), answers_snapshot: answers });
+			expect(document.assumptions).toContainEqual({ label: 'VAT201 filing frequency', value: label });
+			expect(document.ongoing).toEqual(baseline.ongoing);
+		}
+	});
+
+	it('uses the saved VAT exclusion flag and keeps the saved range', async () => {
+		const { toEstimateDocumentModel } = await import('./estimate-document');
+		const record = savedRecord();
+		const calculation = { ...record.calculation_snapshot, manualReviewRequired: true,
+			reviewFlags: [{ code: 'vat_filing_frequency_needs_review', label: 'VAT review', reason: 'Filing frequency unknown.' }],
+			reviewReasons: ['Filing frequency unknown.'] };
+		const flagged = toEstimateDocumentModel({ ...record, calculation_snapshot: calculation });
+		const legacy = toEstimateDocumentModel(record);
+		expect(flagged.vatFeesExcluded).toBe(true);
+		expect(legacy.vatFeesExcluded).toBe(false);
+		expect(flagged.ongoing).toEqual(legacy.ongoing);
+	});
+
 	it('preserves the saved voided state without exposing its internal reason', async () => {
 		const module = await loadDocumentModule();
 		expect(module).not.toBeNull();

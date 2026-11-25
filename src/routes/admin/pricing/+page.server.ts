@@ -4,7 +4,12 @@ import { requireStaff } from '$lib/server/auth/staff-guard';
 import { cloneInput, clonePricingModel } from '$lib/server/pricing/clone-pricing-model';
 import { createEstimatorServiceClient, type EstimatorServerEnv } from '$lib/server/supabase/client.server';
 import { createPricingRepository, PricingVersionConflictError } from '$lib/server/supabase/repositories/pricing';
+import { GOAT_ACCOUNTING_STARTER_V1_DRAFT } from '../../../../supabase/pricing-candidates/goat-accounting-starter-v1';
+import { fingerprintDraft, serializeDraftFingerprintInput } from '$lib/server/pricing/run-pricing-corpus';
 import { requirePricingAdminRelease } from '$lib/server/pricing/pricing-admin-release';
+
+// Owner approval for this bundled candidate, recorded on issue #23.
+const STARTER_V1_OWNER_AUTHORIZATION = 'github:goat_accounting/issues/23#issuecomment-7122901130';
 
 export const load: PageServerLoad = async (event) => {
  requirePricingAdminRelease(event.locals.pricingAdminEnabled);
@@ -22,6 +27,20 @@ export const load: PageServerLoad = async (event) => {
 };
 
 export const actions: Actions = {
+ importStarter: async (event) => {
+  requirePricingAdminRelease(event.locals.pricingAdminEnabled);
+  const actor = await requireStaff(event, ['admin']);
+  try {
+   const env = (event.platform?.env ?? (await import('cloudflare:workers')).env) as EstimatorServerEnv;
+   const repository = createPricingRepository(createEstimatorServiceClient(env));
+   const candidate = GOAT_ACCOUNTING_STARTER_V1_DRAFT;
+   await repository.importFirstDraft(actor.userId, serializeDraftFingerprintInput(candidate), await fingerprintDraft(candidate), STARTER_V1_OWNER_AUTHORIZATION);
+  } catch (cause) {
+   if (cause instanceof PricingVersionConflictError) return fail(409, { message: 'A pricing model already exists.' });
+   throw error(503, 'The starter pricing draft could not be imported.');
+  }
+  throw redirect(303, '/admin/pricing');
+ },
  clone: async (event) => {
   requirePricingAdminRelease(event.locals.pricingAdminEnabled);
   const actor = await requireStaff(event, ['admin']);

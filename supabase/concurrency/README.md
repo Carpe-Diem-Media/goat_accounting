@@ -47,3 +47,12 @@ GOAT_TASK9_LOCAL_TESTS=1 bun test supabase/concurrency/task9-notifications.test.
 The suite inserts synthetic notification rows for estimate `40000000-0000-4000-8000-000000000007`. SQL forbids deleting them, so each run uses fresh UUIDs. It sends no email-provider requests. The cases cover competing claims, null and microsecond timestamp predicates, stale finalization, metadata compare-and-set, expiry maintenance, the five-claim cap, a lost claim response and a lost SENT acknowledgement.
 
 Run the Task 9 suite serially. After read-only identity and migration checks, each invocation refreshes the existing test authorization marker with a new random nonce and requires that exact nonce before fixture access. This changes only the disposable test marker. A concurrent invocation invalidates the earlier authorization and makes it fail closed.
+
+## First pricing DRAFT import
+
+Run `bun tests/e2e/dashboard-disposable.mjs --pricing-import-only` to start
+an isolated local Supabase project, apply the repository migrations, and
+run the pgTAP and two-session import checks. The runner verifies it reached
+the disposable project before inserting synthetic staff fixtures. It waits
+for an advisory lock waiter before checking the committed results and
+cleans up the disposable project afterward.

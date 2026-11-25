@@ -89,6 +89,10 @@ function matchesCondition(condition: ReviewCondition, answers: CanonicalEstimato
 		);
 	}
 	if (condition.type === 'PERSONAL_HIGH_RISK_SELECTED') return isPersonalHighRisk(answers);
+	if (condition.type === 'UNKNOWN_VAT_FILING_FREQUENCY') {
+		return hasBusiness(answers) && answers.business.ongoingServices.includes('vat') &&
+			(!answers.business.vatFilingFrequency || answers.business.vatFilingFrequency === 'unknown');
+	}
 	if (condition.type === 'STANDALONE_BANK_RECONCILIATIONS') {
 		return (
 			hasBusiness(answers) &&

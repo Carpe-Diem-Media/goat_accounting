@@ -95,6 +95,16 @@ async function extractPdfText(bytes: Uint8Array): Promise<string> {
 }
 
 describe('saved estimate PDF renderer', () => {
+	it('labels ongoing items and discloses saved VAT exclusion', async () => {
+		const { renderEstimatePdf } = await import('./estimate-pdf');
+		const text = await extractPdfText(await renderEstimatePdf({
+			...manyItemDocumentModel(), vatFeesExcluded: true, manualReviewRequired: true
+		}));
+		expect(text).toContain('Ongoing services and monthly equivalents');
+		expect(text).not.toContain('Monthly services');
+		expect(text).toContain('The monthly equivalent excludes VAT201 preparation fees because the filing frequency is unknown.');
+	});
+
 	it('creates a valid one-page PDF for a minimum saved estimate', async () => {
 		const module = await loadPdfModule();
 		expect(module).not.toBeNull();

@@ -1,3 +1,4 @@
+import { z } from 'zod';
 import {
 	CanonicalEstimatorAnswersSchema,
 	type CanonicalEstimatorAnswers
@@ -112,6 +113,13 @@ function mapAnswers(answers: CanonicalEstimatorAnswers): readonly Readonly<{ lab
 			});
 		}
 		addChoice(assumptions, 'Ongoing services', 'B8', business.ongoingServices);
+		if (business.ongoingServices.includes('vat')) {
+			const frequency = business.vatFilingFrequency;
+			assumptions.push({
+				label: 'VAT201 filing frequency',
+				value: frequency === 'monthly' ? 'Monthly' : frequency === 'two_monthly' ? 'Every two months' : 'Not specified'
+			});
+		}
 		addChoice(assumptions, 'Complexity factors', 'COMPLEXITY', business.complexityFactors);
 	}
 
@@ -138,7 +146,7 @@ function mapAnswers(answers: CanonicalEstimatorAnswers): readonly Readonly<{ lab
 		}
 	}
 
-	if (assumptions.length > 24) throw new EstimateSnapshotIntegrityError();
+	if (assumptions.length > 25) throw new EstimateSnapshotIntegrityError();
 	return assumptions.map((assumption) => ({
 		label: assumption.label.slice(0, 160),
 		value: assumption.value.length > 180 ? `${assumption.value.slice(0, 177)}...` : assumption.value
@@ -156,6 +164,10 @@ function documentRange(range: ReturnType<typeof toPublicEstimateView>['catchup']
 		}))
 	};
 }
+
+const SavedReviewFlags = z.object({
+	reviewFlags: z.array(z.object({ code: z.unknown() }))
+});
 
 export function toEstimateDocumentModel(record: EstimateDocumentRecord): EstimateDocumentModel {
 	const estimate = toPublicEstimateView(record);
@@ -175,6 +187,8 @@ export function toEstimateDocumentModel(record: EstimateDocumentRecord): Estimat
 		ongoing: documentRange(estimate.ongoing),
 		confidence: estimate.confidence,
 		manualReviewRequired: estimate.manualReviewRequired,
+		vatFeesExcluded: SavedReviewFlags.safeParse(record.calculation_snapshot).data?.reviewFlags
+			.some(({ code }) => code === 'vat_filing_frequency_needs_review') ?? false,
 		assumptions: mapAnswers(parsedAnswers.data)
 	};
 }

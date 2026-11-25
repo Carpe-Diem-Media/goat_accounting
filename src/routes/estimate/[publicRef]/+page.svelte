@@ -100,7 +100,7 @@
 			{resultTitle}
 		</h1>
 		<p class="max-w-2xl text-base leading-7 text-muted-foreground">
-			This estimate is based on your answers and the saved pricing model. You can review the catch-up work and monthly support below.
+			This estimate is based on your answers and the saved pricing model. You can review the catch-up work and illustrative monthly equivalents below.
 		</p>
 		<p class="text-xs text-muted-foreground">Reference <code class="font-mono">{estimate.publicRef}</code></p>
 	</header>
@@ -130,11 +130,11 @@
 			<p class="mt-2 text-sm leading-6 text-muted-foreground">Once-off work to bring records and compliance up to date.</p>
 		</div>
 		<div class="rounded-xl border border-border bg-card p-5 sm:p-6">
-			<p class="text-sm font-medium text-muted-foreground">Ongoing monthly support</p>
+			<p class="text-sm font-medium text-muted-foreground">Illustrative monthly equivalent</p>
 			<p class="mt-3 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground sm:text-4xl">
 				{formatRange(estimate.ongoing)}
 			</p>
-			<p class="mt-2 text-sm leading-6 text-muted-foreground">Recurring monthly services based on the support you selected.</p>
+			<p class="mt-2 text-sm leading-6 text-muted-foreground">Includes ongoing services and equivalents for fees billed on other schedules. Actual billing may differ.</p>
 		</div>
 	</section>
 
@@ -199,7 +199,7 @@
 			</section>
 
 			<section class="rounded-xl border border-border bg-card p-5 sm:p-6" aria-labelledby="ongoing-items-heading">
-				<h3 id="ongoing-items-heading" class="font-semibold text-foreground">Ongoing monthly services</h3>
+				<h3 id="ongoing-items-heading" class="font-semibold text-foreground">Ongoing services and monthly equivalents</h3>
 				{#if estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing').length > 0}
 					<ul class="mt-3 divide-y divide-border">
 						{#each estimate.ongoing.lineItems.filter((item) => item.category === 'ongoing') as item}
@@ -213,7 +213,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="mt-3 text-sm leading-6 text-muted-foreground">No separate monthly service items were returned.</p>
+					<p class="mt-3 text-sm leading-6 text-muted-foreground">No ongoing service items were returned.</p>
 				{/if}
 			</section>
 		</div>
