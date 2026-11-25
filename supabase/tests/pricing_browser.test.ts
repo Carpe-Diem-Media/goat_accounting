@@ -77,6 +77,9 @@ describe.skipIf(!enabled)('pricing administration browser acceptance',()=>{
    await page.goto(WORKER_ORIGIN + "/admin/pricing");
    const row=page.getByRole('row').filter({hasText:version});await row.getByLabel('New version').fill('910001.0.0');await row.getByRole('button',{name:'Clone'}).click();
    await page.getByRole('link',{name:'910001.0.0'}).click();await browserExpect(page.getByText('State: DRAFT')).toBeVisible();
+   const draftUrl=page.url();
+   const acceptanceActions=page.getByRole('button',{name:/^(Submit manifest|Approve manifest|Activate pricing model)$/});
+   await browserExpect(acceptanceActions).toHaveCount(0);
    await snapshot('/tmp/goat-task12-pricing-draft.html');
    await captureResponsive('draft-editor');
    await page.setViewportSize({width:1440,height:900});
@@ -99,7 +102,6 @@ describe.skipIf(!enabled)('pricing administration browser acceptance',()=>{
    if(!errorId) throw Error('Validation field error is not associated with its input.');
    await browserExpect(page.locator(`#${errorId}`)).toContainText('Enter a nonnegative whole number.');
    await captureResponsive('validation-error');
-   const draftUrl=WORKER_ORIGIN + `/admin/pricing/${modelId}`;
    await page.goto(draftUrl);
    await page.locator('details').first().locator('summary').click();
    const other=await context.newPage();await other.goto(draftUrl);await other.locator('details').first().locator('summary').click();await other.locator('input[name="field.2"]').fill('Stale browser edit');
@@ -134,7 +136,9 @@ describe.skipIf(!enabled)('pricing administration browser acceptance',()=>{
      if(code!==0 || !/render tier: \d+ screenshots/.test(stdout+stderr) || /render tier: failed|render tier not run/i.test(stdout+stderr)) throw Error(`Authenticated UI render check did not complete; see /tmp/goat-task12-hallmark-authenticated.txt (exit ${code}).`);
     } finally {proxy.stop(true);}
    }
-   await browserExpect(page.getByText('Activation requires a passing, approved manifest for this exact draft.')).toBeVisible();await context.close();
+   await browserExpect(page.getByText('Activation requires the reviewed V1 draft and a passing, approved manifest. Changed prices need a new reviewed release.',{exact:true})).toBeVisible();
+   await browserExpect(acceptanceActions).toHaveCount(0);
+   await context.close();
   } finally {
    await browser?.close();
    await task12Local();
