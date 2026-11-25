@@ -20,7 +20,8 @@ const workerCommand = (directory: string, port: string) =>
 
 export default defineConfig({
 	testDir: './tests/e2e',
-	testMatch: ['dashboard-authenticated.pw.ts'],
+	testMatch: process.env.GOAT_PRICING_ACCEPTANCE_BROWSER === '1'
+		? ['pricing-acceptance.pw.ts'] : ['dashboard-authenticated.pw.ts'],
 	fullyParallel: false,
 	workers: 1,
 	retries: 0,

@@ -1,4 +1,10 @@
 <script lang="ts">
+ const acceptanceLabels = { submit: 'Submit manifest', approve: 'Approve manifest', activate: 'Activate pricing model' };
+ const confidenceLabels = { high: 'High', good: 'Good', preliminary: 'Preliminary' };
+ const money = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' });
+ function formatRange({ minCents, maxCents }: { minCents: number; maxCents: number }) {
+  return `${money.format(minCents / 100)} – ${money.format(maxCents / 100)}`;
+ }
  let {data,form}=$props();
  let errorField=$derived(form && "field" in form ? form.field : undefined);
  let errorMessage=$derived(form && "fieldMessage" in form ? form.fieldMessage : undefined);
@@ -14,8 +20,79 @@
  <p class="mt-2 text-sm text-muted-foreground">State: {data.draft.model.state}</p>
  <p class="mt-1 text-sm text-muted-foreground">Created: {new Date(data.draft.createdAt).toLocaleString('en-ZA')}{#if data.draft.activatedAt}<br />Activated: {new Date(data.draft.activatedAt).toLocaleString('en-ZA')}{/if}{#if data.draft.retiredAt}<br />Retired: {new Date(data.draft.retiredAt).toLocaleString('en-ZA')}{/if}</p>
  {#if data.draft.checksum}<p class="mt-1 break-all text-sm text-muted-foreground">Checksum: {data.draft.checksum}</p>{/if}
- <p class="mt-2 text-sm text-muted-foreground">Activation is unavailable until the independent approval workflow is complete.</p>
  {#if form?.message}<p role="alert" class="mt-4 rounded border border-border p-3 text-sm">{form.message}</p>{/if}
+ <section aria-labelledby="acceptance-heading" class="mt-6 min-w-0 rounded-lg border border-border bg-card p-5">
+  <h2 id="acceptance-heading" class="text-lg font-semibold">Pricing acceptance</h2>
+  {#if data.acceptance.summary}
+   <p class="mt-2 break-all text-sm">Manifest {data.acceptance.summary.revision}</p>
+   <p class="mt-1 break-all text-sm text-muted-foreground">Fingerprint {data.acceptance.summary.fingerprint}</p>
+   <p class="mt-1 text-sm">Approval status: {data.acceptance.summary.state}</p>
+   {#if data.acceptance.summary.approvedAt}
+    <p class="mt-1 text-sm text-muted-foreground">Approved {new Date(data.acceptance.summary.approvedAt).toLocaleString('en-ZA')}</p>
+   {/if}
+  {:else}
+   <p class="mt-2 text-sm">Approval status: pending submission</p>
+  {/if}
+  {#if data.acceptance.report}
+   {#if data.acceptance.report.manifestRevision !== data.acceptance.summary?.revision}
+    <p class="mt-1 break-all text-sm">Candidate manifest {data.acceptance.report.manifestRevision}</p>
+   {/if}
+   <details class="mt-3 text-sm">
+    <summary class="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-ring">
+     {data.acceptance.report.passed ? 'All ' + data.acceptance.report.scenarios.length + ' acceptance scenarios passed' : 'Acceptance scenarios failed'}
+    </summary>
+    <ul class="mt-2 divide-y divide-border">
+     {#each data.acceptance.reviewScenarios ?? [] as scenario (scenario.id)}
+      <li class="py-2">
+       <details>
+        <summary class="cursor-pointer break-words focus-visible:outline-2 focus-visible:outline-ring">
+         {scenario.id}: {scenario.passed ? 'Passed' : 'Failed'}
+        </summary>
+        {#if !scenario.passed}
+         <p class="mt-2 break-words">Failed checks: {scenario.failures.join(', ')}</p>
+        {/if}
+        <dl aria-label="Expected outcomes" class="mt-2 grid gap-x-4 gap-y-2 rounded-md bg-muted p-3 sm:grid-cols-2">
+         <div><dt class="font-medium">Once-off catch-up</dt><dd>{formatRange(scenario.expected.catchup)}</dd></div>
+         <div><dt class="font-medium">Monthly ongoing</dt><dd>{formatRange(scenario.expected.ongoing)}</dd></div>
+         <div><dt class="font-medium">Expected confidence</dt><dd>{confidenceLabels[scenario.expected.confidence]}</dd></div>
+         <div><dt class="font-medium">Expected manual review</dt><dd>{scenario.expected.manualReviewRequired ? 'Required' : 'Not required'}</dd></div>
+         {#if scenario.expected.reviewFlagCodes.length}
+          <div class="min-w-0 sm:col-span-2">
+           <dt class="font-medium">Expected review flags</dt>
+           <dd class="break-words">{scenario.expected.reviewFlagCodes.join(', ')}</dd>
+          </div>
+         {/if}
+         <div class="min-w-0 sm:col-span-2">
+          <dt class="font-medium">Expected pricing rules</dt>
+          <dd class="break-words">{scenario.expected.ruleCodes.join(', ') || 'None'}</dd>
+         </div>
+        </dl>
+       </details>
+      </li>
+     {/each}
+    </ul>
+   </details>
+  {/if}
+  {#if data.draft.model.state === 'DRAFT'}
+   {#if data.acceptance.action === 'activate'}
+    <p class="mt-3 text-sm">Activation is available. Activating this draft replaces the current active pricing model.</p>
+   {:else if data.acceptance.action}
+    <p class="mt-3 text-sm text-muted-foreground">Activation is available after approval of this manifest.</p>
+   {:else}
+    <p class="mt-3 text-sm text-muted-foreground">Activation requires the reviewed V1 draft and a passing, approved manifest. Changed prices need a new reviewed release.</p>
+   {/if}
+   {#if data.acceptance.action}
+    <form method="POST" action={`?/${data.acceptance.action}`} class="mt-3">
+     <input type="hidden" name="revision" value={data.draft.revision} />
+     <input type="hidden" name="fingerprint" value={data.fingerprint} />
+     <input type="hidden" name="manifestId" value={data.acceptance.summary?.state === 'INVALIDATED' ? '' : data.acceptance.summary?.id ?? ''} />
+     <button class="min-h-11 rounded-md border border-border px-4 text-sm font-medium hover:bg-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring active:translate-y-px motion-reduce:active:translate-y-0">
+      {acceptanceLabels[data.acceptance.action]}
+     </button>
+    </form>
+   {/if}
+  {/if}
+ </section>
  {#if data.draft.model.state==='DRAFT'}
   <p class="mt-2 break-all text-sm text-muted-foreground">Draft fingerprint: {data.fingerprint}</p>
   <p class="mt-1 break-all text-sm text-muted-foreground">Model ID: {data.draft.model.id}</p>

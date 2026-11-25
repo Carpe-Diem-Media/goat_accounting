@@ -353,6 +353,112 @@ export type Database = {
           },
         ]
       }
+      pricing_acceptance_events: {
+        Row: {
+          actor_id: string | null
+          event: string
+          manifest_id: string
+          occurred_at: string
+        }
+        Insert: {
+          actor_id?: string | null
+          event: string
+          manifest_id: string
+          occurred_at?: string
+        }
+        Update: {
+          actor_id?: string | null
+          event?: string
+          manifest_id?: string
+          occurred_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_acceptance_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "staff_users"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pricing_acceptance_events_manifest_id_fkey"
+            columns: ["manifest_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_acceptance_manifests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pricing_acceptance_manifests: {
+        Row: {
+          approved_at: string | null
+          approver_id: string | null
+          author_id: string
+          created_at: string
+          definition_fingerprint: string
+          draft_revision: number
+          id: string
+          invalidated_at: string | null
+          model_id: string
+          revision: string
+          scenario_digest: string
+          scenario_payload: string
+          state: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approver_id?: string | null
+          author_id: string
+          created_at?: string
+          definition_fingerprint: string
+          draft_revision: number
+          id?: string
+          invalidated_at?: string | null
+          model_id: string
+          revision: string
+          scenario_digest: string
+          scenario_payload: string
+          state?: string
+        }
+        Update: {
+          approved_at?: string | null
+          approver_id?: string | null
+          author_id?: string
+          created_at?: string
+          definition_fingerprint?: string
+          draft_revision?: number
+          id?: string
+          invalidated_at?: string | null
+          model_id?: string
+          revision?: string
+          scenario_digest?: string
+          scenario_payload?: string
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pricing_acceptance_manifests_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "staff_users"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pricing_acceptance_manifests_author_id_fkey"
+            columns: ["author_id"]
+            isOneToOne: false
+            referencedRelation: "staff_users"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "pricing_acceptance_manifests_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "pricing_models"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pricing_models: {
         Row: {
           draft_revision: number
@@ -504,6 +610,50 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      activate_accepted_pricing_model: {
+        Args: {
+          p_actor: string
+          p_definition: string
+          p_digest: string
+          p_draft_revision: number
+          p_fingerprint: string
+          p_manifest: string
+          p_model: string
+          p_projection: Json
+          p_results: Json
+          p_session: string
+        }
+        Returns: undefined
+      }
+      approve_pricing_acceptance: {
+        Args: {
+          p_actor: string
+          p_definition: string
+          p_digest: string
+          p_draft_revision: number
+          p_fingerprint: string
+          p_manifest: string
+          p_model: string
+          p_results: Json
+          p_session: string
+        }
+        Returns: undefined
+      }
+      submit_pricing_acceptance: {
+        Args: {
+          p_actor: string
+          p_definition: string
+          p_digest: string
+          p_draft_revision: number
+          p_fingerprint: string
+          p_model: string
+          p_payload: string
+          p_prior_manifest: string
+          p_revision: string
+          p_session: string
+        }
+        Returns: string
+      }
       activate_first_admin: {
         Args: { p_execute: boolean; p_owner_authorization_ref: string; p_user_id: string }
         Returns: Json

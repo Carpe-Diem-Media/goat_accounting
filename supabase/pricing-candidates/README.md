@@ -48,7 +48,7 @@ Every persisted pricing rule code uses the lowercase `snake_case` format enforce
 - Business and personal current-return preparation appears in once-off catch-up. Any selected ongoing annual return support appears as a separate future monthly run rate. The public result keeps those totals separate.
 - Urgency never changes a price. Urgent or missed deadlines add a manual-review flag only.
 - The candidate includes no prices for SARS disputes, audits, trust distributions, crypto, unrelated personal income, payroll compliance arrears, or other work without an approved automatic range. Those choices require review.
-- Expected cents in `pricing_candidate_v1_acceptance.test.ts` were calculated from the ranges above and recorded independently. The test reuses only the canonical scenario answer inputs, not their synthetic expected prices.
+- Expected cents in `goat-accounting-starter-v1-acceptance.ts` were calculated from the ranges above and recorded independently. The test reuses only the canonical scenario answer inputs, not their synthetic expected prices.
 
 ## Customer disclaimer
 
@@ -56,10 +56,10 @@ Every persisted pricing rule code uses the lowercase `snake_case` format enforce
 
 ## Acceptance and activation boundary
 
-The acceptance test validates this DRAFT with all 17 required named scenarios and one combined business-and-personal case. Passing locally does not authorize importing or activating it. Activation remains guarded by the repository workflow, checksum, audit, manifest and administrator requirements. Hosted administrator provisioning and the staff-grant correction are separate prerequisites. The candidate does not bypass them.
+The version-controlled V1 manifest contains the 17 required named scenarios, a combined estimate, and three VAT frequency cases. Staff can submit it for the exact matching draft, review each scenario’s expected amounts, confidence and manual-review outcomes, approve the stored revision, and activate the model. Each step requires an active administrator with AAL2. The scenario tester accepts diagnostic JSON independently of this workflow.
 
-The first DRAFT import hashes the canonical server definition and enabled-rule flags with SHA-256.
-PostgreSQL verifies those bytes and compares the parsed definition with the persisted pricing projection
-before recording the server fingerprint alongside the existing database definition checksum. The
-database checksum excludes model ID and lifecycle state, so it differs from the server fingerprint.
-The audit also records the verified administrator and pinned V1 owner authorization reference.
+The server fingerprints the full canonical draft and enabled-rule flags with SHA-256. PostgreSQL verifies both the serialized hash and the JSON definition against the locked rows. A separate SHA-256 digest identifies the exact UTF-8 scenario payload. The database pins the reviewed V1 full-definition fingerprint, source revision and payload digest at submission, approval and activation. The manifest revision combines that source revision with the locked database draft revision. The disposable SQL suite derives these values from the version-controlled candidate and corpus and exercises all three transitions against the migration. A definition with different prices, an edited definition that no longer matches V1, or a clone requires a new reviewed release and manifest, including updated SQL authorization.
+
+The database records each submission, approval, supersession, draft edit invalidation, and activation. An edit invalidates evidence in the same transaction as the revision change. The edit event identifies the affected manifest revision and captures the administrator from the draft editor RPC. The TypeScript corpus runner evaluates all 21 scenarios against the draft before approval and activation. SQL checks the trusted server’s report for all 21 authorized scenarios and verifies the release binding under locks. Activation also checks the enabled rule projection and stores its database checksum, which excludes model ID, lifecycle state, and disabled rules. The transaction retires the previous active model and activates the replacement together.
+
+Hosted administrator readiness, migration and configured Data API exposure for the server-owned manifest reads and RPCs require separate preflight and authorization.

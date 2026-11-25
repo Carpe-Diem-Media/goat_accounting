@@ -12,6 +12,9 @@ const projectId = `goat-t13-${randomBytes(6).toString('hex')}`;
 const projectRoot = join(tempRoot, projectId);
 const supabaseDir = join(projectRoot, 'supabase');
 const workerDir = join(tempRoot, 'workers');
+const pricingSql = process.argv[2] === '--pricing-acceptance-sql';
+const pricingBrowser = process.argv[2] === '--pricing-acceptance-browser';
+const acceptanceMigration = '20261125100000';
 const expectedMigrations = [
 	'20261103183011',
 	'20261105062524',
@@ -112,7 +115,7 @@ function copyAuthEmailTemplates(config) {
 	}
 }
 
-function makeWorkerConfig(lane, port, apiUrl, publishableKey) {
+function makeWorkerConfig(lane, port, apiUrl, publishableKey, serviceKey) {
 	const directory = join(workerDir, lane);
 	mkdirSync(directory, { recursive: true });
 	const worker = resolve(root, '.svelte-kit/cloudflare/_worker.js');
@@ -129,7 +132,10 @@ function makeWorkerConfig(lane, port, apiUrl, publishableKey) {
 		''
 	].join('\n'));
 	const vars = [`SUPABASE_URL=${apiUrl}`, `SUPABASE_PUBLISHABLE_KEY=${publishableKey}`];
-	if (lane === 'enabled') vars.push('DASHBOARD_RELEASE_ENABLED=true');
+	if (lane === 'enabled') {
+		vars.push('DASHBOARD_RELEASE_ENABLED=true');
+		if (pricingBrowser) vars.push('PRICING_ADMIN_RELEASE_ENABLED=true', `SUPABASE_SECRET_KEY=${serviceKey}`);
+	}
 	writeFileSync(join(directory, '.dev.vars'), `${vars.join('\n')}\n`, { mode: 0o600 });
 	return { directory, port };
 }
@@ -178,7 +184,13 @@ try {
 	], { phase }).trim();
 	if (migrationRows !== String(expectedMigrations.length)) throw new Error('The disposable project did not apply all required migrations.');
 
-	if (process.argv[2] === '--pricing-import-only') {
+	if (pricingSql) {
+		phase = 'pricing acceptance database tests';
+		run('bun', ['supabase/concurrency/pricing-acceptance-race.ts', container, acceptanceMigration], {
+			stdio: 'inherit', timeout: 60000, phase,
+			env: { ...process.env, GOAT_PRICING_TEST_API: api.origin, GOAT_PRICING_TEST_KEY: status.SERVICE_ROLE_KEY }
+		});
+	} else if (process.argv[2] === '--pricing-import-only') {
 		phase = 'first pricing import SQL and concurrency acceptance';
 		run('bun', ['supabase/concurrency/first-pricing-import-race.ts', container], {
 			stdio: 'inherit', timeout: 60_000, phase
@@ -187,15 +199,16 @@ try {
 		phase = 'Worker build';
 		run('bunx', ['vite', 'build'], { stdio: 'inherit', timeout: 300_000, phase });
 		const offWorker = makeWorkerConfig('default-off', 8795, api.origin, status.ANON_KEY);
-		const enabledWorker = makeWorkerConfig('enabled', 8796, api.origin, status.ANON_KEY);
+		const enabledWorker = makeWorkerConfig('enabled', 8796, api.origin, status.ANON_KEY, status.SERVICE_ROLE_KEY);
 
 		phase = 'authenticated Playwright suite';
-		const result = spawnSync('bunx', ['playwright', 'test', '--config=playwright.dashboard.config.ts', ...process.argv.slice(2)], {
+		const result = spawnSync('bunx', ['playwright', 'test', '--config=playwright.dashboard.config.ts', ...(pricingBrowser ? ['pricing-acceptance.pw.ts'] : process.argv.slice(2))], {
 			cwd: root,
 			stdio: 'inherit',
 			timeout: 600_000,
 			env: {
 				...process.env,
+				GOAT_PRICING_ACCEPTANCE_BROWSER: pricingBrowser ? '1' : '0',
 				DASHBOARD_E2E_WORKER_DEFAULT_DIR: offWorker.directory,
 				DASHBOARD_E2E_WORKER_ENABLED_DIR: enabledWorker.directory,
 				DASHBOARD_E2E_DEFAULT_PORT: String(offWorker.port),
