@@ -100,7 +100,7 @@
 			{resultTitle}
 		</h1>
 		<p class="max-w-2xl text-base leading-7 text-muted-foreground">
-			This estimate is based on your answers and the saved pricing model. You can review the catch-up work and monthly support below.
+			This estimate is based on your answers and the saved pricing model. You can review the catch-up work and illustrative monthly equivalents below.
 		</p>
 		<p class="text-xs text-muted-foreground">Reference <code class="font-mono">{estimate.publicRef}</code></p>
 	</header>
@@ -134,7 +134,7 @@
 			<p class="mt-3 font-display text-3xl font-semibold tabular-nums tracking-tight text-foreground sm:text-4xl">
 				{formatRange(estimate.ongoing)}
 			</p>
-			<p class="mt-2 text-sm leading-6 text-muted-foreground">Recurring monthly services based on the support you selected.</p>
+			<p class="mt-2 text-sm leading-6 text-muted-foreground">Includes ongoing services and equivalents for fees billed on other schedules. Actual billing may differ.</p>
 		</div>
 	</section>
 
@@ -213,7 +213,7 @@
 						{/each}
 					</ul>
 				{:else}
-					<p class="mt-3 text-sm leading-6 text-muted-foreground">No separate monthly service items were returned.</p>
+					<p class="mt-3 text-sm leading-6 text-muted-foreground">No ongoing service items were returned.</p>
 				{/if}
 			</section>
 		</div>

@@ -522,7 +522,7 @@ export type Database = {
         Returns: Json
       }
       import_first_pricing_draft: {
-        Args: { p_actor_user_id: string; p_model: Json; p_fingerprint: string }
+        Args: { p_actor_user_id: string; p_definition: string; p_fingerprint: string; p_owner_authorization_ref: string }
         Returns: string
       }
       save_pricing_draft: {

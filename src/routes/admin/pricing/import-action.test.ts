@@ -8,7 +8,7 @@ const resultId = '30000000-0000-4000-8000-000000000001';
 
 function event(role = 'admin', state = 'ACTIVE', aal = 'aal2', version = '1.2.3', pricingAdminEnabled = true) {
  const query = { select: () => query, eq: () => query, maybeSingle: async () => ({ data: {user_id: actor, role, state}, error: null }) };
- const form = new FormData(); form.set('sourceId', source); form.set('version', version); form.set('actor', 'forged');
+ const form = new FormData(); form.set('sourceId', source); form.set('version', version); form.set('actor', 'forged'); form.set('authorizationRef', 'forged-reference');
  return { locals: { pricingAdminEnabled, supabase: { auth: { getClaims: async () => ({data:{claims:{sub:actor,aal}},error:null}), mfa:{getAuthenticatorAssuranceLevel:async () => ({data:{currentLevel:aal,nextLevel:'aal2'},error:null})} }, from: () => query } }, platform:{env:{SUPABASE_URL:'http://127.0.0.1:54321',SUPABASE_SECRET_KEY:'test-only-key'}}, request:new Request('https://goat.test/admin/pricing?/clone',{method:'POST',body:form}) } as unknown as RequestEvent;
 }
 const importAction = actions.importStarter as (event: RequestEvent) => Promise<unknown>;
@@ -36,7 +36,8 @@ describe('first pricing import', () => {
   try {
    expect((await outcome(event()) as {status:number}).status).toBe(303);
    expect(payload.p_actor_user_id).toBe(actor);
-   expect(payload.p_model).toMatchObject({ state: 'DRAFT', currency: 'ZAR' });
+   expect(JSON.parse(String(payload.p_definition)).model).toMatchObject({ state: 'DRAFT', currency: 'ZAR' });
+   expect(payload.p_owner_authorization_ref).toBe('github:goat_accounting/issues/23#issuecomment-7122901130');
    expect(payload.p_fingerprint).toMatch(/^[0-9a-f]{64}$/);
   } finally { globalThis.fetch = original; }
  });

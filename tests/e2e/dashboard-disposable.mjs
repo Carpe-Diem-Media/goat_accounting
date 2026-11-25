@@ -178,30 +178,37 @@ try {
 	], { phase }).trim();
 	if (migrationRows !== String(expectedMigrations.length)) throw new Error('The disposable project did not apply all required migrations.');
 
-	phase = 'Worker build';
-	run('bunx', ['vite', 'build'], { stdio: 'inherit', timeout: 300_000, phase });
-	const offWorker = makeWorkerConfig('default-off', 8795, api.origin, status.ANON_KEY);
-	const enabledWorker = makeWorkerConfig('enabled', 8796, api.origin, status.ANON_KEY);
+	if (process.argv[2] === '--pricing-import-only') {
+		phase = 'first pricing import SQL and concurrency acceptance';
+		run('bun', ['supabase/concurrency/first-pricing-import-race.ts', container], {
+			stdio: 'inherit', timeout: 60_000, phase
+		});
+	} else {
+		phase = 'Worker build';
+		run('bunx', ['vite', 'build'], { stdio: 'inherit', timeout: 300_000, phase });
+		const offWorker = makeWorkerConfig('default-off', 8795, api.origin, status.ANON_KEY);
+		const enabledWorker = makeWorkerConfig('enabled', 8796, api.origin, status.ANON_KEY);
 
-	phase = 'authenticated Playwright suite';
-	const result = spawnSync('bunx', ['playwright', 'test', '--config=playwright.dashboard.config.ts', ...process.argv.slice(2)], {
-		cwd: root,
-		stdio: 'inherit',
-		timeout: 600_000,
-		env: {
-			...process.env,
-			DASHBOARD_E2E_WORKER_DEFAULT_DIR: offWorker.directory,
-			DASHBOARD_E2E_WORKER_ENABLED_DIR: enabledWorker.directory,
-			DASHBOARD_E2E_DEFAULT_PORT: String(offWorker.port),
-			DASHBOARD_E2E_ENABLED_PORT: String(enabledWorker.port),
-			DASHBOARD_E2E_SUPABASE_URL: api.origin,
-			DASHBOARD_E2E_ANON_KEY: status.ANON_KEY,
-			DASHBOARD_E2E_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
-			DASHBOARD_E2E_DB_CONTAINER: container,
-			DASHBOARD_E2E_PROJECT_ID: projectId
-		}
-	});
-	if (result.error || result.status !== 0) process.exitCode = 1;
+		phase = 'authenticated Playwright suite';
+		const result = spawnSync('bunx', ['playwright', 'test', '--config=playwright.dashboard.config.ts', ...process.argv.slice(2)], {
+			cwd: root,
+			stdio: 'inherit',
+			timeout: 600_000,
+			env: {
+				...process.env,
+				DASHBOARD_E2E_WORKER_DEFAULT_DIR: offWorker.directory,
+				DASHBOARD_E2E_WORKER_ENABLED_DIR: enabledWorker.directory,
+				DASHBOARD_E2E_DEFAULT_PORT: String(offWorker.port),
+				DASHBOARD_E2E_ENABLED_PORT: String(enabledWorker.port),
+				DASHBOARD_E2E_SUPABASE_URL: api.origin,
+				DASHBOARD_E2E_ANON_KEY: status.ANON_KEY,
+				DASHBOARD_E2E_SERVICE_ROLE_KEY: status.SERVICE_ROLE_KEY,
+				DASHBOARD_E2E_DB_CONTAINER: container,
+				DASHBOARD_E2E_PROJECT_ID: projectId
+			}
+		});
+		if (result.error || result.status !== 0) process.exitCode = 1;
+	}
 } catch {
 	console.error(`Dashboard E2E setup failed during ${phase}. Sensitive command output was withheld.`);
 	process.exitCode = 1;

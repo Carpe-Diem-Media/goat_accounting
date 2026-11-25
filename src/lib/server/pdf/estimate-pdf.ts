@@ -44,7 +44,7 @@ const PAGE_HEIGHT = 841.89;
 const PAGE_MARGIN = 46;
 const MAX_SAVED_LINE_ITEMS = MAX_PRICING_MODEL_RULE_COUNT * MAX_PRICING_RULE_OPTION_COUNT;
 const MAX_RENDERED_LINE_ITEMS_PER_SECTION = 10;
-const MAX_ASSUMPTIONS = 24;
+const MAX_ASSUMPTIONS = 25;
 const MAX_TEXT_LENGTH = 180;
 const MAX_ASSUMPTION_LABEL_LENGTH = 80;
 const MAX_FIRST_PAGE_Y = 292;
@@ -506,7 +506,7 @@ export async function renderEstimatePdf(
 		firstPage,
 		{ body, bodyBold },
 		PAGE_MARGIN + panelWidth + panelGap,
-		'Monthly recurring',
+		'Illustrative monthly equivalent',
 		model.ongoing.minCents,
 		model.ongoing.maxCents,
 		panelWidth

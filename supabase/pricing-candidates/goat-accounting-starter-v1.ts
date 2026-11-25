@@ -148,7 +148,7 @@ const rules: PricingRuleInput[] = [
 	},
 	{
 		type: 'SERVICE_ADDON_RANGE', code: 'biz_ongoing_service', label: 'Selected ongoing business services',
-		explanation: 'Annual services are shown as monthly equivalents billed evenly over 12 months. VAT assumes one return per month. The monthly bookkeeping and payroll fees are added by their selected-service bands.',
+		explanation: 'Annual fees are divided by 12 for comparison. Actual billing may differ. VAT uses the selected filing frequency.',
 		scope: 'business', category: 'ongoing', inputKey: 'business.ongoingServices',
 		addOns: addOns('business.ongoingServices', {
 			monthly_bookkeeping: free(), bank_reconciliations: free(), payroll: free(), vat: free(),
@@ -177,7 +177,7 @@ const rules: PricingRuleInput[] = [
 		]
 	},
 	reviewRule('vat_filing_frequency_needs_review', 'VAT filing frequency needs review',
-		'Confirm how often VAT201 returns are filed before including recurring VAT fees.', 'business',
+		'Recurring totals exclude VAT201 fees until the filing frequency is confirmed.', 'business',
 		{ type: 'UNKNOWN_VAT_FILING_FREQUENCY' }),
 	{
 		type: 'PER_UNIT_RANGE', code: 'biz_entity_count', label: 'Additional entity count',

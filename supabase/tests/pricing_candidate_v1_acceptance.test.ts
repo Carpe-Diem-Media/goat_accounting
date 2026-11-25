@@ -135,7 +135,8 @@ describe('GOAT starter pricing acceptance expectations', () => {
 			...CANONICAL_PRICING_TEST_CORPUS.map(({ id, answers }) => ({ id, answers, expected: expectedById[id] })),
 			...([
 				['monthly', 245000, 395000],
-				['two_monthly', 222500, 352500]
+				['two_monthly', 222500, 352500],
+				['unknown', 200000, 310000]
 			] as const).map(([frequency, minCents, maxCents]) => {
 				const source = CANONICAL_PRICING_TEST_CORPUS.find(({ id }) => id === 'current-pty-ltd-with-vat')!.answers;
 				if (source.calculatorType !== 'business') throw new Error('Expected business fixture');
@@ -143,7 +144,8 @@ describe('GOAT starter pricing acceptance expectations', () => {
 				return {
 					id: `vat-filing-${frequency}`,
 					answers: { ...source, business: { ...source.business, vatFilingFrequency: frequency } },
-					expected: expected([0, 0], [minCents, maxCents], [...baseline.ruleCodes, 'biz_vat_monthly_equivalent'], 'high')
+					expected: expected([0, 0], [minCents, maxCents], [...baseline.ruleCodes, 'biz_vat_monthly_equivalent'], frequency === 'unknown' ? 'preliminary' : 'high',
+						frequency === 'unknown' ? ['vat_filing_frequency_needs_review'] : [])
 				};
 			}),
 			{
@@ -157,7 +159,7 @@ describe('GOAT starter pricing acceptance expectations', () => {
 			}
 		];
 		expect(CANONICAL_PRICING_TEST_CORPUS).toHaveLength(17);
-		expect(scenarios).toHaveLength(20);
+		expect(scenarios).toHaveLength(21);
 		expect(scenarios.every((scenario) => scenario.expected !== undefined)).toBe(true);
 
 		const definitionFingerprint = await fingerprintDraft(GOAT_ACCOUNTING_STARTER_V1_DRAFT);

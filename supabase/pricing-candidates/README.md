@@ -57,3 +57,9 @@ Every persisted pricing rule code uses the lowercase `snake_case` format enforce
 ## Acceptance and activation boundary
 
 The acceptance test validates this DRAFT with all 17 required named scenarios and one combined business-and-personal case. Passing locally does not authorize importing or activating it. Activation remains guarded by the repository workflow, checksum, audit, manifest and administrator requirements. Hosted administrator provisioning and the staff-grant correction are separate prerequisites. The candidate does not bypass them.
+
+The first DRAFT import hashes the canonical server definition and enabled-rule flags with SHA-256.
+PostgreSQL verifies those bytes and compares the parsed definition with the persisted pricing projection
+before recording the server fingerprint alongside the existing database definition checksum. The
+database checksum excludes model ID and lifecycle state, so it differs from the server fingerprint.
+The audit also records the verified administrator and pinned V1 owner authorization reference.

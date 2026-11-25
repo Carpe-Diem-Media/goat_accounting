@@ -49,12 +49,15 @@ function canonical(value: unknown): string {
  if (value !== null && typeof value === 'object') return `{${Object.keys(value).sort().map(key=>`${JSON.stringify(key)}:${canonical((value as Record<string,unknown>)[key])}`).join(',')}}`;
  return JSON.stringify(value);
 }
-export async function fingerprintDraft(input: unknown, enabled?: readonly boolean[]): Promise<string> {
+export function serializeDraftFingerprintInput(input: unknown, enabled?: readonly boolean[]): string {
  const model=validatePricingModel(input);
  if(model.state!=='DRAFT') throw new Error('Candidate must be a draft.');
  const flags=enabled ?? model.rules.map(()=>true);
  if(flags.length!==model.rules.length || !flags.every(value=>typeof value==='boolean')) throw new Error('Invalid rule selection.');
- const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(canonical({model,enabled:flags})));
+ return canonical({model,enabled:flags});
+}
+export async function fingerprintDraft(input: unknown, enabled?: readonly boolean[]): Promise<string> {
+ const hash=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(serializeDraftFingerprintInput(input,enabled)));
  return Array.from(new Uint8Array(hash),byte=>byte.toString(16).padStart(2,'0')).join('');
 }
 export async function runPricingCorpus(input: unknown, inputManifest: unknown, enabled?: readonly boolean[]) {

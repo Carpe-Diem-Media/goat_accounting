@@ -106,8 +106,9 @@ describe('GOAT starter pricing candidate', () => {
 
 		const businessCompliance = model.rules.find((candidate) => candidate.code === 'biz_ongoing_service');
 		if (businessCompliance?.type !== 'SERVICE_ADDON_RANGE') throw new Error('Business service rule is missing.');
-		expect(businessCompliance.explanation).toContain('one return per month');
-		expect(businessCompliance.explanation).toContain('over 12 months');
+		expect(businessCompliance.explanation).toContain('selected filing frequency');
+		expect(businessCompliance.explanation).not.toContain('one return per month');
+		expect(businessCompliance.explanation).toContain('Actual billing may differ');
 	});
 
 	test('urgency changes review flags but never changes the estimate amount', () => {

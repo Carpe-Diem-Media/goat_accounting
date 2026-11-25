@@ -104,6 +104,25 @@ describe('estimate PDF document projection', () => {
 		expect(services!.value.endsWith('...')).toBe(true);
 	});
 
+	it('labels VAT filing frequency from the snapshot and preserves the saved total', async () => {
+		const module = await loadDocumentModule();
+		if (!module) throw new Error('Document module unavailable');
+		const baseline = module.toEstimateDocumentModel(savedRecord());
+		for (const [frequency, label] of [
+			['monthly', 'Monthly'], ['two_monthly', 'Every two months'],
+			['unknown', 'Not specified'], [undefined, 'Not specified']
+		] as const) {
+			const answers = {
+				...businessAnswers,
+				business: { ...businessAnswers.business, ongoingServices: ['vat'],
+					...(frequency ? { vatFilingFrequency: frequency } : {}) }
+			};
+			const document = module.toEstimateDocumentModel({ ...savedRecord(), answers_snapshot: answers });
+			expect(document.assumptions).toContainEqual({ label: 'VAT201 filing frequency', value: label });
+			expect(document.ongoing).toEqual(baseline.ongoing);
+		}
+	});
+
 	it('preserves the saved voided state without exposing its internal reason', async () => {
 		const module = await loadDocumentModule();
 		expect(module).not.toBeNull();
