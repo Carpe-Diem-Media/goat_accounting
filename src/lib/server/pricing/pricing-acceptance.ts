@@ -49,17 +49,23 @@ export async function inspectPricingAcceptance(repo: Repository, draft: Draft) {
 		return { summary, report: null, fingerprint, action: null };
 	}
 
+	// The persisted bytes match the reviewed source above, so the expectations
+	// displayed for approval are the same ones the runner evaluates.
+	const scenarios: typeof GOAT_STARTER_V1_SCENARIOS = JSON.parse(payload);
 	const report = await runPricingCorpus(draft.model, {
 		modelId: draft.model.id,
 		definitionFingerprint: fingerprint,
 		revision,
-		scenarios: JSON.parse(payload)
+		scenarios
 	}, enabled);
 	const action: AcceptanceAction | null = !report.passed ? null
 		: reviewed?.state === 'APPROVED' ? 'activate'
 		: reviewed?.state === 'DRAFT' ? 'approve'
 		: 'submit';
-	return { summary, report, fingerprint, action, scenarioDigest, payload };
+	const reviewScenarios = report.scenarios.map((result, index) => ({
+		...result, expected: scenarios[index].expected
+	}));
+	return { summary, report, reviewScenarios, fingerprint, action, scenarioDigest, payload };
 }
 
 /** Load and evaluate the stored evidence again before either privileged transition. */

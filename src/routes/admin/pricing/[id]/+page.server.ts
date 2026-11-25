@@ -23,8 +23,8 @@ export const load: PageServerLoad = async event => {
  try {
   const repo=await repository(event); const draft=await repo.readDraft(event.params.id);
   if(!draft) throw error(404,'Pricing model not found.');
-  const { summary, report, fingerprint, action } = await inspectPricingAcceptance(repo, draft);
-  return { draft, fields: editableFields(draft.model), fingerprint, acceptance: { summary, report, action } };
+  const { summary, report, reviewScenarios, fingerprint, action } = await inspectPricingAcceptance(repo, draft);
+  return { draft, fields: editableFields(draft.model), fingerprint, acceptance: { summary, report, reviewScenarios, action } };
  } catch(cause) {
   if(typeof cause==='object' && cause!==null && 'status' in cause && cause.status===404) throw cause;
   throw error(503,'Pricing model is temporarily unavailable.');

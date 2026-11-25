@@ -199,37 +199,30 @@ BEGIN
 END;
 $$;
 
-CREATE FUNCTION estimator.pricing_acceptance_passing_results(p_payload text) RETURNS jsonb
+-- GOAT #23: pin the owner-reviewed release to the canonical full definition and
+-- exact UTF-8 corpus bytes. The disposable SQL test derives both hashes and
+-- the source revision from the version-controlled TypeScript release.
+CREATE FUNCTION estimator.require_pricing_acceptance_v1(
+  p_draft_revision bigint, p_fingerprint text, p_revision text, p_payload text, p_digest text
+) RETURNS void
 LANGUAGE plpgsql SET search_path = pg_catalog AS $$
-DECLARE scenarios jsonb; ids text[];
 BEGIN
-  IF p_payload IS NULL OR octet_length(p_payload) > 131072 THEN
-    RAISE EXCEPTION 'invalid scenario payload size' USING ERRCODE = '22023';
+  IF p_fingerprint IS DISTINCT FROM 'dd63a8a80af54302be061bec9b1c2f553ea1bddece3860d5eebd39cca50b832d'
+    OR p_revision IS DISTINCT FROM ('goat-starter-v1-owner-provisional.' || p_draft_revision::text)
+    OR p_digest IS DISTINCT FROM '95cb7afe040170a3bf493cc76da4162fd1e45cf7ea08401661e8905fae3e9db2'
+    OR p_payload IS NULL OR octet_length(p_payload) > 131072
+    OR p_digest IS DISTINCT FROM encode(extensions.digest(convert_to(p_payload, 'UTF8'), 'sha256'), 'hex') THEN
+    RAISE EXCEPTION 'pricing acceptance requires the reviewed V1 release' USING ERRCODE = '42501';
   END IF;
-  scenarios := p_payload::jsonb;
-  IF jsonb_typeof(scenarios) <> 'array' THEN
-    RAISE EXCEPTION 'invalid scenario payload' USING ERRCODE = '22023';
-  END IF;
-  SELECT array_agg(item->>'id' ORDER BY item->>'id' COLLATE "C") INTO ids
-  FROM jsonb_array_elements(scenarios) AS s(item)
-  WHERE jsonb_typeof(item->'answers') = 'object' AND jsonb_typeof(item->'expected') = 'object'
-    AND item - ARRAY['id','answers','expected'] = '{}'::jsonb;
-  IF jsonb_array_length(scenarios) <> 21 OR ids IS DISTINCT FROM ARRAY[
-    'combined-business-and-personal', 'current-pty-ltd-with-vat', 'current-sme-ten-employees',
-    'ecommerce-multiple-gateways', 'eighteen-months-incomplete-records',
-    'eighteen-months-incomplete-records-statements-available', 'high-risk-sars-dispute', 'high-volume-boundary',
-    'moderate-uncertainty-good-confidence', 'multiple-entities', 'multiple-entities-unknown-count',
-    'personal-salaried-taxpayer', 'rental-and-provisional-tax', 'simple-current-sole-proprietor',
-    'six-months-behind-clean-records', 'unknown-business-backlog-duration', 'unknown-transaction-volume',
-    'unknown-volume-with-major-backlog', 'vat-filing-monthly', 'vat-filing-two_monthly', 'vat-filing-unknown'
-  ] THEN
-    RAISE EXCEPTION 'incomplete scenario coverage' USING ERRCODE = '22023';
-  END IF;
-  RETURN (
-    SELECT jsonb_agg(jsonb_build_object('id', item->>'id', 'passed', true, 'failures', '[]'::jsonb) ORDER BY position)
-    FROM jsonb_array_elements(scenarios) WITH ORDINALITY AS s(item, position)
-  );
 END;
+$$;
+
+-- This checks the trusted server's report against the authorized scenario order.
+-- The TypeScript corpus runner evaluates pricing before calling the RPC.
+CREATE FUNCTION estimator.pricing_acceptance_required_report(p_payload text) RETURNS jsonb
+LANGUAGE sql SET search_path = pg_catalog AS $$
+  SELECT jsonb_agg(jsonb_build_object('id', item->>'id', 'passed', true, 'failures', '[]'::jsonb) ORDER BY position)
+  FROM jsonb_array_elements(p_payload::jsonb) WITH ORDINALITY AS s(item, position);
 $$;
 
 CREATE FUNCTION estimator.submit_pricing_acceptance(
@@ -241,7 +234,7 @@ DECLARE prior uuid; submitted uuid;
 BEGIN
   PERFORM estimator.lock_pricing_acceptance_actor(p_actor, p_session);
   PERFORM estimator.lock_pricing_acceptance_draft(p_model, p_draft_revision, p_definition, p_fingerprint);
-  PERFORM estimator.pricing_acceptance_passing_results(p_payload);
+  PERFORM estimator.require_pricing_acceptance_v1(p_draft_revision, p_fingerprint, p_revision, p_payload, p_digest);
 
   SELECT id INTO prior FROM estimator.pricing_acceptance_manifests
     WHERE model_id = p_model AND state <> 'INVALIDATED' FOR UPDATE;
@@ -274,7 +267,10 @@ BEGIN
     OR manifest.scenario_digest IS DISTINCT FROM p_digest THEN
     RAISE EXCEPTION 'acceptance revision changed' USING ERRCODE = '40001';
   END IF;
-  IF p_results IS DISTINCT FROM estimator.pricing_acceptance_passing_results(manifest.scenario_payload) THEN
+  PERFORM estimator.require_pricing_acceptance_v1(
+    manifest.draft_revision, manifest.definition_fingerprint, manifest.revision, manifest.scenario_payload, manifest.scenario_digest
+  );
+  IF p_results IS DISTINCT FROM estimator.pricing_acceptance_required_report(manifest.scenario_payload) THEN
     RAISE EXCEPTION 'all scenarios must pass' USING ERRCODE = '22023';
   END IF;
 END;
@@ -326,7 +322,8 @@ REVOKE ALL ON FUNCTION
   estimator.invalidate_pricing_acceptance_after_edit(),
   estimator.lock_pricing_acceptance_actor(uuid,uuid),
   estimator.lock_pricing_acceptance_draft(uuid,bigint,text,text),
-  estimator.pricing_acceptance_passing_results(text),
+  estimator.require_pricing_acceptance_v1(bigint,text,text,text,text),
+  estimator.pricing_acceptance_required_report(text),
   estimator.lock_pricing_acceptance_manifest(uuid,bigint,text,uuid,text,text,jsonb),
   estimator.activate_pricing_model(uuid,uuid,jsonb),
   estimator.submit_pricing_acceptance(uuid,uuid,uuid,bigint,text,text,text,text,text,uuid),

@@ -1,5 +1,10 @@
 <script lang="ts">
  const acceptanceLabels = { submit: 'Submit manifest', approve: 'Approve manifest', activate: 'Activate pricing model' };
+ const confidenceLabels = { high: 'High', good: 'Good', preliminary: 'Preliminary' };
+ const money = new Intl.NumberFormat('en-ZA', { style: 'currency', currency: 'ZAR' });
+ function formatRange({ minCents, maxCents }: { minCents: number; maxCents: number }) {
+  return `${money.format(minCents / 100)} – ${money.format(maxCents / 100)}`;
+ }
  let {data,form}=$props();
  let errorField=$derived(form && "field" in form ? form.field : undefined);
  let errorMessage=$derived(form && "fieldMessage" in form ? form.fieldMessage : undefined);
@@ -36,9 +41,34 @@
     <summary class="cursor-pointer font-medium focus-visible:outline-2 focus-visible:outline-ring">
      {data.acceptance.report.passed ? 'All ' + data.acceptance.report.scenarios.length + ' acceptance scenarios passed' : 'Acceptance scenarios failed'}
     </summary>
-    <ul class="mt-2 list-disc space-y-1 pl-5">
-     {#each data.acceptance.report.scenarios as scenario (scenario.id)}
-      <li class="break-words">{scenario.id}: {scenario.passed ? 'Passed' : scenario.failures.join(', ')}</li>
+    <ul class="mt-2 divide-y divide-border">
+     {#each data.acceptance.reviewScenarios ?? [] as scenario (scenario.id)}
+      <li class="py-2">
+       <details>
+        <summary class="cursor-pointer break-words focus-visible:outline-2 focus-visible:outline-ring">
+         {scenario.id}: {scenario.passed ? 'Passed' : 'Failed'}
+        </summary>
+        {#if !scenario.passed}
+         <p class="mt-2 break-words">Failed checks: {scenario.failures.join(', ')}</p>
+        {/if}
+        <dl aria-label="Expected outcomes" class="mt-2 grid gap-x-4 gap-y-2 rounded-md bg-muted p-3 sm:grid-cols-2">
+         <div><dt class="font-medium">Once-off catch-up</dt><dd>{formatRange(scenario.expected.catchup)}</dd></div>
+         <div><dt class="font-medium">Monthly ongoing</dt><dd>{formatRange(scenario.expected.ongoing)}</dd></div>
+         <div><dt class="font-medium">Expected confidence</dt><dd>{confidenceLabels[scenario.expected.confidence]}</dd></div>
+         <div><dt class="font-medium">Expected manual review</dt><dd>{scenario.expected.manualReviewRequired ? 'Required' : 'Not required'}</dd></div>
+         {#if scenario.expected.reviewFlagCodes.length}
+          <div class="min-w-0 sm:col-span-2">
+           <dt class="font-medium">Expected review flags</dt>
+           <dd class="break-words">{scenario.expected.reviewFlagCodes.join(', ')}</dd>
+          </div>
+         {/if}
+         <div class="min-w-0 sm:col-span-2">
+          <dt class="font-medium">Expected pricing rules</dt>
+          <dd class="break-words">{scenario.expected.ruleCodes.join(', ') || 'None'}</dd>
+         </div>
+        </dl>
+       </details>
+      </li>
      {/each}
     </ul>
    </details>
@@ -49,7 +79,7 @@
    {:else if data.acceptance.action}
     <p class="mt-3 text-sm text-muted-foreground">Activation is available after approval of this manifest.</p>
    {:else}
-    <p class="mt-3 text-sm text-muted-foreground">Activation requires a passing, approved manifest for this exact draft.</p>
+    <p class="mt-3 text-sm text-muted-foreground">Activation requires the reviewed V1 draft and a passing, approved manifest. Changed prices need a new reviewed release.</p>
    {/if}
    {#if data.acceptance.action}
     <form method="POST" action={`?/${data.acceptance.action}`} class="mt-3">

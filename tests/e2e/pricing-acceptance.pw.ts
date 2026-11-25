@@ -46,8 +46,20 @@ test('an AAL2 admin reviews 21 versioned scenarios, approves, then activates the
 	expect(await skip.evaluate((element) => getComputedStyle(element).zIndex)).toBe('50');
 	await page.getByText('All 21 acceptance scenarios passed').click();
 	await expect(page.getByText('vat-filing-two_monthly: Passed')).toBeVisible();
+	const vatScenario = page.getByRole('listitem').filter({ hasText: 'vat-filing-two_monthly: Passed' });
+	await vatScenario.getByText('vat-filing-two_monthly: Passed').click();
+	await expect(vatScenario.getByText('Once-off catch-up', { exact: true })).toBeVisible();
+	await expect(vatScenario.getByText('Monthly ongoing', { exact: true })).toBeVisible();
+	await expect(vatScenario.getByText(/R\s*2\s*225,00.*R\s*3\s*525,00/)).toBeVisible();
+	await expect(vatScenario.getByText('High', { exact: true })).toBeVisible();
+	await expect(vatScenario.getByText('Not required', { exact: true })).toBeVisible();
+	const unknownVat = page.getByRole('listitem').filter({ hasText: 'vat-filing-unknown: Passed' });
+	await unknownVat.getByText('vat-filing-unknown: Passed').click();
+	await expect(unknownVat.getByText('vat_filing_frequency_needs_review', { exact: true })).toBeVisible();
 	expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 	expect(await page.evaluate(() => matchMedia('(prefers-reduced-motion: reduce)').matches)).toBe(true);
+
+	await page.getByText('All 21 acceptance scenarios passed').click();
 
 	const submit = page.getByRole('button', { name: 'Submit manifest' });
 	await page.keyboard.press('Tab');
@@ -55,6 +67,9 @@ test('an AAL2 admin reviews 21 versioned scenarios, approves, then activates the
 	expect(await submit.evaluate((element) => getComputedStyle(element).outlineStyle)).toBe('solid');
 	await submit.press('Enter');
 	await expect(page.getByText('Approval status: DRAFT')).toBeVisible();
+	await page.getByText('All 21 acceptance scenarios passed').click();
+	await vatScenario.getByText('vat-filing-two_monthly: Passed').click();
+	await expect(vatScenario.getByText(/R\s*2\s*225,00.*R\s*3\s*525,00/)).toBeVisible();
 	const approve = page.getByRole('button', { name: 'Approve manifest' });
 	expect((await post('approve', { revision: '0', fingerprint: '0'.repeat(64), manifestId: '' })).status()).toBe(409);
 	const form = await approve.evaluate((element: HTMLButtonElement) =>
