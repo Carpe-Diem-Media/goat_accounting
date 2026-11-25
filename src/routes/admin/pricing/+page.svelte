@@ -5,7 +5,7 @@
 <section>
  <h1 class="font-display text-3xl font-semibold tracking-tight">Pricing models</h1>
  <p class="mt-2 text-sm text-muted-foreground">Drafts can be edited. Active and retired models are read-only.</p>
- <p class="mt-2 text-sm text-muted-foreground">Activation is unavailable until the independent approval workflow is complete.</p>
+ <p class="mt-2 text-sm text-muted-foreground">Open a draft to review its manifest, approve it and activate pricing.</p>
  {#if form?.message}<p role="alert" class="mt-4 rounded-md border border-border p-3 text-sm">{form.message}</p>{/if}
  {#if data.models.length === 0}
   <p class="mt-6 rounded-lg border border-border bg-card p-5">No pricing models are available.</p>

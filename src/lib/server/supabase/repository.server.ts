@@ -4,9 +4,6 @@ import type { Database, Json } from './database.types';
 
 export type EstimatorServiceClient = SupabaseClient<Database, 'estimator'>;
 
-export const PRICING_ACTIVATION_INTEGRATION_BLOCKER =
-	'Pricing activation is disabled until the approved candidate acceptance runner and pricing manifest are integrated.';
-
 type PricingRuleActivationRecord = Pick<
 	Database['estimator']['Tables']['pricing_rules']['Row'],
 	| 'code'
@@ -120,15 +117,6 @@ export function createEstimatorRepository(client: EstimatorServiceClient) {
 				.order('sort_order', { referencedTable: 'estimate_line_items' })
 				.eq('id', estimateId)
 				.maybeSingle();
-		},
-
-		/**
-		 * Activation remains closed until the approved candidate manifest and acceptance runner
-		 * are integrated. Do not accept caller-supplied acceptance results here.
-		 */
-		async activatePricingModel(_modelId: string, _actorUserId: string): Promise<never> {
-			throw new Error(PRICING_ACTIVATION_INTEGRATION_BLOCKER);
-		},
-
+		}
 	};
 }

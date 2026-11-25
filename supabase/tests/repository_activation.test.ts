@@ -2,7 +2,6 @@ import { describe, expect, it } from 'bun:test';
 
 import {
 	createEstimatorRepository,
-	PRICING_ACTIVATION_INTEGRATION_BLOCKER,
 	type EstimatorServiceClient
 } from '../../src/lib/server/supabase/repository.server';
 import { PricingModelValidationError, validatePricingModel } from '../../src/lib/domain/pricing/model';
@@ -10,54 +9,7 @@ import { TEST_PRICING_MODEL } from '../../src/lib/domain/pricing/test-corpus';
 import type { PricingRule } from '../../src/lib/domain/pricing/rule-schema';
 
 const modelId = '20000000-0000-4000-8000-000000000001';
-const actorId = '10000000-0000-4000-8000-000000000001';
-
-const draft = {
-	id: modelId,
-	version: '1.0.0',
-	name: 'Admin-only model name',
-	state: 'DRAFT',
-	engine_contract_version: '1.0.0',
-	currency: 'ZAR',
-	confidence_high_max_points: 0,
-	confidence_good_max_points: 1,
-	pricing_rules: [
-		{
-			id: '30000000-0000-4000-8000-000000000001',
-			pricing_model_id: modelId,
-			code: 'core_test',
-			label: 'Core rule',
-			scope: 'business',
-			category: 'catchup',
-			rule_type: 'FIXED_RANGE',
-			input_key: null,
-			explanation: 'Core explanation',
-			conditions: {},
-			parameters: { range: { minCents: 100, maxCents: 200 } },
-			enabled: true,
-			sort_order: 1
-		},
-		{
-			id: '30000000-0000-4000-8000-000000000002',
-			pricing_model_id: modelId,
-			code: 'disabled_rule',
-			label: 'Disabled rule',
-			scope: 'business',
-			category: 'catchup',
-			rule_type: 'FIXED_RANGE',
-			input_key: null,
-			explanation: 'Disabled explanation',
-			conditions: {},
-			parameters: { range: { minCents: 0, maxCents: 0 } },
-			enabled: false,
-			sort_order: 2
-		}
-	]
-};
-
-function createClientHarness(events: string[], model: unknown = draft) {
-	let rpcCall: { name: string; args: Record<string, unknown> } | undefined;
-	let rpcCount = 0;
+function createClientHarness(events: string[], model: unknown) {
 	const query = {
 		select() {
 			return this;
@@ -81,23 +33,9 @@ function createClientHarness(events: string[], model: unknown = draft) {
 		from(table: string) {
 			events.push(`from:${table}`);
 			return query;
-		},
-		rpc(name: string, args: Record<string, unknown>) {
-			events.push('rpc');
-			rpcCount += 1;
-			rpcCall = { name, args };
-			return Promise.resolve({ data: null, error: null });
 		}
 	} as unknown as EstimatorServiceClient;
-	return {
-		client,
-		get rpcCall() {
-			return rpcCall;
-		},
-		get rpcCount() {
-			return rpcCount;
-		}
-	};
+	return { client };
 }
 
 type PersistedPricingRule = {
@@ -206,23 +144,6 @@ function persistedTestPricingModel(): PersistedPricingModel {
 }
 
 describe('pricing model activation repository', () => {
-	it('fails closed before reading a draft or invoking the activation RPC', async () => {
-		const events: string[] = [];
-		const invalidMandatoryRuleDraft = { ...draft, pricing_rules: [] };
-		expect(invalidMandatoryRuleDraft.pricing_rules).toHaveLength(0);
-		const harness = createClientHarness(events, invalidMandatoryRuleDraft);
-		const repository = createEstimatorRepository(harness.client);
-
-		await expect(repository.activatePricingModel(modelId, actorId)).rejects.toThrow(
-			PRICING_ACTIVATION_INTEGRATION_BLOCKER
-		);
-
-		// The candidate-acceptance runner and approved manifest are not available yet.
-		// Activation fails closed before reading a candidate or reaching the RPC.
-		expect(events).toEqual([]);
-		expect(harness.rpcCount).toBe(0);
-	});
-
 	it('rebuilds typed rule JSONB and validates the active DTO with the PR 2 domain validator', async () => {
 		const events: string[] = [];
 		const persistedModel = persistedTestPricingModel();

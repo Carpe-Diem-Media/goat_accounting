@@ -5,6 +5,17 @@ import type { EstimatorServiceClient } from '../repository.server';
 
 export class PricingVersionConflictError extends Error {}
 export class PricingDraftConflictError extends Error {}
+export class PricingAcceptanceDatabaseConflictError extends Error {}
+export class PricingAcceptanceAccessError extends Error {}
+
+type Functions = Database['estimator']['Functions'];
+
+function assertAcceptanceWrite(error: { code: string } | null) {
+ if (!error) return;
+ if (['40001', '23505', '55000'].includes(error.code)) throw new PricingAcceptanceDatabaseConflictError();
+ if (error.code === '42501') throw new PricingAcceptanceAccessError();
+ throw new Error('Unable to change pricing acceptance.');
+}
 
 type ModelRow = Database['estimator']['Tables']['pricing_models']['Row'];
 type RuleRow = Database['estimator']['Tables']['pricing_rules']['Row'];
@@ -22,6 +33,28 @@ export function createPricingRepository(client: EstimatorServiceClient) {
    if (error?.code === '23505') throw new PricingVersionConflictError();
    if (error) throw new Error('Unable to import starter pricing draft.');
    return z.uuid().parse(data);
+  },
+  async readAcceptance(modelId: string) {
+   const { data, error } = await client.from('pricing_acceptance_manifests')
+    .select('id,state,revision,draft_revision,definition_fingerprint,scenario_payload,scenario_digest,approved_at')
+    .eq('model_id', modelId)
+    .order('invalidated_at', { ascending: false, nullsFirst: true })
+    .order('created_at', { ascending: false }).order('id', { ascending: false }).limit(1).maybeSingle();
+   if (error) throw new Error('Unable to load pricing acceptance.');
+   return data;
+  },
+  async submitAcceptance(input: Omit<Functions['submit_pricing_acceptance']['Args'], 'p_prior_manifest'> & { p_prior_manifest: string | null }) {
+   // The generated RPC argument type omits nullability. SQL accepts an explicit null for first submission.
+   const { error } = await client.rpc('submit_pricing_acceptance', input as Functions['submit_pricing_acceptance']['Args']);
+   assertAcceptanceWrite(error);
+  },
+  async approveAcceptance(input: Functions['approve_pricing_acceptance']['Args']) {
+   const { error } = await client.rpc('approve_pricing_acceptance', input);
+   assertAcceptanceWrite(error);
+  },
+  async activateAcceptance(input: Functions['activate_accepted_pricing_model']['Args']) {
+   const { error } = await client.rpc('activate_accepted_pricing_model', input);
+   assertAcceptanceWrite(error);
   },
   async readDraft(id: string) {
    const { data, error } = await client.from('pricing_models').select('*, pricing_rules(*)').eq('id',id).maybeSingle();

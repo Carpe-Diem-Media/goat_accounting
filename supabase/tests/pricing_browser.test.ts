@@ -134,7 +134,7 @@ describe.skipIf(!enabled)('pricing administration browser acceptance',()=>{
      if(code!==0 || !/render tier: \d+ screenshots/.test(stdout+stderr) || /render tier: failed|render tier not run/i.test(stdout+stderr)) throw Error(`Authenticated UI render check did not complete; see /tmp/goat-task12-hallmark-authenticated.txt (exit ${code}).`);
     } finally {proxy.stop(true);}
    }
-   await browserExpect(page.getByText('Activation is unavailable until the independent approval workflow is complete.')).toBeVisible();await context.close();
+   await browserExpect(page.getByText('Activation requires a passing, approved manifest for this exact draft.')).toBeVisible();await context.close();
   } finally {
    await browser?.close();
    await task12Local();

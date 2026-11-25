@@ -58,6 +58,11 @@ jobs:
       - name: Run authenticated dashboard browser tests
         run: bun run test:dashboard:e2e
 
+      - name: Verify local pricing acceptance and activation
+        run: |
+          node tests/e2e/dashboard-disposable.mjs --pricing-acceptance-sql
+          node tests/e2e/dashboard-disposable.mjs --pricing-acceptance-browser
+
       - name: Check Svelte and TypeScript
         run: bun run check
 
