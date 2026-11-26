@@ -14,6 +14,7 @@ const supabaseDir = join(projectRoot, 'supabase');
 const workerDir = join(tempRoot, 'workers');
 const pricingSql = process.argv[2] === '--pricing-acceptance-sql';
 const pricingBrowser = process.argv[2] === '--pricing-acceptance-browser';
+const estimatorReleaseBrowser = process.argv[2] === '--estimator-release-browser';
 const acceptanceMigration = '20261125100000';
 const expectedMigrations = [
 	'20261103183011',
@@ -135,6 +136,7 @@ function makeWorkerConfig(lane, port, apiUrl, publishableKey, serviceKey) {
 	if (lane === 'enabled') {
 		vars.push('DASHBOARD_RELEASE_ENABLED=true');
 		if (pricingBrowser) vars.push('PRICING_ADMIN_RELEASE_ENABLED=true', `SUPABASE_SECRET_KEY=${serviceKey}`);
+		if (estimatorReleaseBrowser) vars.push('ESTIMATOR_ENABLED=true', 'ESTIMATE_READ_ENABLED=true', `SUPABASE_SECRET_KEY=${serviceKey}`);
 	}
 	writeFileSync(join(directory, '.dev.vars'), `${vars.join('\n')}\n`, { mode: 0o600 });
 	return { directory, port };
@@ -202,13 +204,16 @@ try {
 		const enabledWorker = makeWorkerConfig('enabled', 8796, api.origin, status.ANON_KEY, status.SERVICE_ROLE_KEY);
 
 		phase = 'authenticated Playwright suite';
-		const result = spawnSync('bunx', ['playwright', 'test', '--config=playwright.dashboard.config.ts', ...(pricingBrowser ? ['pricing-acceptance.pw.ts'] : process.argv.slice(2))], {
+		const testFiles = pricingBrowser ? ['pricing-acceptance.pw.ts']
+			: estimatorReleaseBrowser ? ['estimator-release.pw.ts'] : process.argv.slice(2);
+		const result = spawnSync('bunx', ['playwright', 'test', '--config=playwright.dashboard.config.ts', ...testFiles], {
 			cwd: root,
 			stdio: 'inherit',
 			timeout: 600_000,
 			env: {
 				...process.env,
 				GOAT_PRICING_ACCEPTANCE_BROWSER: pricingBrowser ? '1' : '0',
+				GOAT_ESTIMATOR_RELEASE_BROWSER: estimatorReleaseBrowser ? '1' : '0',
 				DASHBOARD_E2E_WORKER_DEFAULT_DIR: offWorker.directory,
 				DASHBOARD_E2E_WORKER_ENABLED_DIR: enabledWorker.directory,
 				DASHBOARD_E2E_DEFAULT_PORT: String(offWorker.port),

@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { trackEstimatorEvent } from '$lib/estimator-analytics';
 	import ContactPanel from '$lib/ui/estimator/contact-panel.svelte';
+	import { ESTIMATE_DISCLAIMER } from '$lib/domain/estimator/estimate-disclaimer';
 	import { goto } from '$app/navigation';
 	import type { PageProps } from './$types';
 
@@ -220,8 +221,7 @@
 	</section>
 
 	<aside class="rounded-lg border-l-4 border-primary bg-muted px-4 py-4 text-sm leading-6 text-muted-foreground" aria-label="Estimate disclaimer">
-		<p class="font-semibold text-foreground">Indicative estimate, not a final quote.</p>
-		<p class="mt-1">The final scope and fee may change after a professional reviews your records and confirms the work required.</p>
+		<p>{ESTIMATE_DISCLAIMER}</p>
 	</aside>
 
 	<div class="flex flex-col gap-3 border-t border-border pt-6 sm:flex-row sm:items-center sm:justify-between">

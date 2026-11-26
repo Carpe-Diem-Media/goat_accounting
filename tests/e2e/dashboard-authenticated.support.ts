@@ -29,7 +29,7 @@ function testConfig() {
 	return { supabaseUrl, anonKey, serviceRoleKey, databaseContainer, projectId };
 }
 
-function sql(statement: string): string {
+export function sql(statement: string): string {
 	const { databaseContainer } = testConfig();
 	const result = spawnSync('docker', [
 		'exec', '-i', databaseContainer, 'psql', '-U', 'postgres', '-d', 'postgres', '-X', '-qAt', '-v', 'ON_ERROR_STOP=1'

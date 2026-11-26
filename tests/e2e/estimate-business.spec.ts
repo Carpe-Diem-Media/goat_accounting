@@ -506,11 +506,13 @@ test('recovers an in-progress, versioned draft after reload', async ({ page }) =
 	await expect(page.getByLabel('Approximate months outstanding (optional)', { exact: true })).toHaveValue('18');
 	const restored = JSON.parse(await page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY) ?? '{}') as {
 		version?: number;
+		createdAt: number;
 		expiresAt?: number;
 		status?: string;
 	};
 	expect(restored).toMatchObject({ version: 1, status: 'IN_PROGRESS' });
 	expect(restored.expiresAt).toBeGreaterThan(Date.now());
+	expect(restored.expiresAt).toBe(restored.createdAt + 7 * 24 * 60 * 60 * 1000);
 });
 
 test('reuses the completion idempotency key on retry after an unavailable API response', async ({ page }) => {

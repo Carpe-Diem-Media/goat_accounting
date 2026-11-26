@@ -1,0 +1,21 @@
+# Estimator retention procedure
+
+This procedure records the owner-approved V1 retention periods. Browser draft expiry is enforced by the estimator. Database disposal requires a separately reviewed operation. Keep public collection disabled until the owner approves the notice and confirms how the database schedule will be enforced.
+
+## Classify records
+
+- **Estimates without a linked lead.** Review for disposal 90 days after the estimate's UTC creation time. Use the absence of a lead relationship to select candidates. Treat questionnaire answers, free text and result links as potentially identifying even when no name or email was collected.
+- **Unsuccessful leads.** Review 12 calendar months after the recorded transition to `CLOSED_LOST` or `CLOSED_NOT_A_FIT`. Use the terminal event in `lead_events`. Investigate missing or inconsistent closure events before disposition. Apply the same review to the linked estimate and associated records.
+- **Successful clients.** Route `CLOSED_WON` records to the approved client-record schedule. Confirm transfer to the client record, applicable obligations and the disposal date for any remaining copies. Send open or unclassified records to the owner for a disposition decision.
+- **Incomplete calculator drafts.** Session storage is scoped to the browser tab. New drafts expire seven days after creation. Loading the calculator discards an expired draft, and the submit action blocks expired drafts in an open tab. Starting over or completing an estimate removes the draft. The server cannot erase storage in an inactive browser. Existing drafts retain their earlier expiry.
+- **Aggregate analytics.** Keep only figures that cannot reasonably be linked back to a person or an individual estimate. Exclude references, free text, contact details, request identifiers, hashes and overly granular categories before retaining aggregates long-term.
+
+## Run the review
+
+1. The owner designates an operator and a reviewer. Run a daily read-only candidate report in the approved environment using a fixed UTC review time. Record policy version, cutoff dates, counts by category, and unresolved classification or dependency conflicts. Limit any record-level worklist to authorized staff.
+2. Before approving a batch, check for a legal obligation, a contract requirement, a documented lawful need, valid consent to extended retention, a dispute, or a pending rights request. Record the basis, affected records, owner, review date and release condition in the restricted register. Restrict use to the documented purpose. Recheck open holds at each scheduled review date and when notified of a change.
+3. Inventory dependencies before disposition. Check both directions of the estimate replacement chain, line items, leads and their events, contact and notification records, idempotency and result links, and copies held in logs, exports, backups or provider systems. Exclude linked records that must still be retained. Escalate mixed-retention chains to the owner and reviewer.
+4. Use a separately approved transaction or anonymisation workflow after dry-run review and disposable restore testing. Recheck eligibility and holds under lock before applying an approved batch. Preserve remaining snapshots, amounts, model and engine versions, audit history and foreign keys. Keep lifecycle and immutability guards in force. Review public result, PDF and replay behaviour for records removed by an approved procedure. Keep all pricing definitions and activation evidence intact.
+5. Record the approval, run time, counts removed or de-identified, exceptions, and follow-up dates. Verify disposition after execution and reconcile provider copies and backups under their schedules. Restrict restored data and reapply completed dispositions before returning a restored database to service. Keep evidence of outcomes without retaining the removed personal data in the evidence.
+
+Sections 14 and 24 of POPIA govern retention, restriction and requests to correct or delete personal information. The owner must confirm the basis and scope of any statutory, regulatory or litigation hold and determine when it ends. [Protection of Personal Information Act](https://www.gov.za/documents/protection-personal-information-act)

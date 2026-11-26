@@ -21,7 +21,7 @@
 	const trackOnce = createEstimatorOnceTracker();
 	const DRAFT_KEY = 'goat-accounting:business-estimator:v1';
 	const DRAFT_VERSION = 1;
-	const DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+	const DRAFT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 	type CalculatorType = 'business' | 'personal' | 'both';
 	const typeQuestion = {
 		id: 'TYPE', question: 'What would you like an estimate for?', type: 'single',
