@@ -135,8 +135,10 @@ function makeWorkerConfig(lane, port, apiUrl, publishableKey, serviceKey) {
 	const vars = [`SUPABASE_URL=${apiUrl}`, `SUPABASE_PUBLISHABLE_KEY=${publishableKey}`];
 	if (lane === 'enabled') {
 		vars.push('DASHBOARD_RELEASE_ENABLED=true');
-		if (pricingBrowser) vars.push('PRICING_ADMIN_RELEASE_ENABLED=true', `SUPABASE_SECRET_KEY=${serviceKey}`);
-		if (estimatorReleaseBrowser) vars.push('ESTIMATOR_ENABLED=true', 'ESTIMATE_READ_ENABLED=true', `SUPABASE_SECRET_KEY=${serviceKey}`);
+		if (pricingBrowser || estimatorReleaseBrowser) {
+			vars.push('PRICING_ADMIN_RELEASE_ENABLED=true', `SUPABASE_SECRET_KEY=${serviceKey}`);
+		}
+		if (estimatorReleaseBrowser) vars.push('ESTIMATOR_ENABLED=true', 'ESTIMATE_READ_ENABLED=true');
 	}
 	writeFileSync(join(directory, '.dev.vars'), `${vars.join('\n')}\n`, { mode: 0o600 });
 	return { directory, port };

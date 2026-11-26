@@ -311,6 +311,7 @@ test('an expired in-progress draft cannot be submitted as a completed estimate',
  await page.getByRole('button', { name: 'View estimate' }).click();
  await expect(page.getByRole('status')).toContainText('expired');
  await expect(page.getByRole('heading', { name: 'What would you like an estimate for?' })).toBeVisible();
+ expect(await page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY)).toBeNull();
  expect(savedEstimates).toHaveLength(0);
 });
 

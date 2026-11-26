@@ -74,7 +74,7 @@
 	let urgency = $state<string | undefined>();
 	let freeText = $state('');
 	let stepIndex = $state(0);
-	let createdAt = $state(Date.now());
+	let createdAt = $state(0);
 	let expiresAt = $state(0);
 	let idempotencyKey = $state<string | undefined>();
 	let idempotencyPayloadSnapshot = $state<string | undefined>();
@@ -147,10 +147,39 @@
 			answers.taxPosition === 'sars_issue';
 	}
 
-	function saveDraft(): void {
+	function resetDraft(): void {
+		answers = {};
+		personal = {};
+		calculatorType = undefined;
+		urgency = undefined;
+		freeText = '';
+		stepIndex = 0;
+		idempotencyKey = undefined;
+		idempotencyPayloadSnapshot = undefined;
+		createdAt = 0;
+		expiresAt = 0;
+		errorMessage = '';
+		try {
+			sessionStorage.removeItem(DRAFT_KEY);
+		} catch {
+			storageMessage = 'Draft recovery is unavailable in this browser tab.';
+		}
+	}
+
+	function discardExpiredDraft(now = Date.now()): boolean {
+		if (!expiresAt || expiresAt > now) return false;
+		resetDraft();
+		storageMessage = 'Your saved draft expired. Start a new estimate below.';
+		return true;
+	}
+
+	function saveDraft(): boolean {
 		const now = Date.now();
-		if (!createdAt) createdAt = now;
-		if (!expiresAt || expiresAt <= now) expiresAt = createdAt + DRAFT_TTL_MS;
+		if (discardExpiredDraft(now)) return false;
+		if (!expiresAt) {
+			createdAt = now;
+			expiresAt = now + DRAFT_TTL_MS;
+		}
 		const draft: DraftState = {
 			version: DRAFT_VERSION,
 			status: 'IN_PROGRESS',
@@ -171,12 +200,13 @@
 		} catch {
 			storageMessage = 'This browser could not save a draft for this tab.';
 		}
+		return true;
 	}
 
 	function restoreDraft(): void {
 		const url = new URL(window.location.href);
 		if (url.searchParams.get('new') === '1') {
-			sessionStorage.removeItem(DRAFT_KEY);
+			resetDraft();
 			url.searchParams.delete('new');
 			window.history.replaceState(null, '', `${url.pathname}${url.search}${url.hash}`);
 			return;
@@ -187,21 +217,20 @@
 		try {
 			const stored: unknown = JSON.parse(raw);
 			if (!isRecord(stored)) throw new Error('Invalid draft.');
-			const now = Date.now();
 			if (
 				stored.version !== DRAFT_VERSION ||
 				stored.status !== 'IN_PROGRESS' ||
-				typeof stored.expiresAt !== 'number' || stored.expiresAt <= now ||
-				typeof stored.createdAt !== 'number' ||
+				typeof stored.expiresAt !== 'number' || !Number.isFinite(stored.expiresAt) ||
+				typeof stored.createdAt !== 'number' || !Number.isFinite(stored.createdAt) ||
+				stored.expiresAt <= stored.createdAt ||
 				typeof stored.stepIndex !== 'number' || stored.stepIndex < 0 || stored.stepIndex > 15 ||
 				!isRecord(stored.answers) || typeof stored.freeText !== 'string'
 				) {
-				if (typeof stored.expiresAt === 'number' && stored.expiresAt <= now) {
-					storageMessage = 'Your saved draft expired. You can start a new estimate below.';
-				}
-				sessionStorage.removeItem(DRAFT_KEY);
+				resetDraft();
 				return;
 			}
+			expiresAt = stored.expiresAt;
+			if (discardExpiredDraft()) return;
 			answers = stored.answers as Partial<BusinessAnswers>;
 			calculatorType = stored.calculatorType === 'personal' || stored.calculatorType === 'both' ? stored.calculatorType : stored.calculatorType === 'business' || !Object.hasOwn(stored, 'calculatorType') ? 'business' : undefined;
 			personal = isRecord(stored.personal) ? stored.personal as Partial<PersonalAnswers> : {};
@@ -209,13 +238,12 @@
 			freeText = stored.freeText.slice(0, 2000);
 			stepIndex = !Object.hasOwn(stored, 'calculatorType') ? stored.stepIndex + 1 : stored.stepIndex;
 			createdAt = stored.createdAt;
-			expiresAt = stored.expiresAt;
 			idempotencyKey = typeof stored.idempotencyKey === 'string' ? stored.idempotencyKey : undefined;
 			idempotencyPayloadSnapshot = typeof stored.idempotencyPayloadSnapshot === 'string'
 				? stored.idempotencyPayloadSnapshot
 				: undefined;
 		} catch {
-			sessionStorage.removeItem(DRAFT_KEY);
+			resetDraft();
 		}
 	}
 
@@ -407,7 +435,7 @@
 	}
 
 	async function advanceStep(): Promise<void> {
-		if (!validateCurrentStep()) return;
+		if (discardExpiredDraft() || !validateCurrentStep()) return;
 		if (stepIndex < STEP_COUNT - 1) {
 			trackEstimatorEvent('estimate_step_completed', { calculator_type: calculatorType });
 			stepIndex += 1;
@@ -418,7 +446,7 @@
 	}
 
 	async function goBack(): Promise<void> {
-		if (stepIndex === 0) return;
+		if (discardExpiredDraft() || stepIndex === 0) return;
 		stepIndex -= 1;
 		errorMessage = '';
 		saveDraft();
@@ -462,22 +490,7 @@
 	}
 
 	async function submitEstimate(): Promise<void> {
-		if (isSubmitting || !validateCurrentStep()) return;
-		if (expiresAt <= Date.now()) {
-			answers = {};
-			personal = {};
-			calculatorType = undefined;
-			urgency = undefined;
-			freeText = '';
-			stepIndex = 0;
-			idempotencyKey = undefined;
-			idempotencyPayloadSnapshot = undefined;
-			createdAt = Date.now();
-			expiresAt = createdAt + DRAFT_TTL_MS;
-			storageMessage = 'Your saved draft expired. Start a new estimate below.';
-			saveDraft();
-			return;
-		}
+		if (isSubmitting || discardExpiredDraft() || !validateCurrentStep()) return;
 		let canonical: unknown;
 		try {
 			canonical = canonicalAnswers();
@@ -498,7 +511,7 @@
 			idempotencyKey = createIdempotencyKey();
 			idempotencyPayloadSnapshot = payloadSnapshot;
 		}
-		saveDraft();
+		if (!saveDraft()) return;
 		isSubmitting = true;
 		errorMessage = '';
 		try {
@@ -528,7 +541,6 @@
 		trackOnce('estimate_started');
 		try {
 			restoreDraft();
-			saveDraft();
 		} catch {
 			storageMessage = 'Draft recovery is unavailable in this browser tab.';
 		}

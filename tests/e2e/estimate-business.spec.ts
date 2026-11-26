@@ -226,7 +226,7 @@ test('completes a business estimate before contact and retakes as a new saved at
 	await expect(page.locator('#free-text')).toHaveValue(note.slice(0, 2000));
 	const firstRef = await submitEstimate(page);
 	await expect(page.getByRole('heading', { name: 'Your business estimate', exact: true })).toBeVisible();
-	await expect(page.getByText('Indicative estimate, not a final quote.')).toBeVisible();
+	await expect(page.getByLabel('Estimate disclaimer')).toHaveText('This is an indicative estimate based on the information provided, not a binding quotation. Final scope, fees and applicable VAT will be confirmed in writing after reviewing your requirements and records. No work begins without your approval.');
 	await expect(page.getByRole('region', { name: 'Estimate ranges' }).getByText('Catch-up work', { exact: true })).toBeVisible();
 	await expect(page.getByRole('region', { name: 'Estimate ranges' }).getByText('Illustrative monthly equivalent', { exact: true })).toBeVisible();
 	await expect(page.getByText('Business complexity score')).toHaveCount(0);
@@ -513,6 +513,65 @@ test('recovers an in-progress, versioned draft after reload', async ({ page }) =
 	expect(restored).toMatchObject({ version: 1, status: 'IN_PROGRESS' });
 	expect(restored.expiresAt).toBeGreaterThan(Date.now());
 	expect(restored.expiresAt).toBe(restored.createdAt + 7 * 24 * 60 * 60 * 1000);
+});
+
+test('keeps the legacy 24-hour deadline and discards the draft when edited after expiry', async ({ page }) => {
+	await finishDefaultBusinessAnswers(page);
+	const expiresAt = await page.evaluate((key) => {
+		const draft = JSON.parse(sessionStorage.getItem(key)!);
+		const expiresAt = Date.now() + 60_000;
+		sessionStorage.setItem(key, JSON.stringify({
+			...draft, createdAt: expiresAt - 24 * 60 * 60 * 1000, expiresAt,
+			freeText: 'Synthetic legacy note', idempotencyKey: 'a'.repeat(43),
+			idempotencyPayloadSnapshot: 'legacy payload'
+		}));
+		return expiresAt;
+	}, DRAFT_KEY);
+	await page.reload();
+	await expect(page.locator('#free-text')).toHaveValue('Synthetic legacy note');
+	await page.locator('#free-text').fill('Edited before expiry');
+	expect(await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)!).expiresAt, DRAFT_KEY)).toBe(expiresAt);
+
+	await page.clock.setFixedTime(expiresAt + 1);
+	await page.locator('#free-text').fill('Edited after expiry');
+	await expect(page.getByRole('status')).toContainText('expired');
+	await expect(page.getByRole('heading', { name: 'What would you like an estimate for?' })).toBeVisible();
+	expect(await page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY)).toBeNull();
+	await choose(page, 'Business accounting');
+	expect(await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)!), DRAFT_KEY)).toMatchObject({
+		answers: {}, personal: {}, freeText: '', createdAt: expiresAt + 1,
+		expiresAt: expiresAt + 1 + 7 * 24 * 60 * 60 * 1000
+	});
+	const newDraft = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)!), DRAFT_KEY);
+	expect(newDraft).not.toHaveProperty('idempotencyKey');
+	expect(newDraft).not.toHaveProperty('idempotencyPayloadSnapshot');
+});
+
+test('discards an expired legacy draft on reload', async ({ page }) => {
+	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	await advance(page);
+	await choose(page, 'Sole proprietor');
+	await page.evaluate((key) => {
+		const draft = JSON.parse(sessionStorage.getItem(key)!);
+		const expiresAt = Date.now() - 1;
+		sessionStorage.setItem(key, JSON.stringify({ ...draft, createdAt: expiresAt - 24 * 60 * 60 * 1000, expiresAt }));
+	}, DRAFT_KEY);
+	await page.reload();
+	await expect(page.getByRole('status')).toContainText('expired');
+	await expect(page.getByRole('heading', { name: 'What would you like an estimate for?' })).toBeVisible();
+	expect(await page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY)).toBeNull();
+});
+
+test('discards an expired open-tab draft before navigating questions', async ({ page }) => {
+	await page.goto(`${APP_ORIGIN}/estimate`);
+	await choose(page, 'Business accounting');
+	const expiresAt = await page.evaluate((key) => JSON.parse(sessionStorage.getItem(key)!).expiresAt, DRAFT_KEY);
+	await page.clock.setFixedTime(expiresAt);
+	await advance(page);
+	await expect(page.getByRole('status')).toContainText('expired');
+	await expect(page.getByRole('heading', { name: 'What would you like an estimate for?' })).toBeVisible();
+	expect(await page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY)).toBeNull();
 });
 
 test('reuses the completion idempotency key on retry after an unavailable API response', async ({ page }) => {
