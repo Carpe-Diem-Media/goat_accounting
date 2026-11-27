@@ -1,4 +1,5 @@
 import { VAT_FEES_EXCLUDED_NOTICE } from '../estimator/estimate-disclosures';
+import { ESTIMATE_DISCLAIMER } from '../../domain/estimator/estimate-disclaimer';
 import {
 	PDFDocument,
 	StandardFonts,
@@ -153,8 +154,8 @@ function formatRange(minCents: number, maxCents: number): string {
 	return `${formatZar(minCents, false)} - ${formatZar(maxCents, true)}`;
 }
 
-function wrapText(text: string, font: PDFFont, size: number, width: number, maxLines = 4): string[] {
-	const normalized = normalizeText(text);
+function wrapText(text: string, font: PDFFont, size: number, width: number, maxLines = 4, maxTextLength = MAX_TEXT_LENGTH): string[] {
+	const normalized = normalizeText(text, maxTextLength);
 	if (!normalized) return [''];
 	const lines: string[] = [];
 	let line = '';
@@ -203,9 +204,9 @@ function drawWrapped(
 	page: PDFPage,
 	text: string,
 	font: PDFFont,
-	options: Readonly<{ x: number; y: number; size: number; width: number; color: ReturnType<typeof rgb>; maxLines?: number; lineHeight?: number }>
+	options: Readonly<{ x: number; y: number; size: number; width: number; color: ReturnType<typeof rgb>; maxLines?: number; lineHeight?: number; maxTextLength?: number }>
 ): number {
-	const lines = wrapText(text, font, options.size, options.width, options.maxLines ?? 4);
+	const lines = wrapText(text, font, options.size, options.width, options.maxLines, options.maxTextLength);
 	const lineHeight = options.lineHeight ?? options.size + 2;
 	lines.forEach((line, index) => {
 		page.drawText(line, { x: options.x, y: options.y - index * lineHeight, size: options.size, font, color: options.color });
@@ -355,11 +356,20 @@ function drawFirstPageNotes(
 			x: PAGE_MARGIN, y: 224, size: 8.5, font: fonts.body, color: COLORS.alert
 		});
 	}
-	page.drawText('Indicative, not a final quote.', { x: PAGE_MARGIN, y: 211, size: 8.5, font: fonts.body, color: COLORS.muted });
+	const disclaimerY = 211;
+	const disclaimerHeight = drawWrapped(page, ESTIMATE_DISCLAIMER, fonts.body, {
+		x: PAGE_MARGIN,
+		y: disclaimerY,
+		size: 8.5,
+		width: PAGE_WIDTH - PAGE_MARGIN * 2,
+		color: COLORS.muted,
+		maxTextLength: ESTIMATE_DISCLAIMER.length,
+		lineHeight: 11
+	});
 	if (contactEmail) {
 		drawWrapped(page, `Contact Rossouw: ${contactEmail}`, fonts.body, {
 			x: PAGE_MARGIN,
-			y: 190,
+			y: disclaimerY - disclaimerHeight - 10,
 			size: 8.5,
 			width: PAGE_WIDTH - PAGE_MARGIN * 2,
 			color: COLORS.ink,

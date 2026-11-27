@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'bun:test';
-import { decodePDFRawStream, PDFArray, PDFDocument, PDFRawStream, StandardFonts } from 'pdf-lib';
+import { PDFDocument, StandardFonts } from 'pdf-lib';
+import { extractPdfText } from '../../../../tests/support/pdf-text';
 import type { EstimateDocumentModel } from './estimate-pdf';
 
 async function loadPdfModule() {
@@ -75,26 +76,16 @@ function manyItemDocumentModel(): EstimateDocumentModel {
 	};
 }
 
-async function extractPdfText(bytes: Uint8Array): Promise<string> {
-	const document = await PDFDocument.load(bytes);
-	const textRuns: string[] = [];
-	for (const page of document.getPages()) {
-		const contents = page.node.Contents();
-		const references = contents instanceof PDFArray ? contents.asArray() : contents ? [contents] : [];
-		for (const reference of references) {
-			const stream = reference instanceof PDFRawStream ? reference : document.context.lookup(reference as never);
-			if (!(stream instanceof PDFRawStream)) continue;
-			const source = new TextDecoder().decode(decodePDFRawStream(stream).decode());
-			for (const match of source.matchAll(/<([0-9A-F]+)>\s*Tj/g)) {
-				const bytes = match[1].match(/.{2}/g) ?? [];
-				textRuns.push(bytes.map((byte) => String.fromCharCode(Number.parseInt(byte, 16))).join(''));
-			}
-		}
-	}
-	return textRuns.join('\n').replace(/\s+/g, ' ');
-}
-
 describe('saved estimate PDF renderer', () => {
+	it('prints the complete approved V1 disclaimer with the optional advisor contact', async () => {
+		const { renderEstimatePdf } = await import('./estimate-pdf');
+		const text = await extractPdfText(await renderEstimatePdf(minimumDocumentModel(), {
+			contactEmail: 'advisor@example.invalid'
+		}));
+		expect(text).toContain('This is an indicative estimate based on the information provided, not a binding quotation. Final scope, fees and applicable VAT will be confirmed in writing after reviewing your requirements and records. No work begins without your approval.');
+		expect(text).toContain('Contact Rossouw: advisor@example.invalid');
+	});
+
 	it('labels ongoing items and discloses saved VAT exclusion', async () => {
 		const { renderEstimatePdf } = await import('./estimate-pdf');
 		const text = await extractPdfText(await renderEstimatePdf({
@@ -146,7 +137,7 @@ describe('saved estimate PDF renderer', () => {
 		expect(text).toContain('R 450 - R 800');
 		expect(text).toContain('Confidence: preliminary');
 		expect(text).toContain('Manual review required');
-		expect(text).toContain('Indicative, not a final quote.');
+		expect(text).toContain('This is an indicative estimate based on the information provided');
 		expect(text).toContain('VOID');
 		expect(text).toContain('Resume "records" - unsupported glyphs: ?? ??');
 		expect(text).not.toMatch(/R\s+[\d,]+\.\d{2}/);

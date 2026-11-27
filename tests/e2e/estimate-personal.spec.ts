@@ -307,10 +307,11 @@ test('an expired in-progress draft cannot be submitted as a completed estimate',
  await choose(page, 'Current'); await advance(page); await choose(page, 'Salary/remuneration'); await advance(page);
  await choose(page, 'Normal filing only'); await advance(page); await choose(page, 'Annual personal tax return'); await advance(page);
  await choose(page, 'No urgent deadline');
- await page.evaluate(() => { const now = Date.now(); Date.now = () => now + 25 * 60 * 60 * 1000; });
+ await page.evaluate(() => { const now = Date.now(); Date.now = () => now + 8 * 24 * 60 * 60 * 1000; });
  await page.getByRole('button', { name: 'View estimate' }).click();
  await expect(page.getByRole('status')).toContainText('expired');
  await expect(page.getByRole('heading', { name: 'What would you like an estimate for?' })).toBeVisible();
+ expect(await page.evaluate((key) => sessionStorage.getItem(key), DRAFT_KEY)).toBeNull();
  expect(savedEstimates).toHaveLength(0);
 });
 
